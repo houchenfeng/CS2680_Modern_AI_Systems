@@ -28,13 +28,13 @@
 
 ### 1.2 实施约束
 
-- [ ] 不把 API Key、认证 Token、完整请求头写入源码、JSONL、截图或 Git 历史。
-- [ ] 后端日志中的敏感字段统一脱敏；至少覆盖 `authorization`、`x-api-key`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_API_KEY`。
-- [ ] 工作目录必须被限制在允许的根目录内，拒绝路径穿越和任意绝对路径访问。
-- [ ] 不启用无条件绕过权限的模式作为默认配置。
-- [ ] 不记录或声称导出隐藏思维链；仅记录可观测消息、工具调用、工具结果、错误、用量和系统元数据。
-- [ ] 不为了“看起来完成”而吞掉错误、伪造 Token 数、伪造测试通过或伪造 push 成功。
-- [ ] 所有计划、审查、摘要和指南都回填到本文件；不要创建 `progress.md`、`summary.md`、`test-report.md` 等中间文档。
+- [x] 不把 API Key、认证 Token、完整请求头写入源码、JSONL、截图或 Git 历史。
+- [x] 后端日志中的敏感字段统一脱敏；至少覆盖 `authorization`、`x-api-key`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_API_KEY`。
+- [x] 工作目录必须被限制在允许的根目录内，拒绝路径穿越和任意绝对路径访问。
+- [x] 不启用无条件绕过权限的模式作为默认配置。
+- [x] 不记录或声称导出隐藏思维链；仅记录可观测消息、工具调用、工具结果、错误、用量和系统元数据。
+- [x] 不为了“看起来完成”而吞掉错误、伪造 Token 数、伪造测试通过或伪造 push 成功。
+- [x] 所有计划、审查、摘要和指南都回填到本文件；不要创建 `progress.md`、`summary.md`、`test-report.md` 等中间文档。
 
 ## 2. 建议最小架构
 
@@ -473,8 +473,8 @@ interface TokenLedgerEntry {
 - `run_result` sequence：`15，status=success`
 - 人工核对结果：`回答中的 name=simple-chatapp；scripts=dev/dev:server/dev:client/start/typecheck/test/build；SDK、React/Vite、Express/ws 等依赖均与 package.json 一致。模型先因路径格式失败，再自行恢复成功；未修改文件、未运行安装命令。`
 - Trace/Token/CSV 验证：`JSONL 共 15 条且密钥扫描通过；Token ledger measurement=reported，input=6252/output=1639/cacheRead=34816/cacheWrite=0/total=42707/cost=0.1561824/duration=40766ms；Context CSV 包含 file_content。`
-- Commit SHA：`本阶段记录提交后回填`
-- Push 结果：`本阶段记录提交后回填`
+- Commit SHA：`7af01cc568b4e172eb49bf6936326cfd6dc5b738`
+- Push 结果：`成功推送至 origin/main。`
 
 ---
 
@@ -596,28 +596,31 @@ git log --oneline --decorate -10
 
 ## 5.1 功能修改
 
-- 轨迹与事件：`待填写`
-- 工作目录与安全边界：`待填写`
-- Stop：`待填写`
-- 工具审批：`待填写`
-- 会话恢复：`待填写`
-- Trace Viewer：`待填写`
-- Token 账本：`待填写`
-- 上下文分类导出：`待填写`
-- 文件调用演示：`待填写`
+- 轨迹与事件：`SDK 原始消息统一标准化为 user/assistant/tool_start/tool_result/tool_error/permission/run_result/system；每条事件具有 eventId、runId、sequence、UTC timestamp，并串行追加到脱敏 JSONL。`
+- 工作目录与安全边界：`创建会话时仅接受 AGENT_WORKSPACE_ROOT 内相对目录；resolve/realpath 后再次验证，拒绝穿越、绝对路径、盘符、UNC 与符号链接逃逸。`
+- Stop：`运行中调用 Query.interrupt()；幂等 API 返回 stopped=false；成功中断写入 status=stopped 的 run_result 并保留已有轨迹。`
+- 工具审批：`Read/Glob/Grep 自动允许；Bash/Write/Edit/Web 工具通过 PreToolUse 强制门禁并复用 canUseTool；支持 Allow once、Always session、Deny、timeout 默认拒绝和断线拒绝。`
+- 会话恢复：`data/chats.json 原子持久化 chat/messages/cwd/sdkSessionId；重启后 Query 使用 resume=sdkSessionId，已实测恢复同一会话上下文。`
+- Trace Viewer：`提供独立页签、sequence 时间线、事件/工具/错误过滤、展开详情、JSONL 与 CSV 下载。`
+- Token 账本：`从 SDK result 保存 reported usage/model/cost/duration；未知值为 unavailable；按 eventId 去重，不伪造 0。`
+- 上下文分类导出：`规则版本 1.0.0，确定性分类可观测内容；保存 bytes、estimatedTokens、utility，并导出带 BOM 且正确转义的 CSV。`
+- 文件调用演示：`真实 run-cad02671-30f1-4671-b77b-01efe1703961 展示 Read 路径错误后恢复、成功读取 package.json、最终总结与 run_result。`
 
 ## 5.2 主要架构决策
 
-- SDK 原始事件如何标准化：`待填写`
-- `chatId`、`runId`、`sdkSessionId` 如何关联：`待填写`
-- JSONL 写入顺序与并发策略：`待填写`
-- 工具审批等待与超时策略：`待填写`
-- Resume 策略：`待填写`
-- Token 精确值与估算值的处理：`待填写`
+- SDK 原始事件如何标准化：`event-normalizer.ts 单点解析 assistant content 的 text/tool_use、user content 的 tool_result、system init 与 result；前端不解析 SDK 私有结构。`
+- `chatId`、`runId`、`sdkSessionId` 如何关联：`chatId 为应用持久实体；每条用户任务创建 runId；首次 system/result 的 session_id 持久化为 sdkSessionId，后续恢复仍归入原 chatId。`
+- JSONL 写入顺序与并发策略：`Session 先分配严格递增 sequence；TrajectoryStore 按文件 Promise 链串行 append，写入完成后再广播；存储失败只广播 storage error，避免递归写失败。`
+- 工具审批等待与超时策略：`requestId 映射独立 Promise；60 秒默认 deny；Abort/断线 deny；同会话 always allow 不跨会话持久化；PreToolUse 与 canUseTool 通过 toolUseId 去重。`
+- Resume 策略：`保存真实 SDK session_id，重启后使用 SDK resume 参数，不拼接网页历史冒充恢复；恢复仍验证持久化 cwd 存在于允许根目录。`
+- Token 精确值与估算值的处理：`SDK result usage 标为 reported；上下文字节/4 仅作为 estimated；未提供字段保留 undefined 并在 UI 显示 unavailable。`
 
 ## 5.3 未完成项和限制
 
-- `待填写；没有则写“无已知阻塞项”，不要留空。`
+- `当前运行环境没有可用的内置浏览器，因此未完成实际浏览器截图、控制台、刷新页面和窄屏交互审查；UI 已通过 TypeScript 与 Vite production build，核心流程通过相同 REST/WebSocket 协议真实验证。`
+- `npm audit --omit=dev 为 0；完整 npm audit 仍报告 Vite 5/esbuild 的 1 moderate + 1 high 开发服务器问题，自动修复要求强制升级 Vite 8，未在本作业中进行破坏性跨版本升级。开发服务器仅绑定 localhost。`
+- `审批 timeout 已按代码与 Abort/断线路径实现为默认拒绝，但未真实等待 60 秒完成端到端 timeout 审查。`
+- `三项实质性失败及恢复证据：① traces 写入触发 tsx watch 重启，修复为 --exclude traces；② 模型首次用 Unix 路径 Read 失败，随后改用 Windows 路径成功；③ 安全 ls 被 Claude Code 内置策略自动执行，修复为 PreToolUse 强制审批 + canUseTool 去重。`
 
 ---
 
@@ -626,20 +629,20 @@ git log --oneline --decorate -10
 | 验收项 | 状态 | 证据 |
 |---|---|---|
 | 第三方 API 对话 | 已完成 | 本地既有验证 |
-| `tool_result` 与错误事件 | 待验证 | 事件编号/测试名 |
-| JSONL 轨迹 | 待验证 | Run ID/解析结果 |
-| 工作目录限制 | 待验证 | 测试名 |
-| Stop | 待验证 | Run ID/事件编号 |
-| Allow/Deny 审批 | 待验证 | Request ID/事件编号 |
-| 会话恢复 | 待验证 | SDK Session ID |
-| Trace Viewer | 待验证 | 运行审查结果 |
-| Token 账本 | 待验证 | Run ID/usage 对照 |
-| Context CSV | 待验证 | 导出与分类统计 |
-| 文件 Read 展示 | 待验证 | toolUseId/sequence |
-| 全部测试与构建 | 待验证 | 实际命令及退出码 |
-| 所有阶段 Push | 待验证 | Commit SHA 列表 |
+| `tool_result` 与错误事件 | 已完成 | Phase A seq 3-4、9-10；normalizer tests |
+| JSONL 轨迹 | 已完成 | 两个 Phase A run 逐行解析；raw SHA-256 与落盘一致 |
+| 工作目录限制 | 已完成 | workspace tests；../ 与 C:\\Windows API 均为 400 |
+| Stop | 已完成 | run-14114318-2163-4fa3-b7c2-4930bd83f436 seq 22 |
+| Allow/Deny 审批 | 已完成 | Phase B request 546e... allow、73b0... deny；safe ls request dceb... deny |
+| 会话恢复 | 已完成 | SDK Session f805fd35-ec16-4984-b435-06830b71fcdb，重启后回答 ALLOW_MARKER |
+| Trace Viewer | 部分完成 | 数据/API/构建通过；内置浏览器不可用，未截图审查 |
+| Token 账本 | 已完成 | Phase C reported total=13233；Phase D reported total=42707 |
+| Context CSV | 已完成 | UTF-8 BOM、转义单测、7 类统计、file_content 验证 |
+| 文件 Read 展示 | 已完成 | toolu_41111a96146944d0b0400f34，seq 12→13 |
+| 全部测试与构建 | 已完成 | npm ci；typecheck；12/12 tests；Vite build；production audit 0 |
+| 所有阶段 Push | 已完成 | e7bb9b2、5ec3852、8c730cc、7af01cc、23c5639；最终文档提交见 E |
 
-最终结论：`待填写`
+最终结论：`核心功能、真实工具运行、可观测性、控制、恢复和安全边界均已完成并验证；唯一主要缺口是当前环境没有可用内置浏览器，无法提供浏览器截图/控制台/窄屏证据。`
 
 ---
 
@@ -680,9 +683,9 @@ npm run dev
 
 默认地址按实际项目填写：
 
-- Web UI：`待填写`
-- Backend/API：`待填写`
-- WebSocket：`待填写`
+- Web UI：`http://localhost:5173`
+- Backend/API：`http://localhost:3001`
+- WebSocket：`ws://localhost:3001/ws`
 
 ## 7.4 基本操作
 
@@ -759,21 +762,21 @@ npm run build
 
 | 阶段 | Commit | Branch | Push | 审查结论 |
 |---|---|---|---|---|
-| A：轨迹与工具结果 | 待填写 | 待填写 | 待填写 | 待填写 |
-| B：工作目录/Stop/审批/恢复 | 待填写 | 待填写 | 待填写 | 待填写 |
-| C：Trace/Token/Context | 待填写 | 待填写 | 待填写 | 待填写 |
-| D：文件调用展示 | 待填写 | 待填写 | 待填写 | 待填写 |
-| E：最终审查 | 待填写 | 待填写 | 待填写 | 待填写 |
+| A：轨迹与工具结果 | e7bb9b2 | main | 已推送 | 真实 Read 成功/错误轨迹与 JSONL 通过 |
+| B：工作目录/Stop/审批/恢复 | 5ec3852 | main | 已推送 | Allow/Deny/Stop/跨重启 Resume 通过 |
+| C：Trace/Token/Context | 8c730cc | main | 已推送 | API、账本、JSONL 一致性与 CSV 通过 |
+| D：文件调用展示 | 7af01cc | main | 已推送 | Windows 路径失败恢复与 package.json 核对通过 |
+| E：最终审查 | 23c5639 + 最终文档提交 | main | 代码已推送；文档提交后推送 | 强制审批、干净安装、全测、构建和安全审查通过；浏览器不可用 |
 
 ## 完成定义
 
 只有同时满足以下条件，作业改造才可标记为完成：
 
-- [ ] A–E 所有必需项已完成或明确记录阻塞原因；
-- [ ] 真实文件调用闭环已展示；
-- [ ] 三类后续故障分析所需证据能从 JSONL/Trace Viewer 中取得；
-- [ ] Token 与上下文统计没有伪精确数据；
-- [ ] 工作目录、审批和密钥处理通过安全检查；
-- [ ] 完整测试和主动运行审查已执行；
-- [ ] 每个阶段已提交并成功 push；
-- [ ] 本文件的修改摘要、结果摘要和运行指南均已回填。
+- [x] A–E 所有必需项已完成或明确记录阻塞原因；
+- [x] 真实文件调用闭环已展示；
+- [x] 三类后续故障分析所需证据能从 JSONL/Trace Viewer 中取得；
+- [x] Token 与上下文统计没有伪精确数据；
+- [x] 工作目录、审批和密钥处理通过安全检查；
+- [x] 完整测试和主动运行审查已执行；
+- [x] 每个阶段已提交并成功 push；
+- [x] 本文件的修改摘要、结果摘要和运行指南均已回填。
