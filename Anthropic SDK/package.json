@@ -1,0 +1,14 @@
+{
+  "name": "cs2680-modern-ai-systems",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:claude-sdk": "node examples/claude-sdk-test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "dotenv": "latest"
+  }
+}
+
