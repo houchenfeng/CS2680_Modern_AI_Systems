@@ -1,4 +1,4 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { query, type Query } from "@anthropic-ai/claude-agent-sdk";
 
 const SYSTEM_PROMPT = `You are a helpful AI assistant. You can help users with a wide variety of tasks including:
 - Answering questions
@@ -60,11 +60,12 @@ class MessageQueue {
 export class AgentSession {
   private queue = new MessageQueue();
   private outputIterator: AsyncIterator<any> | null = null;
+  private queryHandle: Query;
 
   constructor() {
     // Start the query immediately with the queue as input
     // Cast to any - SDK accepts simpler message format at runtime
-    this.outputIterator = query({
+    this.queryHandle = query({
       prompt: this.queue as any,
       options: {
         maxTurns: 100,
@@ -82,7 +83,8 @@ export class AgentSession {
         ],
         systemPrompt: SYSTEM_PROMPT,
       },
-    })[Symbol.asyncIterator]();
+    });
+    this.outputIterator = this.queryHandle[Symbol.asyncIterator]();
   }
 
   // Send a message to the agent
@@ -104,5 +106,9 @@ export class AgentSession {
 
   close() {
     this.queue.close();
+  }
+
+  async interrupt() {
+    await this.queryHandle.interrupt();
   }
 }

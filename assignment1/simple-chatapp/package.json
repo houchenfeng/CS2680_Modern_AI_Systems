@@ -5,9 +5,11 @@
   "description": "A simple chat application with Claude Agent SDK",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx watch server/server.ts",
+    "dev:server": "tsx watch --exclude traces server/server.ts",
     "dev:client": "vite --port 5173",
     "start": "tsx server/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test server/*.test.ts",
     "build": "vite build"
   },
   "dependencies": {

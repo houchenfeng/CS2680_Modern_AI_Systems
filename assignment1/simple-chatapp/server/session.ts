@@ -1,104 +1,87 @@
+import { randomUUID } from "node:crypto";
 import type { WSClient } from "./types.js";
 import { AgentSession } from "./ai-client.js";
 import { chatStore } from "./chat-store.js";
+import type { AgentEvent } from "./events.js";
+import { normalizeSdkMessage } from "./event-normalizer.js";
+import { normalizeError, redact } from "./redaction.js";
+import { trajectoryStore } from "./trajectory.js";
 
-// Session manages a single chat conversation with a long-lived agent
 export class Session {
   public readonly chatId: string;
-  private subscribers: Set<WSClient> = new Set();
-  private agentSession: AgentSession;
+  private readonly subscribers = new Set<WSClient>();
+  private readonly agentSession = new AgentSession();
   private isListening = false;
+  private sequence = 0;
+  private runId = "";
+  private sdkSessionId?: string;
+  private readonly toolNames = new Map<string, string>();
 
   constructor(chatId: string) {
     this.chatId = chatId;
-    this.agentSession = new AgentSession();
   }
 
-  // Start listening to agent output (call once)
+  private build(payload: Partial<AgentEvent> & Pick<AgentEvent, "eventType">): AgentEvent {
+    return {
+      schemaVersion: 1,
+      eventId: randomUUID(),
+      sequence: ++this.sequence,
+      timestamp: new Date().toISOString(),
+      chatId: this.chatId,
+      runId: this.runId,
+      ...payload,
+    };
+  }
+
+  private async emit(event: AgentEvent) {
+    if (event.toolUseId && event.toolName) this.toolNames.set(event.toolUseId, event.toolName);
+    if (event.toolUseId && !event.toolName) event.toolName = this.toolNames.get(event.toolUseId);
+    if (event.sdkSessionId) this.sdkSessionId = event.sdkSessionId;
+    try {
+      const safe = await trajectoryStore.append(event);
+      this.broadcast({ type: "agent_event", event: safe });
+    } catch (error) {
+      const storageEvent = this.build({
+        eventType: "system",
+        level: "error",
+        message: "Trajectory storage failed",
+        error: normalizeError(error, "storage"),
+      });
+      this.broadcast({ type: "agent_event", event: redact(storageEvent) });
+    }
+  }
+
   private async startListening() {
     if (this.isListening) return;
     this.isListening = true;
-
     try {
       for await (const message of this.agentSession.getOutputStream()) {
-        this.handleSDKMessage(message);
-      }
-    } catch (error) {
-      console.error(`Error in session ${this.chatId}:`, error);
-      this.broadcastError((error as Error).message);
-    }
-  }
-
-  // Send a user message to the agent
-  sendMessage(content: string) {
-    // Store user message
-    chatStore.addMessage(this.chatId, {
-      role: "user",
-      content,
-    });
-
-    // Broadcast user message to subscribers
-    this.broadcast({
-      type: "user_message",
-      content,
-      chatId: this.chatId,
-    });
-
-    // Send to agent first (this starts the session if needed)
-    this.agentSession.sendMessage(content);
-
-    // Start listening if not already
-    if (!this.isListening) {
-      this.startListening();
-    }
-  }
-
-  private handleSDKMessage(message: any) {
-    if (message.type === "assistant") {
-      const content = message.message.content;
-
-      if (typeof content === "string") {
-        chatStore.addMessage(this.chatId, {
-          role: "assistant",
-          content,
-        });
-        this.broadcast({
-          type: "assistant_message",
-          content,
-          chatId: this.chatId,
-        });
-      } else if (Array.isArray(content)) {
-        for (const block of content) {
-          if (block.type === "text") {
-            chatStore.addMessage(this.chatId, {
-              role: "assistant",
-              content: block.text,
-            });
-            this.broadcast({
-              type: "assistant_message",
-              content: block.text,
-              chatId: this.chatId,
-            });
-          } else if (block.type === "tool_use") {
-            this.broadcast({
-              type: "tool_use",
-              toolName: block.name,
-              toolId: block.id,
-              toolInput: block.input,
-              chatId: this.chatId,
-            });
+        const events = normalizeSdkMessage(message, (payload) => this.build(payload));
+        for (const event of events) {
+          if (event.eventType === "assistant_message" && event.content) {
+            chatStore.addMessage(this.chatId, { role: "assistant", content: event.content });
           }
+          await this.emit(event);
         }
       }
-    } else if (message.type === "result") {
-      this.broadcast({
-        type: "result",
-        success: message.subtype === "success",
-        chatId: this.chatId,
-        cost: message.total_cost_usd,
-        duration: message.duration_ms,
-      });
+    } catch (error) {
+      await this.emit(this.build({
+        eventType: "run_result",
+        status: "error",
+        error: normalizeError(error, "sdk"),
+        sdkSessionId: this.sdkSessionId,
+      }));
+    } finally {
+      this.isListening = false;
     }
+  }
+
+  async sendMessage(content: string) {
+    this.runId = `run-${randomUUID()}`;
+    const stored = chatStore.addMessage(this.chatId, { role: "user", content });
+    await this.emit(this.build({ eventType: "user_message", content, messageId: stored.id }));
+    this.agentSession.sendMessage(content);
+    void this.startListening();
   }
 
   subscribe(client: WSClient) {
@@ -110,33 +93,17 @@ export class Session {
     this.subscribers.delete(client);
   }
 
-  hasSubscribers(): boolean {
-    return this.subscribers.size > 0;
-  }
-
-  private broadcast(message: any) {
-    const messageStr = JSON.stringify(message);
+  private broadcast(message: unknown) {
+    const serialized = JSON.stringify(redact(message));
     for (const client of this.subscribers) {
-      try {
-        if (client.readyState === client.OPEN) {
-          client.send(messageStr);
-        }
-      } catch (error) {
-        console.error("Error broadcasting to client:", error);
-        this.subscribers.delete(client);
-      }
+      if (client.readyState === client.OPEN) client.send(serialized);
     }
   }
 
-  private broadcastError(error: string) {
-    this.broadcast({
-      type: "error",
-      error,
-      chatId: this.chatId,
-    });
+  async stop() {
+    await this.agentSession.interrupt();
   }
 
-  // Close the session
   close() {
     this.agentSession.close();
   }

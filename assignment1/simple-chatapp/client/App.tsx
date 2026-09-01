@@ -1,207 +1,123 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { ChatList } from "./components/ChatList";
 import { ChatWindow } from "./components/ChatWindow";
+import type { AgentEvent, Chat } from "./types";
 
-interface Chat {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Message {
-  id: string;
-  role: "user" | "assistant" | "tool_use";
-  content: string;
-  timestamp: string;
-  toolName?: string;
-  toolInput?: Record<string, any>;
-}
-
-// Use relative URLs - Vite will proxy to the backend
 const API_BASE = "/api";
 const WS_URL = `ws://${window.location.hostname}:3001/ws`;
 
 export default function App() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [events, setEvents] = useState<AgentEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Handle WebSocket messages
-  const handleWSMessage = useCallback((message: any) => {
-    switch (message.type) {
-      case "connected":
-        console.log("Connected to server");
-        break;
-
-      case "history":
-        setMessages(message.messages || []);
-        break;
-
-      case "user_message":
-        // User message already added locally
-        break;
-
-      case "assistant_message":
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: message.content,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-        setIsLoading(false);
-        break;
-
-      case "tool_use":
-        // Add tool use to messages array so it persists
-        // Alternative: To show tool uses only while pending, store them in a
-        // separate `pendingToolUses` state and clear it on "assistant_message" or "result"
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: message.toolId,
-            role: "tool_use",
-            content: "",
-            timestamp: new Date().toISOString(),
-            toolName: message.toolName,
-            toolInput: message.toolInput,
-          },
-        ]);
-        break;
-
-      case "result":
-        setIsLoading(false);
-        // Refresh chat list to get updated titles
-        fetchChats();
-        break;
-
-      case "error":
-        console.error("Server error:", message.error);
-        setIsLoading(false);
-        break;
-    }
+  const fetchChats = useCallback(async () => {
+    const response = await fetch(`${API_BASE}/chats`);
+    if (!response.ok) throw new Error(`Failed to load chats (${response.status})`);
+    setChats(await response.json());
   }, []);
+
+  const handleWSMessage = useCallback((message: any) => {
+    if (message.type === "history") {
+      const history = (message.messages || []).map((item: any, index: number): AgentEvent => ({
+        schemaVersion: 1,
+        eventId: item.id,
+        runId: "history",
+        chatId: item.chatId,
+        sequence: index - message.messages.length,
+        timestamp: item.timestamp,
+        eventType: item.role === "user" ? "user_message" : "assistant_message",
+        content: item.content,
+      }));
+      setEvents(history);
+      return;
+    }
+    if (message.type === "agent_event") {
+      const event = message.event as AgentEvent;
+      setEvents((previous) => previous.some((item) => item.eventId === event.eventId) ? previous : [...previous, event]);
+      if (event.eventType === "run_result") {
+        setIsLoading(false);
+        void fetchChats();
+      }
+      return;
+    }
+    if (message.type === "error") {
+      setError(message.error?.message || String(message.error));
+      setIsLoading(false);
+    }
+  }, [fetchChats]);
 
   const { sendJsonMessage, readyState, lastJsonMessage } = useWebSocket(WS_URL, {
     shouldReconnect: () => true,
     reconnectAttempts: 10,
     reconnectInterval: 3000,
   });
-
   const isConnected = readyState === ReadyState.OPEN;
 
-  // Handle incoming WebSocket messages
   useEffect(() => {
-    if (lastJsonMessage) {
-      handleWSMessage(lastJsonMessage);
-    }
+    if (lastJsonMessage) handleWSMessage(lastJsonMessage);
   }, [lastJsonMessage, handleWSMessage]);
 
-  // Fetch all chats
-  const fetchChats = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/chats`);
-      const data = await res.json();
-      setChats(data);
-    } catch (error) {
-      console.error("Failed to fetch chats:", error);
-    }
-  };
+  useEffect(() => {
+    void fetchChats().catch((caught) => setError(caught.message));
+  }, [fetchChats]);
 
-  // Create new chat
   const createChat = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/chats`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const chat = await res.json();
-      setChats((prev) => [chat, ...prev]);
-      selectChat(chat.id);
-    } catch (error) {
-      console.error("Failed to create chat:", error);
-    }
+    const response = await fetch(`${API_BASE}/chats`, { method: "POST", headers: { "Content-Type": "application/json" } });
+    if (!response.ok) throw new Error(`Failed to create chat (${response.status})`);
+    const chat = await response.json();
+    setChats((previous) => [chat, ...previous]);
+    setSelectedChatId(chat.id);
+    setEvents([]);
+    sendJsonMessage({ type: "subscribe", chatId: chat.id });
   };
 
-  // Delete chat
   const deleteChat = async (chatId: string) => {
-    try {
-      await fetch(`${API_BASE}/chats/${chatId}`, { method: "DELETE" });
-      setChats((prev) => prev.filter((c) => c.id !== chatId));
-      if (selectedChatId === chatId) {
-        setSelectedChatId(null);
-        setMessages([]);
-      }
-    } catch (error) {
-      console.error("Failed to delete chat:", error);
+    const response = await fetch(`${API_BASE}/chats/${chatId}`, { method: "DELETE" });
+    if (!response.ok) throw new Error(`Failed to delete chat (${response.status})`);
+    setChats((previous) => previous.filter((chat) => chat.id !== chatId));
+    if (selectedChatId === chatId) {
+      setSelectedChatId(null);
+      setEvents([]);
     }
   };
 
-  // Select a chat
   const selectChat = (chatId: string) => {
     setSelectedChatId(chatId);
-    setMessages([]);
+    setEvents([]);
     setIsLoading(false);
-
-    // Subscribe to chat via WebSocket
+    setError(null);
     sendJsonMessage({ type: "subscribe", chatId });
   };
 
-  // Send a message
-  const handleSendMessage = (content: string) => {
+  const sendMessage = (content: string) => {
     if (!selectedChatId || !isConnected) return;
-
-    // Add message optimistically
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role: "user",
-        content,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-
     setIsLoading(true);
-
-    // Send via WebSocket
-    sendJsonMessage({
-      type: "chat",
-      content,
-      chatId: selectedChatId,
-    });
+    setError(null);
+    sendJsonMessage({ type: "chat", content, chatId: selectedChatId });
   };
 
-  // Initial fetch
-  useEffect(() => {
-    fetchChats();
-  }, []);
-
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="w-64 shrink-0">
+    <div className="flex h-screen bg-slate-100">
+      <aside className="w-64 shrink-0">
         <ChatList
           chats={chats}
           selectedChatId={selectedChatId}
           onSelectChat={selectChat}
-          onNewChat={createChat}
-          onDeleteChat={deleteChat}
+          onNewChat={() => void createChat().catch((caught) => setError(caught.message))}
+          onDeleteChat={(id) => void deleteChat(id).catch((caught) => setError(caught.message))}
         />
-      </div>
-
-      {/* Main chat area */}
+      </aside>
       <ChatWindow
         chatId={selectedChatId}
-        messages={messages}
+        events={events}
         isConnected={isConnected}
         isLoading={isLoading}
-        onSendMessage={handleSendMessage}
+        error={error}
+        onSendMessage={sendMessage}
       />
     </div>
   );

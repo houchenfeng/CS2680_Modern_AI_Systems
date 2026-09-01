@@ -1,185 +1,102 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import type { AgentEvent } from "../types";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant" | "tool_use";
-  content: string;
-  timestamp: string;
-  toolName?: string;
-  toolInput?: Record<string, any>;
-}
-
-interface ChatWindowProps {
+interface Props {
   chatId: string | null;
-  messages: Message[];
+  events: AgentEvent[];
   isConnected: boolean;
   isLoading: boolean;
+  error: string | null;
   onSendMessage: (content: string) => void;
 }
 
-function ToolUseBlock({ message }: { message: Message }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const getToolSummary = () => {
-    const input = message.toolInput || {};
-    switch (message.toolName) {
-      case "Read":
-        return input.file_path;
-      case "Write":
-      case "Edit":
-        return input.file_path;
-      case "Bash":
-        return input.command?.slice(0, 60) + (input.command?.length > 60 ? "..." : "");
-      case "Grep":
-        return `"${input.pattern}" in ${input.path || "."}`;
-      case "Glob":
-        return input.pattern;
-      case "WebSearch":
-        return input.query;
-      case "WebFetch":
-        return input.url;
-      default:
-        return JSON.stringify(input).slice(0, 50);
-    }
-  };
-
+function JsonDetails({ label, value }: { label: string; value: unknown }) {
   return (
-    <div className="my-2 border border-gray-200 bg-gray-50 rounded">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-2 flex items-center justify-between text-left hover:bg-gray-100"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-600 uppercase">
-            {message.toolName}
-          </span>
-          <span className="text-xs text-gray-500 truncate max-w-md">
-            {getToolSummary()}
-          </span>
-        </div>
-        <span className="text-xs text-gray-400">{isExpanded ? "▼" : "▶"}</span>
-      </button>
-      {isExpanded && (
-        <div className="p-2 border-t border-gray-200">
-          <pre className="text-xs bg-white p-2 rounded overflow-x-auto">
-            {JSON.stringify(message.toolInput, null, 2)}
-          </pre>
-        </div>
-      )}
-    </div>
+    <details className="mt-2 rounded border border-slate-200 bg-white p-2">
+      <summary className="cursor-pointer text-xs font-medium text-slate-600">{label}</summary>
+      <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-xs text-slate-700">{JSON.stringify(value, null, 2)}</pre>
+    </details>
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
-  const isUser = message.role === "user";
-
+function ToolCard({ start, result }: { start: AgentEvent; result?: AgentEvent }) {
+  const status = !result ? "running" : result.eventType === "tool_error" ? "error" : "success";
+  const duration = result?.durationMs;
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[80%] rounded-lg px-4 py-2 ${
-          isUser
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 text-gray-900"
-        }`}
-      >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+    <article className="rounded-lg border border-slate-300 bg-slate-50 p-3" data-tool-id={start.toolUseId}>
+      <div className="flex flex-wrap items-center gap-2">
+        <strong className="text-sm text-slate-800">{start.toolName}</strong>
+        <span className={`rounded-full px-2 py-0.5 text-xs ${status === "success" ? "bg-emerald-100 text-emerald-700" : status === "error" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{status}</span>
+        <time className="text-xs text-slate-500">{new Date(start.timestamp).toLocaleTimeString()}</time>
+        {duration !== undefined ? <span className="text-xs text-slate-500">{duration} ms</span> : null}
       </div>
-    </div>
+      <JsonDetails label="Input" value={start.input} />
+      {result ? <JsonDetails label={status === "error" ? "Error" : "Output"} value={result.error || result.output} /> : null}
+    </article>
   );
 }
 
-export function ChatWindow({
-  chatId,
-  messages,
-  isConnected,
-  isLoading,
-  onSendMessage,
-}: ChatWindowProps) {
+function Timeline({ events }: { events: AgentEvent[] }) {
+  const toolResults = useMemo(() => new Map(
+    events.filter((event) => event.eventType === "tool_result" || event.eventType === "tool_error").map((event) => [event.toolUseId, event]),
+  ), [events]);
+
+  return events.map((event) => {
+    if (event.eventType === "tool_result" || event.eventType === "tool_error") return null;
+    if (event.eventType === "tool_start") return <ToolCard key={event.eventId} start={event} result={toolResults.get(event.toolUseId)} />;
+    if (event.eventType === "user_message" || event.eventType === "assistant_message") {
+      const user = event.eventType === "user_message";
+      return (
+        <div key={event.eventId} className={`flex ${user ? "justify-end" : "justify-start"}`}>
+          <div className={`max-w-[82%] rounded-xl px-4 py-3 ${user ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-900"}`}>
+            <p className="whitespace-pre-wrap">{event.content}</p>
+            <time className={`mt-1 block text-[10px] ${user ? "text-blue-100" : "text-slate-400"}`}>#{event.sequence} · {new Date(event.timestamp).toLocaleTimeString()}</time>
+          </div>
+        </div>
+      );
+    }
+    if (event.eventType === "run_result") {
+      return <div key={event.eventId} className="rounded border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-600">Run {event.status} · {event.durationMs ?? "duration unavailable"} ms</div>;
+    }
+    if (event.error || event.level === "error") {
+      return <div key={event.eventId} className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{event.error?.source}: {event.error?.message || event.message}</div>;
+    }
+    return null;
+  });
+}
+
+export function ChatWindow({ chatId, events, isConnected, isLoading, error, onSendMessage }: Props) {
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [events]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !chatId || isLoading || !isConnected) return;
-    onSendMessage(input.trim());
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const content = input.trim();
+    if (!content || !chatId || isLoading || !isConnected) return;
+    onSendMessage(content);
     setInput("");
   };
 
-  if (!chatId) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <p className="text-lg">Welcome to Simple Chat</p>
-          <p className="text-sm mt-2">Select a chat or create a new one to get started</p>
-        </div>
-      </div>
-    );
-  }
+  if (!chatId) return <main className="flex flex-1 items-center justify-center text-slate-500">Create or select a chat to begin.</main>;
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-800">Chat</h2>
-        <div className="flex items-center gap-2">
-          {isConnected ? (
-            <span className="text-xs text-green-600">● Connected</span>
-          ) : (
-            <span className="text-xs text-red-600">○ Disconnected</span>
-          )}
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="text-center text-gray-400 mt-8">
-            <p>Start a conversation</p>
-          </div>
-        ) : (
-          <>
-            {messages.map((msg) =>
-              msg.role === "tool_use" ? (
-                <ToolUseBlock key={msg.id} message={msg} />
-              ) : (
-                <MessageBubble key={msg.id} message={msg} />
-              )
-            )}
-            {isLoading && (
-              <div className="flex items-center gap-2 text-gray-500">
-                <span className="animate-pulse">●</span>
-                <span className="text-sm">Thinking...</span>
-              </div>
-            )}
-          </>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="p-4 border-t border-gray-200">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isConnected ? "Type a message..." : "Connecting..."}
-            disabled={!isConnected || isLoading}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || !isConnected || isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Send
-          </button>
-        </form>
-      </div>
-    </div>
+    <main className="flex min-w-0 flex-1 flex-col bg-white">
+      <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+        <div><h1 className="font-semibold text-slate-900">Agent session</h1><p className="text-xs text-slate-500">Observable messages and tool execution</p></div>
+        <span className={`text-xs font-medium ${isConnected ? "text-emerald-600" : "text-red-600"}`}>{isConnected ? "● Connected" : "● Disconnected"}</span>
+      </header>
+      <section className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-5" aria-live="polite">
+        {events.length ? <Timeline events={events} /> : <p className="mt-8 text-center text-sm text-slate-400">Send a task to start the trajectory.</p>}
+        {isLoading ? <div className="text-sm text-slate-500">Agent is working…</div> : null}
+        {error ? <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+        <div ref={endRef} />
+      </section>
+      <form onSubmit={submit} className="flex gap-2 border-t border-slate-200 p-4">
+        <input value={input} onChange={(event) => setInput(event.target.value)} disabled={!isConnected || isLoading} placeholder={isConnected ? "Describe a task…" : "Connecting…"} className="min-w-0 flex-1 rounded-lg border border-slate-300 px-4 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100" />
+        <button type="submit" disabled={!input.trim() || !isConnected || isLoading} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">Send</button>
+      </form>
+    </main>
   );
 }

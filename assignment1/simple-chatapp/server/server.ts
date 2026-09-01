@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 import type { WSClient, IncomingWSMessage } from "./types.js";
 import { chatStore } from "./chat-store.js";
 import { Session } from "./session.js";
+import { trajectoryStore } from "./trajectory.js";
+import { normalizeError, redact } from "./redaction.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +82,27 @@ app.get("/api/chats/:id/messages", (req, res) => {
   res.json(messages);
 });
 
+app.get("/api/chats/:id/traces", async (req, res) => {
+  res.json(await trajectoryStore.list(req.params.id));
+});
+
+app.get("/api/traces/:chatId/:runId", async (req, res) => {
+  try {
+    res.json(await trajectoryStore.events(req.params.chatId, req.params.runId));
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.get("/api/traces/:chatId/:runId/raw", async (req, res) => {
+  try {
+    const raw = await trajectoryStore.read(req.params.chatId, req.params.runId);
+    res.type("application/x-ndjson").send(raw);
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
+
 // Create HTTP server
 const server = createServer(app);
 
@@ -119,7 +142,9 @@ wss.on("connection", (ws: WSClient) => {
         case "chat": {
           const session = getOrCreateSession(message.chatId);
           session.subscribe(ws);
-          session.sendMessage(message.content);
+          void session.sendMessage(message.content).catch((error) => {
+            ws.send(JSON.stringify(redact({ type: "error", error: normalizeError(error, "websocket") })));
+          });
           break;
         }
 

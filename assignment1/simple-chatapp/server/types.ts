@@ -1,4 +1,5 @@
 import type { WebSocket } from "ws";
+import type { AgentEvent } from "./events.js";
 
 // WebSocket client with session data
 export interface WSClient extends WebSocket {
@@ -12,6 +13,9 @@ export interface Chat {
   title: string;
   createdAt: string;
   updatedAt: string;
+  status?: "new" | "running" | "waiting_permission" | "stopped" | "completed" | "error" | "resumable";
+  cwd?: string;
+  sdkSessionId?: string;
 }
 
 // Message stored in memory
@@ -36,3 +40,8 @@ export interface WSSubscribeMessage {
 }
 
 export type IncomingWSMessage = WSChatMessage | WSSubscribeMessage;
+
+export interface AgentEventMessage {
+  type: "agent_event";
+  event: AgentEvent;
+}
