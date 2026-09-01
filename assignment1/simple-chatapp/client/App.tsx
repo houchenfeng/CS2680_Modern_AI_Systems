@@ -13,6 +13,7 @@ export default function App() {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [workspacePath, setWorkspacePath] = useState(".");
 
   const fetchChats = useCallback(async () => {
     const response = await fetch(`${API_BASE}/chats`);
@@ -66,7 +67,7 @@ export default function App() {
   }, [fetchChats]);
 
   const createChat = async () => {
-    const response = await fetch(`${API_BASE}/chats`, { method: "POST", headers: { "Content-Type": "application/json" } });
+    const response = await fetch(`${API_BASE}/chats`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workspacePath }) });
     if (!response.ok) throw new Error(`Failed to create chat (${response.status})`);
     const chat = await response.json();
     setChats((previous) => [chat, ...previous]);
@@ -100,6 +101,19 @@ export default function App() {
     sendJsonMessage({ type: "chat", content, chatId: selectedChatId });
   };
 
+  const stopRun = async () => {
+    if (!selectedChatId) return;
+    const response = await fetch(`${API_BASE}/chats/${selectedChatId}/stop`, { method: "POST" });
+    if (!response.ok) throw new Error(`Failed to stop run (${response.status})`);
+  };
+
+  const resolvePermission = (requestId: string, decision: "allow" | "deny", alwaysAllow = false) => {
+    if (!selectedChatId) return;
+    sendJsonMessage({ type: "permission_result", chatId: selectedChatId, requestId, decision, alwaysAllow });
+  };
+
+  const selectedChat = chats.find((chat) => chat.id === selectedChatId) || null;
+
   return (
     <div className="flex h-screen bg-slate-100">
       <aside className="w-64 shrink-0">
@@ -109,6 +123,8 @@ export default function App() {
           onSelectChat={selectChat}
           onNewChat={() => void createChat().catch((caught) => setError(caught.message))}
           onDeleteChat={(id) => void deleteChat(id).catch((caught) => setError(caught.message))}
+          workspacePath={workspacePath}
+          onWorkspacePathChange={setWorkspacePath}
         />
       </aside>
       <ChatWindow
@@ -118,6 +134,9 @@ export default function App() {
         isLoading={isLoading}
         error={error}
         onSendMessage={sendMessage}
+        chat={selectedChat}
+        onStop={() => void stopRun().catch((caught) => setError(caught.message))}
+        onResolvePermission={resolvePermission}
       />
     </div>
   );

@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 traces/
+data/
 
 # Environment variables
 .env

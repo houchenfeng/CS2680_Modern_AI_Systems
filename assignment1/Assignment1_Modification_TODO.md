@@ -196,8 +196,8 @@ interface NormalizedError {
 - 测试命令：`npm run typecheck；npm test（5/5）；npm run build -- --emptyOutDir；真实 REST/WebSocket/Agent SDK smoke test`
 - 运行审查：`Chat 404073e8-83eb-4717-b9d4-5fb04e8a6c62；Read 成功 run-01febd03-dd14-4ab6-acc8-b0a209a305fc（sequence 1-6）；不存在文件 run-1ea36a9b-a630-4663-9f42-30b8aab0b310（sequence 7-12）；toolUseId 均正确配对；两份 JSONL 逐行可解析且密钥扫描通过。`
 - 已知限制：`当前环境没有可用的内置浏览器，无法执行浏览器控制台和截图审查；已用生产构建及网页同协议的 REST/WebSocket 真实链路验证。B/C 阶段功能尚未实现。`
-- Commit SHA：`本阶段功能提交后回填`
-- Push 结果：`本阶段功能提交后回填`
+- Commit SHA：`e7bb9b2075af23b9c21ffbfe89ae627890ae8d69`
+- Push 结果：`失败：GitHub HTTPS schannel TLS 握手连续三次失败；本地提交完整保留，后续阶段继续重试。`
 
 ---
 
@@ -278,13 +278,13 @@ interface NormalizedError {
 
 ### B 阶段记录（完成后填写）
 
-- 修改摘要：`待填写`
-- 安全边界：`待填写`
-- 测试命令：`待填写`
-- Allow/Deny/Stop/Resume 审查：`待填写`
-- 已知限制：`待填写`
-- Commit SHA：`待填写`
-- Push 结果：`待填写`
+- 修改摘要：`新增持久化 ChatStore、工作区解析器、会话状态、SDK session 映射与 Resume；接入 canUseTool 审批、超时默认拒绝、断线拒绝、会话级 always allow；Stop 调用 Query.interrupt() 并记录 stopped run_result。`
+- 安全边界：`AGENT_WORKSPACE_ROOT 内相对路径；path.resolve + realpath 双重验证；拒绝 ../、绝对路径、其他盘符、UNC 与符号链接逃逸；真实 API 对 ../ 和 C:\\Windows 均返回 HTTP 400。`
+- 测试命令：`npm run typecheck；npm test（8/8）；npm run build -- --emptyOutDir；真实 REST/WebSocket/SDK 控制与恢复脚本。`
+- Allow/Deny/Stop/Resume 审查：`Chat 8d1edc60-e43b-463b-b001-21323ca93687；Deny request 73b02adb-2e7d-4805-8888-b7cd7860aa47（seq 4-6）；Allow request 546e3d89-fdb1-4b7c-af06-c43c641b4e95（seq 12-14）；Stop run-14114318-2163-4fa3-b7c2-4930bd83f436（seq 22）；重启后使用 SDK session f805fd35-ec16-4984-b435-06830b71fcdb 恢复并正确回答 ALLOW_MARKER。`
+- 已知限制：`未在真实运行中等待 60 秒验证 timeout，但实现为默认拒绝；客户端断开同样默认拒绝。当前环境无可用内置浏览器，UI 仅通过类型检查和生产构建验证。`
+- Commit SHA：`本阶段功能提交后回填`
+- Push 结果：`本阶段功能提交后回填`
 
 ---
 

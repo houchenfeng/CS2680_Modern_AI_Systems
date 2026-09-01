@@ -1,81 +1,63 @@
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import type { Chat, ChatMessage } from "./types.js";
 
-// Simple in-memory store for chats
-class ChatStore {
-  private chats: Map<string, Chat> = new Map();
-  private messages: Map<string, ChatMessage[]> = new Map();
+interface StoredState { chats: Chat[]; messages: Record<string, ChatMessage[]>; }
 
-  createChat(title?: string): Chat {
-    const id = uuidv4();
+export class ChatStore {
+  private chats = new Map<string, Chat>();
+  private messages = new Map<string, ChatMessage[]>();
+
+  constructor(private readonly file = path.resolve(process.env.DATA_ROOT || path.join(process.cwd(), "data"), "chats.json")) { this.load(); }
+
+  private load() {
+    if (!existsSync(this.file)) return;
+    const state = JSON.parse(readFileSync(this.file, "utf8")) as StoredState;
+    this.chats = new Map(state.chats.map((chat) => [chat.id, chat]));
+    this.messages = new Map(Object.entries(state.messages));
+  }
+
+  private persist() {
+    mkdirSync(path.dirname(this.file), { recursive: true });
+    const temporary = `${this.file}.tmp`;
+    writeFileSync(temporary, JSON.stringify({ chats: [...this.chats.values()], messages: Object.fromEntries(this.messages) }, null, 2), "utf8");
+    renameSync(temporary, this.file);
+  }
+
+  createChat(options: { title?: string; cwd: string; workspacePath: string }): Chat {
     const now = new Date().toISOString();
-    const chat: Chat = {
-      id,
-      title: title || "New Chat",
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.chats.set(id, chat);
-    this.messages.set(id, []);
+    const chat: Chat = { id: uuidv4(), title: options.title || "New Chat", createdAt: now, updatedAt: now, status: "new", cwd: options.cwd, workspacePath: options.workspacePath };
+    this.chats.set(chat.id, chat);
+    this.messages.set(chat.id, []);
+    this.persist();
     return chat;
   }
 
-  getChat(id: string): Chat | undefined {
-    return this.chats.get(id);
-  }
-
-  getAllChats(): Chat[] {
-    return Array.from(this.chats.values()).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
-  }
-
-  updateChatTitle(id: string, title: string): Chat | undefined {
+  getChat(id: string) { return this.chats.get(id); }
+  getAllChats() { return [...this.chats.values()].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)); }
+  updateChat(id: string, changes: Partial<Chat>) {
     const chat = this.chats.get(id);
-    if (chat) {
-      chat.title = title;
-      chat.updatedAt = new Date().toISOString();
-    }
+    if (!chat) return undefined;
+    Object.assign(chat, changes, { updatedAt: new Date().toISOString() });
+    this.persist();
     return chat;
   }
-
-  deleteChat(id: string): boolean {
-    this.messages.delete(id);
-    return this.chats.delete(id);
-  }
-
-  addMessage(chatId: string, message: Omit<ChatMessage, "id" | "chatId" | "timestamp">): ChatMessage {
+  deleteChat(id: string) { this.messages.delete(id); const deleted = this.chats.delete(id); if (deleted) this.persist(); return deleted; }
+  addMessage(chatId: string, message: Omit<ChatMessage, "id" | "chatId" | "timestamp">) {
     const messages = this.messages.get(chatId);
-    if (!messages) {
-      throw new Error(`Chat ${chatId} not found`);
-    }
-
-    const newMessage: ChatMessage = {
-      id: uuidv4(),
-      chatId,
-      timestamp: new Date().toISOString(),
-      ...message,
-    };
-    messages.push(newMessage);
-
-    // Update chat's updatedAt
+    if (!messages) throw new Error(`Chat ${chatId} not found`);
+    const stored: ChatMessage = { id: uuidv4(), chatId, timestamp: new Date().toISOString(), ...message };
+    messages.push(stored);
     const chat = this.chats.get(chatId);
     if (chat) {
-      chat.updatedAt = newMessage.timestamp;
-
-      // Auto-generate title from first user message if still "New Chat"
-      if (chat.title === "New Chat" && message.role === "user") {
-        chat.title = message.content.slice(0, 50) + (message.content.length > 50 ? "..." : "");
-      }
+      chat.updatedAt = stored.timestamp;
+      if (chat.title === "New Chat" && message.role === "user") chat.title = `${message.content.slice(0, 50)}${message.content.length > 50 ? "..." : ""}`;
     }
-
-    return newMessage;
+    this.persist();
+    return stored;
   }
-
-  getMessages(chatId: string): ChatMessage[] {
-    return this.messages.get(chatId) || [];
-  }
+  getMessages(chatId: string) { return this.messages.get(chatId) || []; }
 }
 
-// Singleton instance
 export const chatStore = new ChatStore();

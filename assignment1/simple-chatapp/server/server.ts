@@ -10,6 +10,7 @@ import { chatStore } from "./chat-store.js";
 import { Session } from "./session.js";
 import { trajectoryStore } from "./trajectory.js";
 import { normalizeError, redact } from "./redaction.js";
+import { resolveWorkspace, workspaceRoot } from "./workspace.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,9 @@ const sessions: Map<string, Session> = new Map();
 function getOrCreateSession(chatId: string): Session {
   let session = sessions.get(chatId);
   if (!session) {
-    session = new Session(chatId);
+    const chat = chatStore.getChat(chatId);
+    if (!chat) throw new Error("Chat not found");
+    session = new Session(chat);
     sessions.set(chatId, session);
   }
   return session;
@@ -48,9 +51,19 @@ app.get("/api/chats", (req, res) => {
 });
 
 // REST API: Create new chat
-app.post("/api/chats", (req, res) => {
-  const chat = chatStore.createChat(req.body?.title);
-  res.status(201).json(chat);
+app.post("/api/chats", async (req, res) => {
+  try {
+    const workspace = await resolveWorkspace(req.body?.workspacePath || ".");
+    const chat = chatStore.createChat({ title: req.body?.title, cwd: workspace.cwd, workspacePath: workspace.relativePath });
+    res.status(201).json(chat);
+  } catch (error) {
+    res.status(400).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.get("/api/workspace", async (_req, res) => {
+  try { res.json({ root: await workspaceRoot() }); }
+  catch (error) { res.status(500).json({ error: normalizeError(error, "validation") }); }
 });
 
 // REST API: Get single chat
@@ -74,6 +87,15 @@ app.delete("/api/chats/:id", (req, res) => {
     sessions.delete(req.params.id);
   }
   res.json({ success: true });
+});
+
+app.post("/api/chats/:id/stop", async (req, res) => {
+  try {
+    const session = sessions.get(req.params.id);
+    res.json({ stopped: session ? await session.stop() : false });
+  } catch (error) {
+    res.status(500).json({ error: normalizeError(error, "sdk") });
+  }
 });
 
 // REST API: Get chat messages
@@ -145,6 +167,18 @@ wss.on("connection", (ws: WSClient) => {
           void session.sendMessage(message.content).catch((error) => {
             ws.send(JSON.stringify(redact({ type: "error", error: normalizeError(error, "websocket") })));
           });
+          break;
+        }
+
+        case "stop": {
+          const session = sessions.get(message.chatId);
+          if (session) void session.stop();
+          break;
+        }
+
+        case "permission_result": {
+          const session = sessions.get(message.chatId);
+          if (session) void session.resolvePermission(message.requestId, message.decision, message.alwaysAllow, message.reason);
           break;
         }
 

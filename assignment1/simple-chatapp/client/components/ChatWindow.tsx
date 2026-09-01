@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import type { AgentEvent } from "../types";
+import type { AgentEvent, Chat } from "../types";
 
 interface Props {
   chatId: string | null;
@@ -9,6 +9,9 @@ interface Props {
   isLoading: boolean;
   error: string | null;
   onSendMessage: (content: string) => void;
+  chat: Chat | null;
+  onStop: () => void;
+  onResolvePermission: (requestId: string, decision: "allow" | "deny", alwaysAllow?: boolean) => void;
 }
 
 function JsonDetails({ label, value }: { label: string; value: unknown }) {
@@ -66,9 +69,10 @@ function Timeline({ events }: { events: AgentEvent[] }) {
   });
 }
 
-export function ChatWindow({ chatId, events, isConnected, isLoading, error, onSendMessage }: Props) {
+export function ChatWindow({ chatId, events, isConnected, isLoading, error, onSendMessage, chat, onStop, onResolvePermission }: Props) {
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const pendingPermission = [...events].reverse().find((event) => event.eventType === "permission_request" && !events.some((candidate) => candidate.eventType === "permission_result" && candidate.requestId === event.requestId));
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [events]);
 
   const submit = (event: FormEvent) => {
@@ -84,13 +88,14 @@ export function ChatWindow({ chatId, events, isConnected, isLoading, error, onSe
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
       <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-        <div><h1 className="font-semibold text-slate-900">Agent session</h1><p className="text-xs text-slate-500">Observable messages and tool execution</p></div>
-        <span className={`text-xs font-medium ${isConnected ? "text-emerald-600" : "text-red-600"}`}>{isConnected ? "● Connected" : "● Disconnected"}</span>
+        <div className="min-w-0"><h1 className="font-semibold text-slate-900">Agent session</h1><p className="truncate text-xs text-slate-500">Workspace: {chat?.workspacePath || "."} · {chat?.status || "new"}</p></div>
+        <div className="flex items-center gap-3">{isLoading ? <button onClick={onStop} className="rounded border border-red-300 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50">Stop</button> : null}<span className={`text-xs font-medium ${isConnected ? "text-emerald-600" : "text-red-600"}`}>{isConnected ? "● Connected" : "● Disconnected"}</span></div>
       </header>
       <section className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-5" aria-live="polite">
         {events.length ? <Timeline events={events} /> : <p className="mt-8 text-center text-sm text-slate-400">Send a task to start the trajectory.</p>}
         {isLoading ? <div className="text-sm text-slate-500">Agent is working…</div> : null}
         {error ? <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+        {pendingPermission ? <div className="sticky bottom-0 rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-lg"><p className="font-medium text-amber-900">Allow {pendingPermission.toolName}?</p><JsonDetails label="Tool input" value={pendingPermission.input} /><div className="mt-3 flex flex-wrap gap-2"><button onClick={() => onResolvePermission(String(pendingPermission.requestId), "allow")} className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white">Allow once</button><button onClick={() => onResolvePermission(String(pendingPermission.requestId), "allow", true)} className="rounded border border-emerald-600 px-3 py-1.5 text-sm text-emerald-700">Always this session</button><button onClick={() => onResolvePermission(String(pendingPermission.requestId), "deny")} className="rounded bg-red-600 px-3 py-1.5 text-sm text-white">Deny</button></div></div> : null}
         <div ref={endRef} />
       </section>
       <form onSubmit={submit} className="flex gap-2 border-t border-slate-200 p-4">

@@ -15,6 +15,7 @@ export interface Chat {
   updatedAt: string;
   status?: "new" | "running" | "waiting_permission" | "stopped" | "completed" | "error" | "resumable";
   cwd?: string;
+  workspacePath?: string;
   sdkSessionId?: string;
 }
 
@@ -39,7 +40,10 @@ export interface WSSubscribeMessage {
   chatId: string;
 }
 
-export type IncomingWSMessage = WSChatMessage | WSSubscribeMessage;
+export interface WSStopMessage { type: "stop"; chatId: string; }
+export interface WSPermissionMessage { type: "permission_result"; chatId: string; requestId: string; decision: "allow" | "deny"; alwaysAllow?: boolean; reason?: string; }
+
+export type IncomingWSMessage = WSChatMessage | WSSubscribeMessage | WSStopMessage | WSPermissionMessage;
 
 export interface AgentEventMessage {
   type: "agent_event";

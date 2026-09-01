@@ -5,6 +5,8 @@ export interface Chat {
   updatedAt: string;
   status?: string;
   cwd?: string;
+  workspacePath?: string;
+  sdkSessionId?: string;
 }
 
 export interface AgentEvent {
@@ -31,4 +33,7 @@ export interface AgentEvent {
   level?: string;
   message?: string;
   truncated?: boolean;
+  requestId?: string;
+  decision?: "allow" | "deny";
+  reason?: string;
 }
