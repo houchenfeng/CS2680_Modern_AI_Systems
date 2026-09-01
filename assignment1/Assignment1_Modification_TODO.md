@@ -121,73 +121,73 @@ interface NormalizedError {
 
 ## A1. 先检查现有实现
 
-- [ ] 检查项目结构、`package.json`、TypeScript 配置和现有测试命令。
-- [ ] 找到 Agent SDK `query()` 或 Session API 的调用位置。
-- [ ] 找到 SDK 消息转换和 WebSocket 广播位置。
-- [ ] 找到当前 `tool_use` 的渲染逻辑。
-- [ ] 检查当前 SDK 版本的真实消息类型，确认 `assistant`、`user/tool_result`、`result` 和流式事件结构。
-- [ ] 在本阶段记录区填写检查结果，不创建额外分析文档。
+- [x] 检查项目结构、`package.json`、TypeScript 配置和现有测试命令。
+- [x] 找到 Agent SDK `query()` 或 Session API 的调用位置。
+- [x] 找到 SDK 消息转换和 WebSocket 广播位置。
+- [x] 找到当前 `tool_use` 的渲染逻辑。
+- [x] 检查当前 SDK 版本的真实消息类型，确认 `assistant`、`user/tool_result`、`result` 和流式事件结构。
+- [x] 在本阶段记录区填写检查结果，不创建额外分析文档。
 
 ## A2. 实现事件标准化
 
-- [ ] 新增或重构统一的事件标准化函数，SDK 原始事件不得直接散落到多个前端组件中解析。
-- [ ] 将文本消息转换为 `assistant_message`。
-- [ ] 将工具调用转换为 `tool_start`，保存 `toolUseId`、工具名和输入。
-- [ ] 将工具返回转换为 `tool_result`；使用同一个 `toolUseId` 与 `tool_start` 配对。
+- [x] 新增或重构统一的事件标准化函数，SDK 原始事件不得直接散落到多个前端组件中解析。
+- [x] 将文本消息转换为 `assistant_message`。
+- [x] 将工具调用转换为 `tool_start`，保存 `toolUseId`、工具名和输入。
+- [x] 将工具返回转换为 `tool_result`；使用同一个 `toolUseId` 与 `tool_start` 配对。
 - [ ] 将失败的工具返回转换为 `tool_error`，保留错误信息和可获得的退出码。
-- [ ] 将 SDK 顶层异常、WebSocket 错误和存储错误转换为标准错误事件。
-- [ ] 为每个事件增加 `eventId`、`sequence` 和 UTC `timestamp`。
-- [ ] 同一 `chatId` 内的 `sequence` 必须严格递增，不因多个订阅者而重复递增。
-- [ ] 不将同一个工具结果重复记为 `tool_result` 和普通用户消息。
+- [x] 将 SDK 顶层异常、WebSocket 错误和存储错误转换为标准错误事件。
+- [x] 为每个事件增加 `eventId`、`sequence` 和 UTC `timestamp`。
+- [x] 同一 `chatId` 内的 `sequence` 必须严格递增，不因多个订阅者而重复递增。
+- [x] 不将同一个工具结果重复记为 `tool_result` 和普通用户消息。
 
 ## A3. 实现 JSONL 轨迹记录
 
-- [ ] 建立单一 Trajectory Logger；路径建议为 `traces/<chatId>/<runId>.jsonl`。
-- [ ] 使用追加写入，避免每次事件重写整个文件。
-- [ ] 在事件广播给前端之前或同一控制点完成持久化，明确并记录顺序策略。
-- [ ] 对并发写入进行串行化，避免 JSON 行交错。
-- [ ] 程序异常退出后，已完成事件仍应保留。
-- [ ] 日志写入失败时生成 `storage` 错误，但避免递归地再次写入同一个失败 Logger。
-- [ ] 加入递归脱敏函数，覆盖对象、数组和字符串中的常见凭证字段。
-- [ ] 增加轨迹查询/下载接口，例如 `GET /api/chats/:chatId/traces` 和 `GET /api/traces/:runId/raw`。
+- [x] 建立单一 Trajectory Logger；路径建议为 `traces/<chatId>/<runId>.jsonl`。
+- [x] 使用追加写入，避免每次事件重写整个文件。
+- [x] 在事件广播给前端之前或同一控制点完成持久化，明确并记录顺序策略。
+- [x] 对并发写入进行串行化，避免 JSON 行交错。
+- [x] 程序异常退出后，已完成事件仍应保留。
+- [x] 日志写入失败时生成 `storage` 错误，但避免递归地再次写入同一个失败 Logger。
+- [x] 加入递归脱敏函数，覆盖对象、数组和字符串中的常见凭证字段。
+- [x] 增加轨迹查询/下载接口，例如 `GET /api/chats/:chatId/traces` 和 `GET /api/traces/:runId/raw`。
 
 ## A4. 前端工具结果与错误展示
 
-- [ ] 工具卡片至少显示：工具名、状态、开始时间、耗时、输入、输出摘要。
+- [x] 工具卡片至少显示：工具名、状态、开始时间、耗时、输入、输出摘要。
 - [ ] `Bash` 结果显示退出码，并分别展示 stdout/stderr（如果 SDK 提供）。
-- [ ] `Read` 结果显示文件路径和可折叠内容，避免默认展开超长文件。
-- [ ] 错误卡片显示来源、错误信息和是否可重试。
-- [ ] 工具运行状态按 `toolUseId` 更新同一卡片，不为结果额外创建无法关联的新卡片。
+- [x] `Read` 结果显示文件路径和可折叠内容，避免默认展开超长文件。
+- [x] 错误卡片显示来源、错误信息和是否可重试。
+- [x] 工具运行状态按 `toolUseId` 更新同一卡片，不为结果额外创建无法关联的新卡片。
 - [ ] 超长输出在 UI 中折叠，但 JSONL 保留经过合理上限控制的原始可观测输出；若截断必须记录 `truncated: true` 和原始长度。
 
 ## A5. 自动测试
 
-- [ ] 单元测试：相同 `toolUseId` 的 start/result 能正确配对。
-- [ ] 单元测试：工具错误能转换为 `tool_error`。
-- [ ] 单元测试：sequence 单调递增。
-- [ ] 单元测试：每条 JSONL 都能独立 `JSON.parse()`。
-- [ ] 单元测试：API Key、Authorization Header 被脱敏。
+- [x] 单元测试：相同 `toolUseId` 的 start/result 能正确配对。
+- [x] 单元测试：工具错误能转换为 `tool_error`。
+- [x] 单元测试：sequence 单调递增。
+- [x] 单元测试：每条 JSONL 都能独立 `JSON.parse()`。
+- [x] 单元测试：API Key、Authorization Header 被脱敏。
 - [ ] 集成测试：模拟 SDK 事件后，WebSocket 客户端收到正确顺序的事件。
-- [ ] 运行类型检查、单元测试和生产构建。
+- [x] 运行类型检查、单元测试和生产构建。
 
 ## A6. 主动运行审查
 
-- [ ] 启动后端和前端，确认没有未处理异常。
-- [ ] 创建一个真实会话，发送简单任务，观察 assistant/tool/result 时间线。
+- [x] 启动后端和前端，确认没有未处理异常。
+- [x] 创建一个真实会话，发送简单任务，观察 assistant/tool/result 时间线。
 - [ ] 检查浏览器控制台、后端控制台和网络面板。
-- [ ] 检查生成的 JSONL 行数、顺序、时间戳、事件配对和脱敏情况。
-- [ ] 故意触发一次安全的文件不存在错误，确认错误可见且不会导致服务崩溃。
-- [ ] 将实际命令和结果填写到“A 阶段记录”。
+- [x] 检查生成的 JSONL 行数、顺序、时间戳、事件配对和脱敏情况。
+- [x] 故意触发一次安全的文件不存在错误，确认错误可见且不会导致服务崩溃。
+- [x] 将实际命令和结果填写到“A 阶段记录”。
 
 ## A7. Git 提交与 Push
 
-- [ ] `git status --short`，确认没有密钥、`.env`、真实轨迹或无关文件进入提交。
-- [ ] `git diff --check`。
-- [ ] 重新运行本阶段必需的 typecheck/test/build。
-- [ ] 仅暂存本阶段相关代码和本 TODO 的记录更新。
-- [ ] 建议提交信息：`feat(trace): persist tool results errors and jsonl events`。
-- [ ] 执行 `git push origin HEAD`。
-- [ ] 记录 commit SHA、push 结果；push 失败必须记录真实原因，不得标记完成。
+- [x] `git status --short`，确认没有密钥、`.env`、真实轨迹或无关文件进入提交。
+- [x] `git diff --check`。
+- [x] 重新运行本阶段必需的 typecheck/test/build。
+- [x] 仅暂存本阶段相关代码和本 TODO 的记录更新。
+- [x] 建议提交信息：`feat(trace): persist tool results errors and jsonl events`。
+- [x] 执行 `git push origin HEAD`。
+- [x] 记录 commit SHA、push 结果；push 失败必须记录真实原因，不得标记完成。
 
 ### A 阶段记录（完成后填写）
 
@@ -205,76 +205,76 @@ interface NormalizedError {
 
 ## B1. 工作目录
 
-- [ ] 配置服务端允许的工作区根目录，例如通过 `AGENT_WORKSPACE_ROOT` 指定。
-- [ ] 创建会话时允许选择根目录内的相对项目路径。
-- [ ] 使用 `path.resolve()` 后验证目标仍位于允许根目录内。
-- [ ] 拒绝 `..` 穿越、UNC 路径、盘符跳转和符号链接逃逸；Windows 路径比较需处理大小写和分隔符。
-- [ ] 验证目标存在且为目录。
-- [ ] 将最终规范化 `cwd` 保存到会话元数据中。
-- [ ] 创建 Agent SDK 会话时传入 `cwd`，不要只在界面上显示工作目录。
+- [x] 配置服务端允许的工作区根目录，例如通过 `AGENT_WORKSPACE_ROOT` 指定。
+- [x] 创建会话时允许选择根目录内的相对项目路径。
+- [x] 使用 `path.resolve()` 后验证目标仍位于允许根目录内。
+- [x] 拒绝 `..` 穿越、UNC 路径、盘符跳转和符号链接逃逸；Windows 路径比较需处理大小写和分隔符。
+- [x] 验证目标存在且为目录。
+- [x] 将最终规范化 `cwd` 保存到会话元数据中。
+- [x] 创建 Agent SDK 会话时传入 `cwd`，不要只在界面上显示工作目录。
 - [ ] 页面明显展示当前工作目录和只读/可写状态。
 
 ## B2. Stop
 
-- [ ] 检查当前 SDK 版本支持的中断方式，优先使用公开的 AbortController/interrupt API。
+- [x] 检查当前 SDK 版本支持的中断方式，优先使用公开的 AbortController/interrupt API。
 - [ ] 为每次运行维护独立的 abort/interrupt 句柄。
-- [ ] 新增 `stop` WebSocket 事件或 REST 接口，例如 `POST /api/chats/:chatId/stop`。
-- [ ] Stop 后把运行状态设置为 `stopped`，记录操作者、时间和最终事件。
-- [ ] 重复 Stop 必须幂等，不得抛出未处理异常。
-- [ ] Stop 后保留已有轨迹，允许用户发送新消息继续同一会话或显式恢复。
+- [x] 新增 `stop` WebSocket 事件或 REST 接口，例如 `POST /api/chats/:chatId/stop`。
+- [x] Stop 后把运行状态设置为 `stopped`，记录操作者、时间和最终事件。
+- [x] 重复 Stop 必须幂等，不得抛出未处理异常。
+- [x] Stop 后保留已有轨迹，允许用户发送新消息继续同一会话或显式恢复。
 - [ ] 前端仅在 `running`/`waiting_permission` 状态显示可用 Stop 按钮。
 
 ## B3. 工具审批
 
-- [ ] 使用 SDK 当前版本公开的 `canUseTool`/权限回调，不通过修改 SDK 内部代码实现。
-- [ ] 默认策略建议：只读工具自动允许；写文件、执行命令及高风险工具必须询问。
-- [ ] 后端生成唯一 `requestId`，广播 `permission_request`。
-- [ ] 前端弹窗显示工具名、输入摘要、完整可折叠输入、Allow/Deny。
-- [ ] 前端通过 WebSocket 或 REST 返回 `permission_result`。
-- [ ] 后端用 `requestId` 解析对应 Promise，不能把一个审批结果发给另一个工具调用。
-- [ ] 审批必须有超时；超时默认拒绝并记录原因。
-- [ ] 客户端断开时，待处理审批必须拒绝或进入明确的安全等待状态。
-- [ ] 对“本会话始终允许”建立会话级白名单；默认不跨会话持久化。
-- [ ] Allow、Deny、Timeout 都写入 JSONL。
+- [x] 使用 SDK 当前版本公开的 `canUseTool`/权限回调，不通过修改 SDK 内部代码实现。
+- [x] 默认策略建议：只读工具自动允许；写文件、执行命令及高风险工具必须询问。
+- [x] 后端生成唯一 `requestId`，广播 `permission_request`。
+- [x] 前端弹窗显示工具名、输入摘要、完整可折叠输入、Allow/Deny。
+- [x] 前端通过 WebSocket 或 REST 返回 `permission_result`。
+- [x] 后端用 `requestId` 解析对应 Promise，不能把一个审批结果发给另一个工具调用。
+- [x] 审批必须有超时；超时默认拒绝并记录原因。
+- [x] 客户端断开时，待处理审批必须拒绝或进入明确的安全等待状态。
+- [x] 对“本会话始终允许”建立会话级白名单；默认不跨会话持久化。
+- [x] Allow、Deny、Timeout 都写入 JSONL。
 
 ## B4. 会话恢复
 
-- [ ] 明确区分应用 `chatId` 与 Claude SDK `sessionId`。
-- [ ] 首次获得 SDK `sessionId` 后写入会话元数据和轨迹。
-- [ ] 重启后读取会话索引及 transcript/SDK session 映射。
-- [ ] 使用当前 SDK 官方 Resume/Session API 恢复对话，不通过把网页聊天文本简单拼接成新提示冒充恢复。
+- [x] 明确区分应用 `chatId` 与 Claude SDK `sessionId`。
+- [x] 首次获得 SDK `sessionId` 后写入会话元数据和轨迹。
+- [x] 重启后读取会话索引及 transcript/SDK session 映射。
+- [x] 使用当前 SDK 官方 Resume/Session API 恢复对话，不通过把网页聊天文本简单拼接成新提示冒充恢复。
 - [ ] 恢复前验证原工作目录仍存在，并显示当前文件系统不是历史快照。
 - [ ] 恢复失败时保留原记录并给出明确错误，不自动创建一个看似相同的新会话。
-- [ ] 页面显示 `new`、`running`、`waiting_permission`、`stopped`、`completed`、`error`、`resumable` 等状态。
+- [x] 页面显示 `new`、`running`、`waiting_permission`、`stopped`、`completed`、`error`、`resumable` 等状态。
 
 ## B5. 自动测试
 
-- [ ] 工作目录正常路径测试。
+- [x] 工作目录正常路径测试。
 - [ ] `../`、其他盘符、UNC 和符号链接逃逸测试。
 - [ ] Stop 正常中断、重复 Stop 和已完成后 Stop 测试。
 - [ ] 工具 Allow、Deny、Timeout、客户端断开测试。
 - [ ] 两个并发审批不会串线。
 - [ ] 服务重启后恢复同一 SDK session 的集成测试。
 - [ ] 工作目录丢失时恢复失败的测试。
-- [ ] 运行 typecheck、test、build。
+- [x] 运行 typecheck、test、build。
 
 ## B6. 主动运行审查
 
-- [ ] 在允许工作目录中运行真实只读任务。
-- [ ] 触发一次需要批准的工具调用，分别验证 Allow 和 Deny。
-- [ ] 启动一个持续时间足够长的安全任务，点击 Stop，确认停止事件写入轨迹。
-- [ ] 重启后端，恢复已有会话并追问一个依赖上一轮上下文的问题。
-- [ ] 确认恢复后工作目录正确，历史消息和新事件没有重复。
+- [x] 在允许工作目录中运行真实只读任务。
+- [x] 触发一次需要批准的工具调用，分别验证 Allow 和 Deny。
+- [x] 启动一个持续时间足够长的安全任务，点击 Stop，确认停止事件写入轨迹。
+- [x] 重启后端，恢复已有会话并追问一个依赖上一轮上下文的问题。
+- [x] 确认恢复后工作目录正确，历史消息和新事件没有重复。
 - [ ] 检查断开重连和审批弹窗状态。
-- [ ] 将实际结果填写到“B 阶段记录”。
+- [x] 将实际结果填写到“B 阶段记录”。
 
 ## B7. Git 提交与 Push
 
-- [ ] 检查 Git 状态、敏感数据和无关文件。
-- [ ] 运行 `git diff --check` 和完整验证命令。
-- [ ] 建议提交信息：`feat(session): add workspace stop approvals and resume`。
-- [ ] 执行 `git push origin HEAD`。
-- [ ] 记录 commit SHA 和远端结果。
+- [x] 检查 Git 状态、敏感数据和无关文件。
+- [x] 运行 `git diff --check` 和完整验证命令。
+- [x] 建议提交信息：`feat(session): add workspace stop approvals and resume`。
+- [x] 执行 `git push origin HEAD`。
+- [x] 记录 commit SHA 和远端结果。
 
 ### B 阶段记录（完成后填写）
 
@@ -292,25 +292,25 @@ interface NormalizedError {
 
 ## C1. Trace Viewer
 
-- [ ] 增加独立 Trace 视图或对话页签，不必追求复杂视觉效果。
-- [ ] 按 `sequence` 显示事件时间线。
-- [ ] 支持按事件类型过滤：user、assistant、tool、permission、error、result、system。
-- [ ] 支持按工具名、错误状态和 runId 过滤。
+- [x] 增加独立 Trace 视图或对话页签，不必追求复杂视觉效果。
+- [x] 按 `sequence` 显示事件时间线。
+- [x] 支持按事件类型过滤：user、assistant、tool、permission、error、result、system。
+- [x] 支持按工具名、错误状态和 runId 过滤。
 - [ ] 每个事件显示时间戳、相对耗时、事件编号和关联 ID。
 - [ ] `tool_start` 与 `tool_result/tool_error` 在视觉上明确配对。
-- [ ] 支持折叠长输入/输出，显示是否截断。
-- [ ] 支持下载原始 JSONL；下载内容必须与持久化记录一致。
-- [ ] Trace Viewer 不显示未脱敏凭证。
+- [x] 支持折叠长输入/输出，显示是否截断。
+- [x] 支持下载原始 JSONL；下载内容必须与持久化记录一致。
+- [x] Trace Viewer 不显示未脱敏凭证。
 
 ## C2. Token 账本
 
-- [ ] 从 SDK `result` 或 usage 字段提取可获得的输入、输出、缓存读写和总 Token。
+- [x] 从 SDK `result` 或 usage 字段提取可获得的输入、输出、缓存读写和总 Token。
 - [ ] 保存模型名称、开始时间、结束时间、墙钟耗时和可获得成本。
-- [ ] 以 run/turn 为粒度汇总，禁止对未知字段填 0 后假装精确。
-- [ ] SDK 未提供精确分项时标记为 `unavailable` 或 `estimated`。
-- [ ] 如果进行估算，保存估算方法和 tokenizer/字符近似规则。
+- [x] 以 run/turn 为粒度汇总，禁止对未知字段填 0 后假装精确。
+- [x] SDK 未提供精确分项时标记为 `unavailable` 或 `estimated`。
+- [x] 如果进行估算，保存估算方法和 tokenizer/字符近似规则。
 - [ ] Trace Viewer 至少显示：input、output、cache、total、cost、duration、measurement type。
-- [ ] 防止恢复会话后重复累计同一个 `result`。
+- [x] 防止恢复会话后重复累计同一个 `result`。
 
 建议数据结构：
 
@@ -359,42 +359,42 @@ interface TokenLedgerEntry {
 - `stale`：已被新文件或新结果替代；
 - `harmful`：截断、错误或误导性内容。
 
-- [ ] 实现确定性优先的分类规则，保存规则版本。
+- [x] 实现确定性优先的分类规则，保存规则版本。
 - [ ] 每条可分类事件保存 category、utility、字节数和估算 Token。
 - [ ] 不可观察内容必须标记 unavailable，不作臆测。
-- [ ] 增加 CSV 导出接口，例如 `GET /api/traces/:runId/context.csv`。
-- [ ] CSV 至少包含：sequence、timestamp、eventType、contextCategory、utility、source、bytes、estimatedTokens、toolName、truncated。
-- [ ] 正确转义逗号、引号、换行和 Unicode。
-- [ ] 页面显示按类别的 Token/字节统计表；图表为可选，不影响最低验收。
+- [x] 增加 CSV 导出接口，例如 `GET /api/traces/:runId/context.csv`。
+- [x] CSV 至少包含：sequence、timestamp、eventType、contextCategory、utility、source、bytes、estimatedTokens、toolName、truncated。
+- [x] 正确转义逗号、引号、换行和 Unicode。
+- [x] 页面显示按类别的 Token/字节统计表；图表为可选，不影响最低验收。
 
 ## C4. 自动测试
 
-- [ ] Trace 过滤与排序测试。
+- [x] Trace 过滤与排序测试。
 - [ ] JSONL 下载与落盘内容一致性测试。
-- [ ] Token 汇总不重复累计测试。
-- [ ] `reported/estimated/unavailable` 标记测试。
-- [ ] 典型 Read/Bash/Edit 事件的上下文分类测试。
-- [ ] CSV 引号、逗号、中文和多行内容转义测试。
+- [x] Token 汇总不重复累计测试。
+- [x] `reported/estimated/unavailable` 标记测试。
+- [x] 典型 Read/Bash/Edit 事件的上下文分类测试。
+- [x] CSV 引号、逗号、中文和多行内容转义测试。
 - [ ] 敏感值不会出现在 Trace Viewer 和导出文件的测试。
-- [ ] 运行 typecheck、test、build。
+- [x] 运行 typecheck、test、build。
 
 ## C5. 主动运行审查
 
-- [ ] 使用真实会话生成包含 assistant、Read、result 的轨迹。
+- [x] 使用真实会话生成包含 assistant、Read、result 的轨迹。
 - [ ] 打开 Trace Viewer，检查顺序、配对、过滤和长文本折叠。
-- [ ] 对照原始 SDK `result` 检查 Token 数和成本，确认未重复累计。
-- [ ] 下载 JSONL 并逐行解析。
-- [ ] 下载 context CSV，用 Excel 或文本方式检查中文、逗号和换行。
+- [x] 对照原始 SDK `result` 检查 Token 数和成本，确认未重复累计。
+- [x] 下载 JSONL 并逐行解析。
+- [x] 下载 context CSV，用 Excel 或文本方式检查中文、逗号和换行。
 - [ ] 检查分类合计与事件总数/估算 Token 逻辑一致。
-- [ ] 将实际结果填写到“C 阶段记录”。
+- [x] 将实际结果填写到“C 阶段记录”。
 
 ## C6. Git 提交与 Push
 
-- [ ] 检查 Git 状态、敏感信息和不应提交的真实轨迹。
-- [ ] 运行 `git diff --check` 和完整验证。
-- [ ] 建议提交信息：`feat(analysis): add trace viewer token ledger and context export`。
-- [ ] 执行 `git push origin HEAD`。
-- [ ] 记录 commit SHA 和远端结果。
+- [x] 检查 Git 状态、敏感信息和不应提交的真实轨迹。
+- [x] 运行 `git diff --check` 和完整验证。
+- [x] 建议提交信息：`feat(analysis): add trace viewer token ledger and context export`。
+- [x] 执行 `git push origin HEAD`。
+- [x] 记录 commit SHA 和远端结果。
 
 ### C 阶段记录（完成后填写）
 
@@ -437,31 +437,31 @@ interface TokenLedgerEntry {
 
 - [ ] UI 显示 `Read` 工具卡片，而不是只有最终回答。
 - [ ] 工具卡片状态从 running 变为 success 或 error。
-- [ ] `tool_start` 包含工具名、文件路径、时间戳和 `toolUseId`。
-- [ ] `tool_result` 使用相同 `toolUseId`。
-- [ ] 最终回答与实际 `package.json` 内容一致。
-- [ ] JSONL 中事件顺序完整且每行可解析。
-- [ ] Trace Viewer 能筛选到本次 Read 调用。
-- [ ] Token 账本包含本次运行，或明确标记 unavailable。
-- [ ] Context CSV 将 Read 内容归类为 `file_content`。
-- [ ] 演示记录不包含 API Key。
+- [x] `tool_start` 包含工具名、文件路径、时间戳和 `toolUseId`。
+- [x] `tool_result` 使用相同 `toolUseId`。
+- [x] 最终回答与实际 `package.json` 内容一致。
+- [x] JSONL 中事件顺序完整且每行可解析。
+- [x] Trace Viewer 能筛选到本次 Read 调用。
+- [x] Token 账本包含本次运行，或明确标记 unavailable。
+- [x] Context CSV 将 Read 内容归类为 `file_content`。
+- [x] 演示记录不包含 API Key。
 
 ## D4. 主动运行审查
 
 - [ ] 在浏览器中完成上述真实任务。
-- [ ] 直接打开 `package.json`，人工核对智能体总结。
+- [x] 直接打开 `package.json`，人工核对智能体总结。
 - [ ] 刷新页面，确认轨迹仍可查看。
 - [ ] 若应用支持恢复，重启后端后再次打开该会话。
 - [ ] 检查浏览器控制台、服务器日志和 JSONL。
-- [ ] 在下方填写事件编号，不另外创建演示报告。
+- [x] 在下方填写事件编号，不另外创建演示报告。
 
 ## D5. Git 提交与 Push
 
 如果本阶段只产生被 `.gitignore` 排除的本地轨迹，不要提交真实运行数据；更新本 TODO 的脱敏结果记录并提交。
 
-- [ ] 建议提交信息：`test(e2e): verify observable file-read trajectory`。
-- [ ] 执行 `git push origin HEAD`。
-- [ ] 记录 commit SHA 和远端结果。
+- [x] 建议提交信息：`test(e2e): verify observable file-read trajectory`。
+- [x] 执行 `git push origin HEAD`。
+- [x] 记录 commit SHA 和远端结果。
 
 ### D 阶段记录（完成后填写）
 
@@ -482,14 +482,14 @@ interface TokenLedgerEntry {
 
 ## E1. 完整自动验证
 
-- [ ] 清理构建输出后重新安装/验证依赖锁文件的一致性。
+- [x] 清理构建输出后重新安装/验证依赖锁文件的一致性。
 - [ ] 运行格式检查和 lint。
-- [ ] 运行 TypeScript 类型检查。
-- [ ] 运行全部单元测试和集成测试。
-- [ ] 运行生产构建。
-- [ ] 若存在 E2E 测试，运行真实或可控模拟 E2E。
-- [ ] 执行 `git diff --check`。
-- [ ] 确认 `git status --short` 仅包含预期改动。
+- [x] 运行 TypeScript 类型检查。
+- [x] 运行全部单元测试和集成测试。
+- [x] 运行生产构建。
+- [x] 若存在 E2E 测试，运行真实或可控模拟 E2E。
+- [x] 执行 `git diff --check`。
+- [x] 确认 `git status --short` 仅包含预期改动。
 
 将项目真实脚本替换进下列命令，不存在的脚本不要伪造执行：
 
@@ -503,28 +503,28 @@ npm run build
 
 ## E2. 完整运行审查
 
-- [ ] 创建新会话。
-- [ ] 选择合法工作目录。
-- [ ] 完成一次 Read 文件任务。
-- [ ] 完成一次工具 Allow。
-- [ ] 完成一次工具 Deny。
-- [ ] 完成一次 Stop。
-- [ ] 重启服务并恢复会话。
+- [x] 创建新会话。
+- [x] 选择合法工作目录。
+- [x] 完成一次 Read 文件任务。
+- [x] 完成一次工具 Allow。
+- [x] 完成一次工具 Deny。
+- [x] 完成一次 Stop。
+- [x] 重启服务并恢复会话。
 - [ ] 查看 Trace Viewer。
-- [ ] 下载并验证 JSONL。
-- [ ] 查看 Token 账本。
-- [ ] 下载并验证 Context CSV。
+- [x] 下载并验证 JSONL。
+- [x] 查看 Token 账本。
+- [x] 下载并验证 Context CSV。
 - [ ] 检查前后端错误处理和空状态。
 - [ ] 检查窄屏下关键控制仍可使用；视觉美观不是主要目标。
 
 ## E3. 安全与隐私审查
 
-- [ ] 搜索仓库中是否存在 `sk-`、`ANTHROPIC_AUTH_TOKEN=`、Authorization Header 和真实 Base URL 凭证组合。
-- [ ] 确认 `.env`、真实 traces、用户工作区文件和 SDK 私有 transcript 未被误提交。
-- [ ] 确认工作目录越界测试通过。
-- [ ] 确认审批超时默认拒绝。
-- [ ] 确认错误和导出均已脱敏。
-- [ ] 确认前端 bundle 中不存在 API Key。
+- [x] 搜索仓库中是否存在 `sk-`、`ANTHROPIC_AUTH_TOKEN=`、Authorization Header 和真实 Base URL 凭证组合。
+- [x] 确认 `.env`、真实 traces、用户工作区文件和 SDK 私有 transcript 未被误提交。
+- [x] 确认工作目录越界测试通过。
+- [x] 确认审批超时默认拒绝。
+- [x] 确认错误和导出均已脱敏。
+- [x] 确认前端 bundle 中不存在 API Key。
 
 建议检查命令：
 
@@ -538,13 +538,13 @@ git log --oneline --decorate -10
 
 ## E4. 最终提交与 Push
 
-- [ ] 所有阶段记录均已回填本文件。
-- [ ] 修改摘要、结果摘要和运行指南已填写。
-- [ ] 完整验证已通过，或已清楚列出未通过项。
-- [ ] 建议提交信息：`docs(assignment): finalize implementation review and run guide`。
-- [ ] 执行 `git push origin HEAD`。
-- [ ] 使用 `git status --short` 确认工作区状态。
-- [ ] 记录最终 commit SHA、branch 和 remote。
+- [x] 所有阶段记录均已回填本文件。
+- [x] 修改摘要、结果摘要和运行指南已填写。
+- [x] 完整验证已通过，或已清楚列出未通过项。
+- [x] 建议提交信息：`docs(assignment): finalize implementation review and run guide`。
+- [x] 执行 `git push origin HEAD`。
+- [x] 使用 `git status --short` 确认工作区状态。
+- [x] 记录最终 commit SHA、branch 和 remote。
 
 ---
 
@@ -612,7 +612,7 @@ git log --oneline --decorate -10
 - `chatId`、`runId`、`sdkSessionId` 如何关联：`chatId 为应用持久实体；每条用户任务创建 runId；首次 system/result 的 session_id 持久化为 sdkSessionId，后续恢复仍归入原 chatId。`
 - JSONL 写入顺序与并发策略：`Session 先分配严格递增 sequence；TrajectoryStore 按文件 Promise 链串行 append，写入完成后再广播；存储失败只广播 storage error，避免递归写失败。`
 - 工具审批等待与超时策略：`requestId 映射独立 Promise；60 秒默认 deny；Abort/断线 deny；同会话 always allow 不跨会话持久化；PreToolUse 与 canUseTool 通过 toolUseId 去重。`
-- Resume 策略：`保存真实 SDK session_id，重启后使用 SDK resume 参数，不拼接网页历史冒充恢复；恢复仍验证持久化 cwd 存在于允许根目录。`
+- Resume 策略：`保存真实 SDK session_id，重启后使用 SDK resume 参数，不拼接网页历史冒充恢复。当前恢复直接使用持久化 cwd，尚未重新执行 resolveWorkspace/realpath 安全复验。`
 - Token 精确值与估算值的处理：`SDK result usage 标为 reported；上下文字节/4 仅作为 estimated；未提供字段保留 undefined 并在 UI 显示 unavailable。`
 
 ## 5.3 未完成项和限制
@@ -620,6 +620,10 @@ git log --oneline --decorate -10
 - `当前运行环境没有可用的内置浏览器，因此未完成实际浏览器截图、控制台、刷新页面和窄屏交互审查；UI 已通过 TypeScript 与 Vite production build，核心流程通过相同 REST/WebSocket 协议真实验证。`
 - `npm audit --omit=dev 为 0；完整 npm audit 仍报告 Vite 5/esbuild 的 1 moderate + 1 high 开发服务器问题，自动修复要求强制升级 Vite 8，未在本作业中进行破坏性跨版本升级。开发服务器仅绑定 localhost。`
 - `审批 timeout 已按代码与 Abort/断线路径实现为默认拒绝，但未真实等待 60 秒完成端到端 timeout 审查。`
+- `恢复路径仍缺少对持久化 cwd 的存在性、允许根目录和 realpath 边界复验；工作目录丢失时的明确失败行为也缺少测试。`
+- `尚缺并发审批、客户端断开审批、重复/完成后 Stop、符号链接逃逸、WebSocket 顺序等边界集成测试。`
+- `工具卡片尚未完整区分 Bash stdout/stderr/退出码，也未完整记录长输出截断标志和原始长度。Trace Viewer 的视觉配对、相对耗时以及逐事件持久化分类仍不完整。`
+- `项目没有 lint/format 检查脚本；本轮仅完成 typecheck、12 项自动化测试、production build 和 diff 检查。`
 - `三项实质性失败及恢复证据：① traces 写入触发 tsx watch 重启，修复为 --exclude traces；② 模型首次用 Unix 路径 Read 失败，随后改用 Windows 路径成功；③ 安全 ls 被 Claude Code 内置策略自动执行，修复为 PreToolUse 强制审批 + canUseTool 去重。`
 
 ---
@@ -631,18 +635,18 @@ git log --oneline --decorate -10
 | 第三方 API 对话 | 已完成 | 本地既有验证 |
 | `tool_result` 与错误事件 | 已完成 | Phase A seq 3-4、9-10；normalizer tests |
 | JSONL 轨迹 | 已完成 | 两个 Phase A run 逐行解析；raw SHA-256 与落盘一致 |
-| 工作目录限制 | 已完成 | workspace tests；../ 与 C:\\Windows API 均为 400 |
+| 工作目录限制 | 部分完成 | 新会话 workspace tests、../ 与 C:\\Windows API 均为 400；恢复时尚未重新校验持久化 cwd |
 | Stop | 已完成 | run-14114318-2163-4fa3-b7c2-4930bd83f436 seq 22 |
-| Allow/Deny 审批 | 已完成 | Phase B request 546e... allow、73b0... deny；safe ls request dceb... deny |
-| 会话恢复 | 已完成 | SDK Session f805fd35-ec16-4984-b435-06830b71fcdb，重启后回答 ALLOW_MARKER |
+| Allow/Deny 审批 | 部分完成 | Phase B request 546e... allow、73b0... deny；safe ls request dceb... deny；60 秒 timeout 未做完整 E2E 等待验证 |
+| 会话恢复 | 部分完成 | SDK Session f805fd35-ec16-4984-b435-06830b71fcdb，重启后回答 ALLOW_MARKER；恢复 cwd 安全复验未完成 |
 | Trace Viewer | 部分完成 | 数据/API/构建通过；内置浏览器不可用，未截图审查 |
 | Token 账本 | 已完成 | Phase C reported total=13233；Phase D reported total=42707 |
 | Context CSV | 已完成 | UTF-8 BOM、转义单测、7 类统计、file_content 验证 |
 | 文件 Read 展示 | 已完成 | toolu_41111a96146944d0b0400f34，seq 12→13 |
-| 全部测试与构建 | 已完成 | npm ci；typecheck；12/12 tests；Vite build；production audit 0 |
-| 所有阶段 Push | 已完成 | e7bb9b2、5ec3852、8c730cc、7af01cc、23c5639；最终文档提交见 E |
+| 测试与构建 | 部分完成 | npm ci；typecheck；12/12 tests；Vite build；production audit 0；项目无 lint，部分边界集成测试未覆盖 |
+| 所有阶段 Push | 已完成 | e7bb9b2、5ec3852、8c730cc、7af01cc、23c5639、b0307e3 |
 
-最终结论：`核心功能、真实工具运行、可观测性、控制、恢复和安全边界均已完成并验证；唯一主要缺口是当前环境没有可用内置浏览器，无法提供浏览器截图/控制台/窄屏证据。`
+最终结论：`核心对话、真实工具运行、JSONL 轨迹、Allow/Deny/Stop、跨重启 SDK resume、Token 账本和 Context CSV 已通过自动化或真实运行验证。当前不能标记为全部验收完成：浏览器视觉/控制台/刷新/窄屏审查不可用，恢复 cwd 安全复验、若干边界集成测试、工具输出细节和 lint 仍未完成。`
 
 ---
 
@@ -766,7 +770,7 @@ npm run build
 | B：工作目录/Stop/审批/恢复 | 5ec3852 | main | 已推送 | Allow/Deny/Stop/跨重启 Resume 通过 |
 | C：Trace/Token/Context | 8c730cc | main | 已推送 | API、账本、JSONL 一致性与 CSV 通过 |
 | D：文件调用展示 | 7af01cc | main | 已推送 | Windows 路径失败恢复与 package.json 核对通过 |
-| E：最终审查 | 23c5639 + 最终文档提交 | main | 代码已推送；文档提交后推送 | 强制审批、干净安装、全测、构建和安全审查通过；浏览器不可用 |
+| E：最终审查 | 23c5639 + b0307e3 | main | 已推送 | 强制审批、干净安装、现有测试、构建和 production audit 通过；浏览器与部分边界验收未完成 |
 
 ## 完成定义
 
@@ -776,7 +780,7 @@ npm run build
 - [x] 真实文件调用闭环已展示；
 - [x] 三类后续故障分析所需证据能从 JSONL/Trace Viewer 中取得；
 - [x] Token 与上下文统计没有伪精确数据；
-- [x] 工作目录、审批和密钥处理通过安全检查；
-- [x] 完整测试和主动运行审查已执行；
+- [ ] 工作目录、审批和密钥处理通过安全检查（恢复 cwd 尚未重新执行安全边界复验）；
+- [ ] 完整测试和主动运行审查已执行（浏览器验收、lint 与部分边界集成测试未完成）；
 - [x] 每个阶段已提交并成功 push；
 - [x] 本文件的修改摘要、结果摘要和运行指南均已回填。
