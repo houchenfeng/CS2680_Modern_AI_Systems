@@ -1,4 +1,4 @@
-import { query, type CanUseTool, type Query } from "@anthropic-ai/claude-agent-sdk";
+import { query, type CanUseTool, type HookCallback, type Query } from "@anthropic-ai/claude-agent-sdk";
 
 const SYSTEM_PROMPT = `You are a helpful coding assistant operating only inside the configured working directory.
 Use tools when the task requires evidence. Never expose credentials or hidden reasoning. Be concise but complete.`;
@@ -32,6 +32,7 @@ export interface AgentSessionOptions {
   cwd: string;
   resume?: string;
   canUseTool: CanUseTool;
+  preToolUse: HookCallback;
 }
 
 export class AgentSession {
@@ -54,6 +55,7 @@ export class AgentSession {
         allowedTools: ["Read", "Glob", "Grep"],
         permissionMode: "default",
         canUseTool: options.canUseTool,
+        hooks: { PreToolUse: [{ hooks: [options.preToolUse] }] },
         systemPrompt: SYSTEM_PROMPT,
       },
     });

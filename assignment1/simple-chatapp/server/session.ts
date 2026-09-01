@@ -24,6 +24,7 @@ export class Session {
   private readonly agentSession: AgentSession;
   private readonly pendingPermissions = new Map<string, PendingPermission>();
   private readonly alwaysAllowed = new Set<string>();
+  private readonly hookApproved = new Set<string>();
   private readonly toolNames = new Map<string, string>();
   private isListening = false;
   private sequence = 0;
@@ -37,7 +38,7 @@ export class Session {
     this.sdkSessionId = chat.sdkSessionId;
     this.status = chat.sdkSessionId ? "resumable" : chat.status || "new";
     if (!chat.cwd) throw new Error("Chat has no validated working directory");
-    this.agentSession = new AgentSession({ cwd: chat.cwd, resume: chat.sdkSessionId, canUseTool: this.canUseTool });
+    this.agentSession = new AgentSession({ cwd: chat.cwd, resume: chat.sdkSessionId, canUseTool: this.canUseTool, preToolUse: this.preToolUse });
   }
 
   private build(payload: Partial<AgentEvent> & Pick<AgentEvent, "eventType">): AgentEvent {
@@ -64,6 +65,7 @@ export class Session {
   }
 
   private readonly canUseTool = async (toolName: string, input: Record<string, unknown>, options: { signal: AbortSignal; toolUseID: string }): Promise<PermissionResult> => {
+    if (this.hookApproved.delete(options.toolUseID)) return { behavior: "allow", updatedInput: input, toolUseID: options.toolUseID };
     if (READ_ONLY_TOOLS.has(toolName) || this.alwaysAllowed.has(toolName)) return { behavior: "allow", updatedInput: input, toolUseID: options.toolUseID };
     const requestId = randomUUID();
     this.setStatus("waiting_permission");
@@ -79,6 +81,17 @@ export class Session {
       this.pendingPermissions.set(requestId, { resolve, timer, toolName, input, toolUseId: options.toolUseID });
       options.signal.addEventListener("abort", () => deny("Run was stopped"), { once: true });
     });
+  };
+
+  private readonly preToolUse = async (input: any, toolUseId: string | undefined, options: { signal: AbortSignal }) => {
+    const id = toolUseId || input.tool_use_id || randomUUID();
+    if (READ_ONLY_TOOLS.has(input.tool_name)) return { continue: true };
+    const decision = await this.canUseTool(input.tool_name, input.tool_input || {}, { signal: options.signal, toolUseID: id });
+    if (decision.behavior === "allow") {
+      this.hookApproved.add(id);
+      return { hookSpecificOutput: { hookEventName: "PreToolUse" as const, permissionDecision: "allow" as const, permissionDecisionReason: "Approved through Web UI" } };
+    }
+    return { hookSpecificOutput: { hookEventName: "PreToolUse" as const, permissionDecision: "deny" as const, permissionDecisionReason: decision.message } };
   };
 
   async resolvePermission(requestId: string, decision: "allow" | "deny", alwaysAllow = false, reason?: string) {

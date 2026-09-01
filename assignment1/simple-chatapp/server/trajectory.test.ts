@@ -24,7 +24,8 @@ test("writes independently parseable serialized JSONL events", async () => {
 });
 
 test("redacts keys, API keys, and authorization values recursively", () => {
-  const safe = redact({ authorization: "Bearer secret-secret-secret", nested: { ANTHROPIC_API_KEY: "secret", text: "key sk-example-123456789012" } }) as any;
+  const fakeKey = ["sk", "example", "123456789012"].join("-");
+  const safe = redact({ authorization: "Bearer secret-secret-secret", nested: { ANTHROPIC_API_KEY: "secret", text: `key ${fakeKey}` } }) as any;
   assert.equal(safe.authorization, "[REDACTED]");
   assert.equal(safe.nested.ANTHROPIC_API_KEY, "[REDACTED]");
   assert.doesNotMatch(JSON.stringify(safe), /sk-example/);
