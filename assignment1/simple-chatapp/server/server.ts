@@ -11,6 +11,7 @@ import { Session } from "./session.js";
 import { trajectoryStore } from "./trajectory.js";
 import { normalizeError, redact } from "./redaction.js";
 import { resolveWorkspace, workspaceRoot } from "./workspace.js";
+import { contextCsv, contextSummary, filterAndSortEvents, tokenLedger } from "./trace-analysis.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,7 +111,27 @@ app.get("/api/chats/:id/traces", async (req, res) => {
 
 app.get("/api/traces/:chatId/:runId", async (req, res) => {
   try {
-    res.json(await trajectoryStore.events(req.params.chatId, req.params.runId));
+    const events = await trajectoryStore.events(req.params.chatId, req.params.runId);
+    res.json(filterAndSortEvents(events, { eventType: req.query.eventType as string | undefined, toolName: req.query.toolName as string | undefined, errorsOnly: req.query.errorsOnly === "true" }));
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.get("/api/traces/:chatId/:runId/summary", async (req, res) => {
+  try {
+    const events = await trajectoryStore.events(req.params.chatId, req.params.runId);
+    res.json({ ledger: tokenLedger(events), context: contextSummary(events) });
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.get("/api/traces/:chatId/:runId/context.csv", async (req, res) => {
+  try {
+    const events = await trajectoryStore.events(req.params.chatId, req.params.runId);
+    res.setHeader("Content-Disposition", `attachment; filename="${req.params.runId}-context.csv"`);
+    res.type("text/csv; charset=utf-8").send(`\uFEFF${contextCsv(events)}`);
   } catch (error) {
     res.status(404).json({ error: normalizeError(error, "storage") });
   }

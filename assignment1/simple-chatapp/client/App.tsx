@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { ChatList } from "./components/ChatList";
 import { ChatWindow } from "./components/ChatWindow";
+import { TraceViewer } from "./components/TraceViewer";
 import type { AgentEvent, Chat } from "./types";
 
 const API_BASE = "/api";
@@ -14,6 +15,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workspacePath, setWorkspacePath] = useState(".");
+  const [view, setView] = useState<"chat" | "trace">("chat");
 
   const fetchChats = useCallback(async () => {
     const response = await fetch(`${API_BASE}/chats`);
@@ -127,7 +129,9 @@ export default function App() {
           onWorkspacePathChange={setWorkspacePath}
         />
       </aside>
-      <ChatWindow
+      <div className="flex min-w-0 flex-1 flex-col">
+        <nav className="flex gap-1 border-b border-slate-200 bg-white px-4 pt-2"><button onClick={() => setView("chat")} className={`rounded-t px-4 py-2 text-sm ${view === "chat" ? "bg-slate-100 font-medium" : "text-slate-500"}`}>Chat</button><button onClick={() => setView("trace")} className={`rounded-t px-4 py-2 text-sm ${view === "trace" ? "bg-slate-100 font-medium" : "text-slate-500"}`}>Trace Viewer</button></nav>
+      {view === "chat" ? <ChatWindow
         chatId={selectedChatId}
         events={events}
         isConnected={isConnected}
@@ -137,7 +141,8 @@ export default function App() {
         chat={selectedChat}
         onStop={() => void stopRun().catch((caught) => setError(caught.message))}
         onResolvePermission={resolvePermission}
-      />
+      /> : <TraceViewer chatId={selectedChatId} />}
+      </div>
     </div>
   );
 }

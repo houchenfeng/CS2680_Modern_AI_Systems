@@ -197,7 +197,7 @@ interface NormalizedError {
 - 运行审查：`Chat 404073e8-83eb-4717-b9d4-5fb04e8a6c62；Read 成功 run-01febd03-dd14-4ab6-acc8-b0a209a305fc（sequence 1-6）；不存在文件 run-1ea36a9b-a630-4663-9f42-30b8aab0b310（sequence 7-12）；toolUseId 均正确配对；两份 JSONL 逐行可解析且密钥扫描通过。`
 - 已知限制：`当前环境没有可用的内置浏览器，无法执行浏览器控制台和截图审查；已用生产构建及网页同协议的 REST/WebSocket 真实链路验证。B/C 阶段功能尚未实现。`
 - Commit SHA：`e7bb9b2075af23b9c21ffbfe89ae627890ae8d69`
-- Push 结果：`失败：GitHub HTTPS schannel TLS 握手连续三次失败；本地提交完整保留，后续阶段继续重试。`
+- Push 结果：`首次三次尝试因 GitHub HTTPS schannel TLS 握手失败；阶段 B push 时已成功推送至 origin/main。`
 
 ---
 
@@ -283,8 +283,8 @@ interface NormalizedError {
 - 测试命令：`npm run typecheck；npm test（8/8）；npm run build -- --emptyOutDir；真实 REST/WebSocket/SDK 控制与恢复脚本。`
 - Allow/Deny/Stop/Resume 审查：`Chat 8d1edc60-e43b-463b-b001-21323ca93687；Deny request 73b02adb-2e7d-4805-8888-b7cd7860aa47（seq 4-6）；Allow request 546e3d89-fdb1-4b7c-af06-c43c641b4e95（seq 12-14）；Stop run-14114318-2163-4fa3-b7c2-4930bd83f436（seq 22）；重启后使用 SDK session f805fd35-ec16-4984-b435-06830b71fcdb 恢复并正确回答 ALLOW_MARKER。`
 - 已知限制：`未在真实运行中等待 60 秒验证 timeout，但实现为默认拒绝；客户端断开同样默认拒绝。当前环境无可用内置浏览器，UI 仅通过类型检查和生产构建验证。`
-- Commit SHA：`本阶段功能提交后回填`
-- Push 结果：`本阶段功能提交后回填`
+- Commit SHA：`5ec3852c3b92d3c346e50cc7e37823d811cb731f`
+- Push 结果：`成功推送至 origin/main，同时补推阶段 A。`
 
 ---
 
@@ -398,14 +398,14 @@ interface TokenLedgerEntry {
 
 ### C 阶段记录（完成后填写）
 
-- 修改摘要：`待填写`
-- Trace Viewer 结果：`待填写`
-- Token 账本结果：`待填写`
-- 上下文分类/CSV 结果：`待填写`
-- 测试命令：`待填写`
-- 已知限制：`待填写`
-- Commit SHA：`待填写`
-- Push 结果：`待填写`
+- 修改摘要：`新增 Trace Viewer 页签、事件类型/工具/错误过滤、JSONL/CSV 下载、Token 账本、上下文类别统计，以及规则版本 1.0.0 的确定性分类器。`
+- Trace Viewer 结果：`Run run-e222a47d-257b-4c54-a1d9-d0f9c3d748f4 共 8 条事件；Bash 过滤得到 4 条；下载 JSONL 与落盘文件 SHA-256 完全一致（888F2762...AB4）。`
+- Token 账本结果：`SDK result 报告 measurement=reported、totalTokens=13233；按 eventId 去重，未知字段显示 unavailable，不填充伪 0。`
+- 上下文分类/CSV 结果：`该 run 得到 7 个类别；CSV 含 UTF-8 BOM、9 行（含表头），字段覆盖 sequence/timestamp/category/utility/bytes/estimatedTokens/toolName/truncated/ruleVersion；导出密钥扫描通过。`
+- 测试命令：`npm run typecheck；npm test（12/12）；npm run build -- --emptyOutDir；REST 过滤/summary/raw/context.csv 审查。`
+- 已知限制：`estimatedTokens 使用 UTF-8 bytes/4 近似并明确标为 estimated；SDK 未暴露的隐藏上下文不推测。当前环境无可用内置浏览器，Trace Viewer 通过类型检查、构建和 API 数据验证，未完成截图审查。`
+- Commit SHA：`本阶段功能提交后回填`
+- Push 结果：`本阶段功能提交后回填`
 
 ---
 
