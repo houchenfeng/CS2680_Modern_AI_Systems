@@ -404,8 +404,8 @@ interface TokenLedgerEntry {
 - 上下文分类/CSV 结果：`该 run 得到 7 个类别；CSV 含 UTF-8 BOM、9 行（含表头），字段覆盖 sequence/timestamp/category/utility/bytes/estimatedTokens/toolName/truncated/ruleVersion；导出密钥扫描通过。`
 - 测试命令：`npm run typecheck；npm test（12/12）；npm run build -- --emptyOutDir；REST 过滤/summary/raw/context.csv 审查。`
 - 已知限制：`estimatedTokens 使用 UTF-8 bytes/4 近似并明确标为 estimated；SDK 未暴露的隐藏上下文不推测。当前环境无可用内置浏览器，Trace Viewer 通过类型检查、构建和 API 数据验证，未完成截图审查。`
-- Commit SHA：`本阶段功能提交后回填`
-- Push 结果：`本阶段功能提交后回填`
+- Commit SHA：`8c730cc5be302a78ee690bf785ba0035e175768f`
+- Push 结果：`成功推送至 origin/main。`
 
 ---
 
@@ -465,16 +465,16 @@ interface TokenLedgerEntry {
 
 ### D 阶段记录（完成后填写）
 
-- 演示日期与模型：`待填写`
-- 工作目录：`待填写（不得包含敏感个人目录信息）`
-- Run ID：`待填写`
-- `tool_start` sequence：`待填写`
-- `tool_result/tool_error` sequence：`待填写`
-- `run_result` sequence：`待填写`
-- 人工核对结果：`待填写`
-- Trace/Token/CSV 验证：`待填写`
-- Commit SHA：`待填写`
-- Push 结果：`待填写`
+- 演示日期与模型：`2026-09-01；deepseek-v4-pro-0813`
+- 工作目录：`AGENT_WORKSPACE_ROOT 内的 .（脱敏相对路径）`
+- Run ID：`run-cad02671-30f1-4671-b77b-01efe1703961；Chat 5212a1fa-03a2-47c8-8bcd-2ef3043f1444；SDK session 6045d7e0-cfb0-49eb-a6b2-6109480d2210`
+- `tool_start` sequence：`第一次 Read seq 5（toolu_2c5afc08ac4647a78def86e2，Unix 风格路径）；恢复后的 Read seq 12（toolu_41111a96146944d0b0400f34，Windows 路径）`
+- `tool_result/tool_error` sequence：`第一次 Read tool_error seq 6；恢复后的 Read tool_result seq 13；两组 toolUseId 均正确配对。`
+- `run_result` sequence：`15，status=success`
+- 人工核对结果：`回答中的 name=simple-chatapp；scripts=dev/dev:server/dev:client/start/typecheck/test/build；SDK、React/Vite、Express/ws 等依赖均与 package.json 一致。模型先因路径格式失败，再自行恢复成功；未修改文件、未运行安装命令。`
+- Trace/Token/CSV 验证：`JSONL 共 15 条且密钥扫描通过；Token ledger measurement=reported，input=6252/output=1639/cacheRead=34816/cacheWrite=0/total=42707/cost=0.1561824/duration=40766ms；Context CSV 包含 file_content。`
+- Commit SHA：`本阶段记录提交后回填`
+- Push 结果：`本阶段记录提交后回填`
 
 ---
 
