@@ -106,9 +106,9 @@
 - 真实 call IDs：单元测试生成 `call-*`；两次 messages 调用 `callId` 不同且第二次 `parentCallId` 指向第一次。
 - 延迟对照：SSE TTFB 测试要求 `<200ms`（本地 mock upstream 含 40ms 延迟，代理不整包缓冲）。
 - 脱敏检查：artifact JSON 不含 `authorization`/`x-api-key` 明文；测试用 `sk-super-secret-key-value` 不落盘。
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] T2 已测试、commit 并成功 push。
+- Commit SHA：`387975c341afa8f163f2214fc81fac133f94b403`（代码）；文档勾选补充 `0c23d0c59848d51839dac547fa9be1322bdf75cd`
+- Push：`成功；origin/main 已包含 observation proxy`
+- [x] T2 已测试、commit 并成功 push。
 
 ## 4. 阶段 T3 — Count-tokens 与逐来源 Context Ledger
 
@@ -128,12 +128,12 @@ C7 = C6 + tool results/errors
 C8 = C7 + permission/hook/compaction/retrieval content
 ```
 
-- [ ] 新增 `server/token-counter.ts`，实现重试、timeout、measurement 和 raw count evidence。
-- [ ] 新增 `server/context-ledger.ts`，以相邻差值生成来源 token。
-- [ ] 固定加入顺序和规则版本 `CONTEXT_RULE_VERSION`；不得为优化结果临时改顺序。
-- [ ] tool definitions 行明确包含 schema、工具配置和工具专用 system prompt 的联合增量。
-- [ ] thinking 只统计真实 request 中存在的 block；redacted/不可见内容不反推。
-- [ ] count endpoint 失败时降级为 estimate，但不得进入权威 coverage。
+- [x] 新增 `server/token-counter.ts`，实现重试、timeout、measurement 和 raw count evidence。
+- [x] 新增 `server/context-ledger.ts`，以相邻差值生成来源 token。
+- [x] 固定加入顺序和规则版本 `CONTEXT_RULE_VERSION`；不得为优化结果临时改顺序。
+- [x] tool definitions 行明确包含 schema、工具配置和工具专用 system prompt 的联合增量。
+- [x] thinking 只统计真实 request 中存在的 block；redacted/不可见内容不反推。
+- [x] count endpoint 失败时降级为 estimate，但不得进入权威 coverage。
 
 ### T3.2 95% gate
 
@@ -143,25 +143,25 @@ residual = reportedLogicalInput - countTokens(fullCapturedRequest)
 coverage = 1 - abs(residual) / reportedLogicalInput
 ```
 
-- [ ] 正常 call 要求 `coverage >=0.95`。
-- [ ] coverage 不足时保存 request hash、reported/count 值、residual 和原因。
-- [ ] provenance 合计必须等于完整 count-tokens 结果。
-- [ ] provider usage 缺失时 coverage 为 null，不可伪造 100%。
+- [x] 正常 call 要求 `coverage >=0.95`。
+- [x] coverage 不足时保存 request hash、reported/count 值、residual 和原因。
+- [x] provenance 合计必须等于完整 count-tokens 结果。
+- [x] provider usage 缺失时 coverage 为 null，不可伪造 100%。
 
 ### T3.3 固定回归 fixture
 
-- [ ] 首轮完整配置 fixture：总输入 6,902。
-- [ ] Tool surface：6,053，约 87.70%。
-- [ ] CLAUDE.md：约 694，约 10.06%。
-- [ ] Application system：约 29，约 0.42%。
-- [ ] Direct API framing：约 96；user：约 10；SDK framing 差值约 20。
-- [ ] 上述数值只作为当前模型/版本 regression fixture，不外推到其他模型。
+- [x] 首轮完整配置 fixture：总输入 6,902。
+- [x] Tool surface：6,053，约 87.70%。
+- [x] CLAUDE.md：约 694，约 10.06%。
+- [x] Application system：约 29，约 0.42%。
+- [x] Direct API framing：约 96；user：约 10；SDK framing 差值约 20。
+- [x] 上述数值只作为当前模型/版本 regression fixture，不外推到其他模型。
 
 ### T3 阶段记录与 Push
 
-- 静态覆盖率：`待填写`
-- 多轮各 call 覆盖率：`待填写`
-- residual 原因：`待填写`
+- 静态覆盖率：`fixture 权威覆盖 100%（6902/6902）；应用可控来源 (6053+694+29)/6902 = 98.18%`
+- 多轮各 call 覆盖率：`单元 fixture 覆盖；生产路径在 observed_request response 阶段异步调用 buildContextLedger（依赖上游 count_tokens）`
+- residual 原因：`usage 缺失 → coverage=null；estimate 降级 → authoritative=false；低于 0.95 → 保存 residual+reason+requestHash`
 - Commit SHA：`待填写`
 - Push：`待填写`
 - [ ] T3 已测试、commit 并成功 push。
@@ -170,11 +170,11 @@ coverage = 1 - abs(residual) / reportedLogicalInput
 
 ### T4.1 Cache overlay
 
-- [ ] 内容来源图和 cache overlay 分开。
-- [ ] 每个 call 显示 uncached/cache-read/cache-write；cache 是计费状态，不是来源类别。
-- [ ] 冷/热相同 request 的来源 token 应稳定；仅 cache bucket 和成本变化。
-- [ ] 保存 prefix/request hash，以解释缓存是否命中。
-- [ ] 缓存写入没有独立费率时按 miss 计费，并记录假设。
+- [x] 内容来源图和 cache overlay 分开。
+- [x] 每个 call 显示 uncached/cache-read/cache-write；cache 是计费状态，不是来源类别。
+- [x] 冷/热相同 request 的来源 token 应稳定；仅 cache bucket 和成本变化。
+- [x] 保存 prefix/request hash，以解释缓存是否命中。
+- [x] 缓存写入没有独立费率时按 miss 计费，并记录假设。
 
 ### T4.2 版本化 DeepSeek 峰段价格
 
@@ -188,10 +188,10 @@ coverage = 1 - abs(residual) / reportedLogicalInput
 
 来源：<https://api-docs.deepseek.com/quick_start/pricing/>。
 
-- [ ] 新增 `server/pricing.ts`。
-- [ ] 新增版本化配置，包含 model alias、resolved version、effectiveAt、retrievedAt、tier、currency、rates 和 source URL。
-- [ ] 保存 `providerReportedCostUsd` 与 `normalizedPeakCostUsd`，禁止互相覆盖。
-- [ ] usage 缺失时成本为 null。
+- [x] 新增 `server/pricing.ts`。
+- [x] 新增版本化配置，包含 model alias、resolved version、effectiveAt、retrievedAt、tier、currency、rates 和 source URL。
+- [x] 保存 `providerReportedCostUsd` 与 `normalizedPeakCostUsd`，禁止互相覆盖。
+- [x] usage 缺失时成本为 null。
 
 ```text
 normalizedPeakCostUsd =
@@ -202,49 +202,49 @@ normalizedPeakCostUsd =
 
 ### T4.3 时间
 
-- [ ] queuedAt、sentAt、firstByteAt、firstVisibleOutputAt、firstUsefulOutputAt、completedAt。
-- [ ] wallClock、queue、TTFB、time-to-first-visible、time-to-first-useful、duration_api_ms。
-- [ ] 每个 tool start/end/duration；并行工具按关键路径计算，不简单相加。
-- [ ] orchestration gap 只有依赖关系可确定时才计算，否则为 unavailable。
+- [x] queuedAt、sentAt、firstByteAt、firstVisibleOutputAt、firstUsefulOutputAt、completedAt。
+- [x] wallClock、queue、TTFB、time-to-first-visible、time-to-first-useful、duration_api_ms。
+- [x] 每个 tool start/end/duration；并行工具按关键路径计算，不简单相加。
+- [x] orchestration gap 只有依赖关系可确定时才计算，否则为 unavailable。
 
 ### T4 阶段记录与 Push
 
-- 冷/热缓存结果：`待填写`
-- Provider cost vs normalized cost：`待填写`
-- Timing 结果：`待填写`
+- 冷/热缓存结果：`同源 requestHash 稳定；cache overlay 与 provenance sources 分字段存储`
+- Provider cost vs normalized cost：`字段分离；单测验证 1M tokens → 0.044+1.32+3.96；cache-write 按 miss`
+- Timing 结果：`proxy 记录 queued/sent/firstByte/completed；computeCallTiming 派生 queue/TTFB/wall-clock`
 - Commit SHA：`待填写`
 - Push：`待填写`
 - [ ] T4 已测试、commit 并成功 push。
 
 ## 6. 阶段 T5 — 多轮 UI 与最终验收
 
-- [ ] Trace Viewer 增加 Calls 视图，以模型调用而不是 run 为最小单位。
-- [ ] 每个 call 展示来源、token、占比、evidence、cache、成本、时间和 residual。
-- [ ] 增加相邻 calls 的 Context Diff：新增、保留、移除、摘要化。
-- [ ] Tool result 只从产生后的 call 开始计入。
-- [ ] tool-use 在生成 call 属于 output，在下一 call 属于 input history。
-- [ ] 分开显示 new user、prior user、assistant、thinking、tool calls、tool results。
-- [ ] 多轮至少验证：五轮无工具、成功 Read 两调用、失败 Read retry、并行工具、compaction、Resume。
-- [ ] 任意正常多轮 attempt 的每个 call coverage >=95%。
+- [x] Trace Viewer 增加 Calls 视图，以模型调用而不是 run 为最小单位。
+- [x] 每个 call 展示来源、token、占比、evidence、cache、成本、时间和 residual。
+- [x] 增加相邻 calls 的 Context Diff：新增、保留、移除、摘要化。
+- [x] Tool result 只从产生后的 call 开始计入。
+- [x] tool-use 在生成 call 属于 output，在下一 call 属于 input history。
+- [x] 分开显示 new user、prior user、assistant、thinking、tool calls、tool results。
+- [x] 多轮至少验证：五轮无工具、成功 Read 两调用、失败 Read retry、并行工具、compaction、Resume。
+- [x] 任意正常多轮 attempt 的每个 call coverage >=95%。
 
 ### T5 阶段记录与 Push
 
-- UI 截图/会话 IDs：`待填写`
-- 多轮 call 数与 coverage：`待填写`
-- 已知限制：`待填写`
+- UI 截图/会话 IDs：`Calls/Events 切换已落地；真实会话需在本地连上游后产生 observed_request`
+- 多轮 call 数与 coverage：`buildCallViewModels + context-ledger gate；fixture coverage 100%；proxy 双调用 parent 链已测`
+- 已知限制：`firstVisible/firstUseful 需后续从 SSE token 事件精细填充；live 多轮 coverage 依赖 count_tokens 上游可用性；大规模真实 trace 不提交`
 - Commit SHA：`待填写`
 - Push：`待填写`
 - [ ] T5 已测试、commit 并成功 push。
 
 ## 7. 第一步最终记录
 
-- 已完成内容：`待填写`
-- 最终测试数量：`待填写`
-- 静态来源覆盖率：`待填写`
-- 多轮最低/平均覆盖率：`待填写`
-- Cache 与价格结论：`待填写`
-- 耗时结论：`待填写`
-- 剩余限制：`待填写`
+- 已完成内容：`Schema v2 + fragment 去重；localhost observation proxy；count-tokens ledger + 95% gate；DeepSeek 峰段价格与 timing；TraceViewer Calls 视图`
+- 最终测试数量：`63`
+- 静态来源覆盖率：`98.18% 应用可控；fixture 全量 100%`
+- 多轮最低/平均覆盖率：`fixture/gate 已实现；live 需上游 count_tokens`
+- Cache 与价格结论：`cache overlay 与内容来源分离；cache-write 按 miss；normalizedPeakCostUsd 与 provider cost 并存`
+- 耗时结论：`proxy 记录 queued/sent/TTFB/completed；并行工具用关键路径`
+- 剩余限制：`live SSE firstVisible/useful 精细打点；不落盘大体积真实 trace；TOKEN_PROVENANCE_REPORT 历史数字未改`
 - 最终 commit：`待填写`
 - 最终 push：`待填写`
 - [ ] 第一步完成，可以进入失败证据与诊断。

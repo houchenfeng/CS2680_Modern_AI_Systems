@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentEvent } from "../types";
+import {
+  buildCallViewModels,
+  diffAdjacentCalls,
+  type CallViewModel,
+} from "../call-view";
 
 const ALL_RUNS = "__all__";
 
@@ -217,6 +222,7 @@ export function TraceViewer({
   const [toolName, setToolName] = useState("");
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState<"events" | "calls">("calls");
   const runsRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -318,6 +324,7 @@ export function TraceViewer({
       ),
     [events],
   );
+  const calls = useMemo(() => buildCallViewModels(events), [events]);
 
   const downloadAllJsonl = () => {
     const body = events
@@ -412,6 +419,22 @@ export function TraceViewer({
             />{" "}
             Errors only
           </label>
+          <div className="flex items-center gap-1 rounded border border-slate-300 p-0.5 text-sm">
+            <button
+              type="button"
+              className={`rounded px-2 py-1 ${viewMode === "calls" ? "bg-slate-900 text-white" : ""}`}
+              onClick={() => setViewMode("calls")}
+            >
+              Calls
+            </button>
+            <button
+              type="button"
+              className={`rounded px-2 py-1 ${viewMode === "events" ? "bg-slate-900 text-white" : ""}`}
+              onClick={() => setViewMode("events")}
+            >
+              Events
+            </button>
+          </div>
           {runId === ALL_RUNS ? (
             <div className="ml-auto flex gap-2">
               <button
@@ -572,57 +595,236 @@ export function TraceViewer({
             </div>
           </section>
         ) : null}
-        <section className="space-y-2">
-          {filtered.map((event) => {
-            const pairedStart = event.toolUseId
-              ? toolStarts.get(event.toolUseId)
-              : undefined;
-            const relativeMs = Math.max(
-              0,
-              Date.parse(event.timestamp) - timelineStart,
-            );
-            const turnIndex = runs.indexOf(event.runId);
-            return (
-              <details
-                key={event.eventId}
-                className={`rounded-lg border-l-4 bg-white p-3 ${event.eventType === "request_snapshot" ? "border-l-violet-500 border-slate-200" : event.eventType === "tool_error" || event.error ? "border-red-300" : event.eventType === "tool_start" ? "border-l-blue-500 border-slate-200" : pairedStart ? "border-l-emerald-500 border-slate-200" : "border-slate-200"}`}
-              >
-                <summary className="cursor-pointer text-sm">
-                  <span className="mr-2 font-mono text-xs text-slate-500">
-                    {runId === ALL_RUNS && turnIndex >= 0
-                      ? `T${turnIndex + 1} · `
-                      : ""}
-                    #{event.sequence} · +{relativeMs} ms
-                  </span>
-                  <strong>
-                    {event.eventType === "request_snapshot"
-                      ? "Observable request snapshot"
-                      : event.eventType}
-                  </strong>
-                  {event.toolName ? ` · ${event.toolName}` : ""}
-                  <span className="ml-2 text-xs text-slate-400">
-                    event {event.eventId} · run {event.runId}
-                    {event.toolUseId ? ` · tool ${event.toolUseId}` : ""}
-                  </span>
-                  {pairedStart && event.eventType !== "tool_start" ? (
-                    <span className="ml-2 text-xs text-emerald-700">
-                      paired with #{pairedStart.sequence}
+        {viewMode === "calls" ? (
+          <CallsPanel calls={calls} />
+        ) : (
+          <section className="space-y-2">
+            {filtered.map((event) => {
+              const pairedStart = event.toolUseId
+                ? toolStarts.get(event.toolUseId)
+                : undefined;
+              const relativeMs = Math.max(
+                0,
+                Date.parse(event.timestamp) - timelineStart,
+              );
+              const turnIndex = runs.indexOf(event.runId);
+              return (
+                <details
+                  key={event.eventId}
+                  className={`rounded-lg border-l-4 bg-white p-3 ${event.eventType === "request_snapshot" ? "border-l-violet-500 border-slate-200" : event.eventType === "tool_error" || event.error ? "border-red-300" : event.eventType === "tool_start" ? "border-l-blue-500 border-slate-200" : pairedStart ? "border-l-emerald-500 border-slate-200" : "border-slate-200"}`}
+                >
+                  <summary className="cursor-pointer text-sm">
+                    <span className="mr-2 font-mono text-xs text-slate-500">
+                      {runId === ALL_RUNS && turnIndex >= 0
+                        ? `T${turnIndex + 1} · `
+                        : ""}
+                      #{event.sequence} · +{relativeMs} ms
                     </span>
-                  ) : null}
-                </summary>
-                {event.eventType === "request_snapshot" ? (
-                  <RequestSnapshotCard event={event} />
-                ) : (
-                  <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">
-                    {JSON.stringify(event, null, 2)}
-                  </pre>
-                )}
-              </details>
-            );
-          })}
-        </section>
+                    <strong>
+                      {event.eventType === "request_snapshot"
+                        ? "Observable request snapshot"
+                        : event.eventType}
+                    </strong>
+                    {event.toolName ? ` · ${event.toolName}` : ""}
+                    <span className="ml-2 text-xs text-slate-400">
+                      event {event.eventId} · run {event.runId}
+                      {event.toolUseId ? ` · tool ${event.toolUseId}` : ""}
+                    </span>
+                    {pairedStart && event.eventType !== "tool_start" ? (
+                      <span className="ml-2 text-xs text-emerald-700">
+                        paired with #{pairedStart.sequence}
+                      </span>
+                    ) : null}
+                  </summary>
+                  {event.eventType === "request_snapshot" ? (
+                    <RequestSnapshotCard event={event} />
+                  ) : (
+                    <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">
+                      {JSON.stringify(event, null, 2)}
+                    </pre>
+                  )}
+                </details>
+              );
+            })}
+          </section>
+        )}
         {error ? <p className="text-red-600">{error}</p> : null}
       </div>
     </main>
+  );
+}
+
+function formatMaybe(value: unknown) {
+  if (value === null || value === undefined) return "unavailable";
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : "unavailable";
+  return String(value);
+}
+
+function CallsPanel({ calls }: { calls: CallViewModel[] }) {
+  if (!calls.length) {
+    return (
+      <section className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
+        No model calls captured yet. Observed requests appear here after the
+        localhost observation proxy records `/v1/messages` traffic.
+      </section>
+    );
+  }
+  return (
+    <section className="space-y-3">
+      <h2 className="font-semibold">
+        Model calls{" "}
+        <span className="text-sm font-normal text-slate-500">
+          {calls.length}
+        </span>
+      </h2>
+      {calls.map((call, index) => {
+        const previous = index > 0 ? calls[index - 1] : undefined;
+        const diff = diffAdjacentCalls(previous, call);
+        const usage = call.callUsage || {};
+        return (
+          <details
+            key={call.callId}
+            open={index === calls.length - 1}
+            className="rounded-lg border border-slate-200 bg-white p-4"
+          >
+            <summary className="cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium text-slate-900">
+                    Call {index + 1}{" "}
+                    <span className="font-mono text-xs font-normal text-slate-500">
+                      {call.callId}
+                    </span>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    run {call.runId}
+                    {call.providerRequestId
+                      ? ` · provider ${call.providerRequestId}`
+                      : ""}
+                    {call.parentCallId ? ` · parent ${call.parentCallId}` : ""}
+                  </p>
+                </div>
+                <div className="text-right text-xs text-slate-600">
+                  <div>
+                    coverage{" "}
+                    {call.coverage === null || call.coverage === undefined
+                      ? "unavailable"
+                      : `${(call.coverage * 100).toFixed(2)}%`}
+                  </div>
+                  <div>
+                    in{" "}
+                    {formatMaybe(
+                      usage.logicalInputTokens ?? usage.uncachedInputTokens,
+                    )}{" "}
+                    / out {formatMaybe(usage.outputTokens)}
+                  </div>
+                </div>
+              </div>
+            </summary>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <div className="space-y-2 text-sm">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Tokens &amp; cache
+                </h3>
+                <dl className="grid grid-cols-2 gap-1">
+                  <dt>Uncached</dt>
+                  <dd>{formatMaybe(usage.uncachedInputTokens)}</dd>
+                  <dt>Cache read</dt>
+                  <dd>{formatMaybe(usage.cacheReadTokens)}</dd>
+                  <dt>Cache write</dt>
+                  <dd>{formatMaybe(usage.cacheWriteTokens)}</dd>
+                  <dt>Logical input</dt>
+                  <dd>{formatMaybe(usage.logicalInputTokens)}</dd>
+                  <dt>Output</dt>
+                  <dd>{formatMaybe(usage.outputTokens)}</dd>
+                  <dt>Residual</dt>
+                  <dd>{formatMaybe(call.residual)}</dd>
+                </dl>
+                <p className="text-xs text-slate-500">
+                  Cache is billing state, not a content source.
+                  {call.coverageReason ? ` ${call.coverageReason}` : ""}
+                </p>
+              </div>
+              <div className="space-y-2 text-sm">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Cost &amp; timing
+                </h3>
+                <dl className="grid grid-cols-2 gap-1">
+                  <dt>Provider cost</dt>
+                  <dd>{formatMaybe(call.providerReportedCostUsd)}</dd>
+                  <dt>Normalized peak</dt>
+                  <dd>{formatMaybe(call.normalizedPeakCostUsd)}</dd>
+                  <dt>Queue</dt>
+                  <dd>{formatMaybe(call.timing?.queueMs)} ms</dd>
+                  <dt>TTFB</dt>
+                  <dd>{formatMaybe(call.timing?.ttfbMs)} ms</dd>
+                  <dt>Wall-clock</dt>
+                  <dd>{formatMaybe(call.timing?.wallClockMs)} ms</dd>
+                  <dt>API duration</dt>
+                  <dd>{formatMaybe(call.timing?.durationApiMs)} ms</dd>
+                </dl>
+              </div>
+            </div>
+            {call.sources?.length ? (
+              <div className="mt-3 overflow-x-auto">
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Provenance sources
+                </h3>
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr>
+                      <th>Source</th>
+                      <th>Tokens</th>
+                      <th>Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {call.sources.map((source) => (
+                      <tr key={String(source.id || source.label)}>
+                        <td>{String(source.label || source.id)}</td>
+                        <td>{formatMaybe(source.tokens)}</td>
+                        <td>
+                          {typeof source.share === "number"
+                            ? `${(source.share * 100).toFixed(2)}%`
+                            : "unavailable"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {previous ? (
+              <div className="mt-3 rounded border border-slate-100 bg-slate-50 p-3 text-xs">
+                <h3 className="mb-1 font-semibold text-slate-600">
+                  Context diff vs previous call
+                </h3>
+                <p>Added: {diff.added.length || 0}</p>
+                <p>Retained: {diff.retained.length || 0}</p>
+                <p>Removed: {diff.removed.length || 0}</p>
+                <p>Summarized: {diff.summarized.length || 0}</p>
+              </div>
+            ) : null}
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs text-slate-500">
+                Fragments &amp; raw evidence ({call.fragments.length})
+              </summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">
+                {JSON.stringify(
+                  {
+                    observation: call.observation,
+                    fragments: call.fragments,
+                    contextLedger: call.contextLedger,
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+            </details>
+          </details>
+        );
+      })}
+    </section>
   );
 }
