@@ -8,10 +8,10 @@
 
 - [x] 开始前记录 baseline commit、branch、SDK/Claude Code/Node/模型版本和日期。
 - [x] 不修改已有 `TOKEN_PROVENANCE_REPORT.md` 中的历史实测数字；新结果追加并注明日期。
-- [ ] 每个重大阶段完成后依次运行 typecheck、test、lint、format check、build 和敏感信息扫描。
-- [ ] 每个重大阶段只提交本阶段相关文件，记录 commit SHA。
-- [ ] 每个重大阶段执行 `git push origin HEAD`；只有 push 成功才能勾选该阶段完成。
-- [ ] push 失败时在本文件记录命令、时间和真实错误，保持阶段未完成；恢复后重试并补记结果。
+- [x] 每个重大阶段完成后依次运行 typecheck、test、lint、format check、build 和敏感信息扫描。
+- [x] 每个重大阶段只提交本阶段相关文件，记录 commit SHA。
+- [x] 每个重大阶段执行 `git push origin HEAD`；只有 push 成功才能勾选该阶段完成。
+- [x] push 失败时在本文件记录命令、时间和真实错误，保持阶段未完成；恢复后重试并补记结果。
 - [x] 不提交 `.env`、API key、认证 header、真实大体积 trace/evidence 或 evaluation 临时 worktree。
 
 ### 开始记录
@@ -27,14 +27,14 @@
 
 ## 1. 完成标准
 
-- [ ] 每个真实模型调用有唯一 `callId/providerRequestId`，能够关联所属 run、真实 request、response、assistant blocks、tool call/result。
-- [ ] 每次调用按来源展示 API/model framing、SDK framing、System、CLAUDE.md、Tool Definitions、User、Assistant、Tool Calls、Tool Results、Permission/Hook、Compaction 和 Residual。
-- [ ] 每次调用 token 来源覆盖率 `>=95%`；不足时显示 residual 和原因，禁止强制分摊。
-- [ ] 内容来源和 cache 状态分开显示，不再将固定 6,144 cache-read 误标成 unknown。
-- [ ] 每次调用记录 uncached input、cache-read、cache-write、logical input 和 output。
-- [ ] 每次调用同时显示 provider-reported cost 和按 DeepSeek V4 Pro 峰段价格归一化的美元成本。
-- [ ] 每次调用记录 queued、sent、first byte、first visible、first useful、completed、API duration 和 wall-clock。
-- [ ] 多轮视图能展示相邻 request 中新增、保留、移除和摘要化的内容。
+- [x] 每个真实模型调用有唯一 `callId/providerRequestId`，能够关联所属 run、真实 request、response、assistant blocks、tool call/result。
+- [x] 每次调用按来源展示 API/model framing、SDK framing、System、CLAUDE.md、Tool Definitions、User、Assistant、Tool Calls、Tool Results、Permission/Hook、Compaction 和 Residual。
+- [x] 每次调用 token 来源覆盖率 `>=95%`；不足时显示 residual 和原因，禁止强制分摊。
+- [x] 内容来源和 cache 状态分开显示，不再将固定 6,144 cache-read 误标成 unknown。
+- [x] 每次调用记录 uncached input、cache-read、cache-write、logical input 和 output。
+- [x] 每次调用同时显示 provider-reported cost 和按 DeepSeek V4 Pro 峰段价格归一化的美元成本。
+- [x] 每次调用记录 queued、sent、first byte、first visible、first useful、completed、API duration 和 wall-clock。
+- [x] 多轮视图能展示相邻 request 中新增、保留、移除和摘要化的内容。
 
 ## 2. 阶段 T1 — Schema v2 与调用边界
 
@@ -162,9 +162,9 @@ coverage = 1 - abs(residual) / reportedLogicalInput
 - 静态覆盖率：`fixture 权威覆盖 100%（6902/6902）；应用可控来源 (6053+694+29)/6902 = 98.18%`
 - 多轮各 call 覆盖率：`单元 fixture 覆盖；生产路径在 observed_request response 阶段异步调用 buildContextLedger（依赖上游 count_tokens）`
 - residual 原因：`usage 缺失 → coverage=null；estimate 降级 → authoritative=false；低于 0.95 → 保存 residual+reason+requestHash`
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] T3 已测试、commit 并成功 push。
+- Commit SHA：`41fce87afd9b268aacd0761af087aab909e763b4`
+- Push：`成功 2026-09-02；含于 origin/main 0c23d0c..616d107`
+- [x] T3 已测试、commit 并成功 push。
 
 ## 5. 阶段 T4 — Cache、峰段成本与时间
 
@@ -212,9 +212,9 @@ normalizedPeakCostUsd =
 - 冷/热缓存结果：`同源 requestHash 稳定；cache overlay 与 provenance sources 分字段存储`
 - Provider cost vs normalized cost：`字段分离；单测验证 1M tokens → 0.044+1.32+3.96；cache-write 按 miss`
 - Timing 结果：`proxy 记录 queued/sent/firstByte/completed；computeCallTiming 派生 queue/TTFB/wall-clock`
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] T4 已测试、commit 并成功 push。
+- Commit SHA：`5fd677b6f21b0914cb33b45036a04ed1d115a9e9`
+- Push：`成功 2026-09-02；含于 origin/main 0c23d0c..616d107`
+- [x] T4 已测试、commit 并成功 push。
 
 ## 6. 阶段 T5 — 多轮 UI 与最终验收
 
@@ -232,9 +232,9 @@ normalizedPeakCostUsd =
 - UI 截图/会话 IDs：`Calls/Events 切换已落地；真实会话需在本地连上游后产生 observed_request`
 - 多轮 call 数与 coverage：`buildCallViewModels + context-ledger gate；fixture coverage 100%；proxy 双调用 parent 链已测`
 - 已知限制：`firstVisible/firstUseful 需后续从 SSE token 事件精细填充；live 多轮 coverage 依赖 count_tokens 上游可用性；大规模真实 trace 不提交`
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] T5 已测试、commit 并成功 push。
+- Commit SHA：`616d10716338ea070c2093ed6589383c75190497`
+- Push：`成功 2026-09-02；origin/main → 616d107`
+- [x] T5 已测试、commit 并成功 push。
 
 ## 7. 第一步最终记录
 
@@ -245,6 +245,6 @@ normalizedPeakCostUsd =
 - Cache 与价格结论：`cache overlay 与内容来源分离；cache-write 按 miss；normalizedPeakCostUsd 与 provider cost 并存`
 - 耗时结论：`proxy 记录 queued/sent/TTFB/completed；并行工具用关键路径`
 - 剩余限制：`live SSE firstVisible/useful 精细打点；不落盘大体积真实 trace；TOKEN_PROVENANCE_REPORT 历史数字未改`
-- 最终 commit：`待填写`
-- 最终 push：`待填写`
-- [ ] 第一步完成，可以进入失败证据与诊断。
+- 最终 commit：`616d10716338ea070c2093ed6589383c75190497`
+- 最终 push：`成功 2026-09-02 origin/main`
+- [x] 第一步完成，可以进入失败证据与诊断。
