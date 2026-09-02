@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import useWebSocket, { ReadyState } from "react-use-websocket";
+import websocketModule, { ReadyState } from "react-use-websocket";
 import { ChatList } from "./components/ChatList";
 import { ChatWindow } from "./components/ChatWindow";
 import { TraceViewer } from "./components/TraceViewer";
@@ -7,6 +7,10 @@ import type { AgentEvent, Chat } from "./types";
 
 const API_BASE = "/api";
 const WS_URL = `ws://${window.location.hostname}:3001/ws`;
+const useWebSocket =
+  typeof websocketModule === "function"
+    ? websocketModule
+    : (websocketModule as unknown as { default: typeof websocketModule }).default;
 
 export default function App() {
   const [chats, setChats] = useState<Chat[]>([]);
