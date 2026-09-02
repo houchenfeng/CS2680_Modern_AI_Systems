@@ -17,6 +17,7 @@ npm run dev
 ```
 
 This starts both:
+
 - Backend server on http://localhost:3001
 - Vite dev server on http://localhost:5173
 
@@ -62,10 +63,12 @@ simple-chatapp/
 ### WebSocket (`ws://localhost:3001/ws`)
 
 **Client -> Server:**
+
 - `{ type: "subscribe", chatId: string }` - Subscribe to a chat
 - `{ type: "chat", chatId: string, content: string }` - Send message
 
 **Server -> Client:**
+
 - `{ type: "connected" }` - Connection established
 - `{ type: "history", messages: [...] }` - Chat history
 - `{ type: "assistant_message", content: string }` - AI response

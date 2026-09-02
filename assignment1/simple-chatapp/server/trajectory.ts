@@ -20,7 +20,10 @@ export class TrajectoryStore {
       await mkdir(path.dirname(file), { recursive: true });
       await appendFile(file, `${JSON.stringify(safeEvent)}\n`, "utf8");
     });
-    this.writes.set(file, next.catch(() => undefined));
+    this.writes.set(
+      file,
+      next.catch(() => undefined),
+    );
     await next;
     return safeEvent;
   }
@@ -42,7 +45,10 @@ export class TrajectoryStore {
 
   async events(chatId: string, runId: string): Promise<AgentEvent[]> {
     const raw = await this.read(chatId, runId);
-    return raw.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    return raw
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
   }
 
   async removeChat(chatId: string) {
@@ -53,4 +59,3 @@ export class TrajectoryStore {
 export const trajectoryStore = new TrajectoryStore(
   path.resolve(process.env.TRACE_ROOT || path.join(process.cwd(), "traces")),
 );
-

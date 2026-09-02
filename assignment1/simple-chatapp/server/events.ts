@@ -1,4 +1,5 @@
-export type ErrorSource = "sdk" | "tool" | "websocket" | "http" | "storage" | "validation";
+export type ErrorSource =
+  "sdk" | "tool" | "websocket" | "http" | "storage" | "validation";
 
 export interface NormalizedError {
   code?: string;
@@ -54,6 +55,10 @@ export interface AgentEvent {
   message?: string;
   truncated?: boolean;
   originalLength?: number;
+  exitCode?: number;
+  stdout?: unknown;
+  stderr?: unknown;
+  startedAt?: string;
+  endedAt?: string;
   [key: string]: unknown;
 }
-

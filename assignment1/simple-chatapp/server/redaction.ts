@@ -1,5 +1,7 @@
-const SENSITIVE_KEY = /^(authorization|x-api-key|anthropic_auth_token|anthropic_api_key|api[_-]?key|token)$/i;
-const SECRET_VALUE = /(?:sk-[A-Za-z0-9._-]{12,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})/gi;
+const SENSITIVE_KEY =
+  /^(authorization|x-api-key|anthropic_auth_token|anthropic_api_key|api[_-]?key|token)$/i;
+const SECRET_VALUE =
+  /(?:sk-[A-Za-z0-9._-]{12,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})/gi;
 const MAX_STRING_LENGTH = 64_000;
 
 export function redact(value: unknown): unknown {
@@ -24,7 +26,10 @@ export function redact(value: unknown): unknown {
   return value;
 }
 
-export function normalizeError(error: unknown, source: import("./events.js").ErrorSource) {
+export function normalizeError(
+  error: unknown,
+  source: import("./events.js").ErrorSource,
+) {
   const candidate = error instanceof Error ? error : new Error(String(error));
   return redact({
     name: candidate.name,
@@ -33,4 +38,3 @@ export function normalizeError(error: unknown, source: import("./events.js").Err
     source,
   }) as import("./events.js").NormalizedError;
 }
-

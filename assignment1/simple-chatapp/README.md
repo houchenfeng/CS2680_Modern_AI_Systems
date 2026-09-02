@@ -24,6 +24,7 @@ npm run dev
 ```
 
 This starts both:
+
 - **Backend** (Express + WebSocket) on http://localhost:3001
 - **Frontend** (Vite + React) on http://localhost:5173
 

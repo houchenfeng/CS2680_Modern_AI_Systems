@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import type { WSClient, IncomingWSMessage } from "./types.js";
@@ -10,8 +10,17 @@ import { chatStore } from "./chat-store.js";
 import { Session } from "./session.js";
 import { trajectoryStore } from "./trajectory.js";
 import { normalizeError, redact } from "./redaction.js";
-import { resolveWorkspace, workspaceRoot } from "./workspace.js";
-import { contextCsv, contextSummary, filterAndSortEvents, tokenLedger } from "./trace-analysis.js";
+import {
+  resolveWorkspace,
+  validatePersistedWorkspace,
+  workspaceRoot,
+} from "./workspace.js";
+import {
+  contextCsv,
+  contextSummary,
+  filterAndSortEvents,
+  tokenLedger,
+} from "./trace-analysis.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,11 +43,17 @@ app.get("/", (req, res) => {
 // Session management
 const sessions: Map<string, Session> = new Map();
 
-function getOrCreateSession(chatId: string): Session {
+async function getOrCreateSession(chatId: string): Promise<Session> {
   let session = sessions.get(chatId);
   if (!session) {
     const chat = chatStore.getChat(chatId);
     if (!chat) throw new Error("Chat not found");
+    if (!chat.cwd) throw new Error("Chat has no saved workspace");
+    const workspace = await validatePersistedWorkspace(
+      chat.cwd,
+      chat.workspacePath || ".",
+    );
+    chat.cwd = workspace.cwd;
     session = new Session(chat);
     sessions.set(chatId, session);
   }
@@ -55,7 +70,11 @@ app.get("/api/chats", (req, res) => {
 app.post("/api/chats", async (req, res) => {
   try {
     const workspace = await resolveWorkspace(req.body?.workspacePath || ".");
-    const chat = chatStore.createChat({ title: req.body?.title, cwd: workspace.cwd, workspacePath: workspace.relativePath });
+    const chat = chatStore.createChat({
+      title: req.body?.title,
+      cwd: workspace.cwd,
+      workspacePath: workspace.relativePath,
+    });
     res.status(201).json(chat);
   } catch (error) {
     res.status(400).json({ error: normalizeError(error, "validation") });
@@ -63,8 +82,11 @@ app.post("/api/chats", async (req, res) => {
 });
 
 app.get("/api/workspace", async (_req, res) => {
-  try { res.json({ root: await workspaceRoot() }); }
-  catch (error) { res.status(500).json({ error: normalizeError(error, "validation") }); }
+  try {
+    res.json({ root: await workspaceRoot() });
+  } catch (error) {
+    res.status(500).json({ error: normalizeError(error, "validation") });
+  }
 });
 
 // REST API: Get single chat
@@ -111,8 +133,17 @@ app.get("/api/chats/:id/traces", async (req, res) => {
 
 app.get("/api/traces/:chatId/:runId", async (req, res) => {
   try {
-    const events = await trajectoryStore.events(req.params.chatId, req.params.runId);
-    res.json(filterAndSortEvents(events, { eventType: req.query.eventType as string | undefined, toolName: req.query.toolName as string | undefined, errorsOnly: req.query.errorsOnly === "true" }));
+    const events = await trajectoryStore.events(
+      req.params.chatId,
+      req.params.runId,
+    );
+    res.json(
+      filterAndSortEvents(events, {
+        eventType: req.query.eventType as string | undefined,
+        toolName: req.query.toolName as string | undefined,
+        errorsOnly: req.query.errorsOnly === "true",
+      }),
+    );
   } catch (error) {
     res.status(404).json({ error: normalizeError(error, "storage") });
   }
@@ -120,7 +151,10 @@ app.get("/api/traces/:chatId/:runId", async (req, res) => {
 
 app.get("/api/traces/:chatId/:runId/summary", async (req, res) => {
   try {
-    const events = await trajectoryStore.events(req.params.chatId, req.params.runId);
+    const events = await trajectoryStore.events(
+      req.params.chatId,
+      req.params.runId,
+    );
     res.json({ ledger: tokenLedger(events), context: contextSummary(events) });
   } catch (error) {
     res.status(404).json({ error: normalizeError(error, "storage") });
@@ -129,8 +163,14 @@ app.get("/api/traces/:chatId/:runId/summary", async (req, res) => {
 
 app.get("/api/traces/:chatId/:runId/context.csv", async (req, res) => {
   try {
-    const events = await trajectoryStore.events(req.params.chatId, req.params.runId);
-    res.setHeader("Content-Disposition", `attachment; filename="${req.params.runId}-context.csv"`);
+    const events = await trajectoryStore.events(
+      req.params.chatId,
+      req.params.runId,
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${req.params.runId}-context.csv"`,
+    );
     res.type("text/csv; charset=utf-8").send(`\uFEFF${contextCsv(events)}`);
   } catch (error) {
     res.status(404).json({ error: normalizeError(error, "storage") });
@@ -156,7 +196,9 @@ wss.on("connection", (ws: WSClient) => {
   console.log("WebSocket client connected");
   ws.isAlive = true;
 
-  ws.send(JSON.stringify({ type: "connected", message: "Connected to chat server" }));
+  ws.send(
+    JSON.stringify({ type: "connected", message: "Connected to chat server" }),
+  );
 
   ws.on("pong", () => {
     ws.isAlive = true;
@@ -168,26 +210,50 @@ wss.on("connection", (ws: WSClient) => {
 
       switch (message.type) {
         case "subscribe": {
-          const session = getOrCreateSession(message.chatId);
-          session.subscribe(ws);
-          console.log(`Client subscribed to chat ${message.chatId}`);
+          void getOrCreateSession(message.chatId)
+            .then((session) => {
+              session.subscribe(ws);
+              console.log(`Client subscribed to chat ${message.chatId}`);
 
-          // Send existing messages
-          const messages = chatStore.getMessages(message.chatId);
-          ws.send(JSON.stringify({
-            type: "history",
-            messages,
-            chatId: message.chatId,
-          }));
+              // Send existing messages
+              const messages = chatStore.getMessages(message.chatId);
+              ws.send(
+                JSON.stringify({
+                  type: "history",
+                  messages,
+                  chatId: message.chatId,
+                }),
+              );
+            })
+            .catch((error) =>
+              ws.send(
+                JSON.stringify(
+                  redact({
+                    type: "error",
+                    error: normalizeError(error, "validation"),
+                  }),
+                ),
+              ),
+            );
           break;
         }
 
         case "chat": {
-          const session = getOrCreateSession(message.chatId);
-          session.subscribe(ws);
-          void session.sendMessage(message.content).catch((error) => {
-            ws.send(JSON.stringify(redact({ type: "error", error: normalizeError(error, "websocket") })));
-          });
+          void getOrCreateSession(message.chatId)
+            .then((session) => {
+              session.subscribe(ws);
+              return session.sendMessage(message.content);
+            })
+            .catch((error) => {
+              ws.send(
+                JSON.stringify(
+                  redact({
+                    type: "error",
+                    error: normalizeError(error, "websocket"),
+                  }),
+                ),
+              );
+            });
           break;
         }
 
@@ -199,7 +265,13 @@ wss.on("connection", (ws: WSClient) => {
 
         case "permission_result": {
           const session = sessions.get(message.chatId);
-          if (session) void session.resolvePermission(message.requestId, message.decision, message.alwaysAllow, message.reason);
+          if (session)
+            void session.resolvePermission(
+              message.requestId,
+              message.decision,
+              message.alwaysAllow,
+              message.reason,
+            );
           break;
         }
 
@@ -208,7 +280,9 @@ wss.on("connection", (ws: WSClient) => {
       }
     } catch (error) {
       console.error("Error handling WebSocket message:", error);
-      ws.send(JSON.stringify({ type: "error", error: "Invalid message format" }));
+      ws.send(
+        JSON.stringify({ type: "error", error: "Invalid message format" }),
+      );
     }
   });
 

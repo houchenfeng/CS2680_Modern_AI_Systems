@@ -17,7 +17,16 @@ export interface AgentEvent {
   sdkSessionId?: string;
   sequence: number;
   timestamp: string;
-  eventType: "user_message" | "assistant_message" | "tool_start" | "tool_result" | "tool_error" | "permission_request" | "permission_result" | "run_result" | "system";
+  eventType:
+    | "user_message"
+    | "assistant_message"
+    | "tool_start"
+    | "tool_result"
+    | "tool_error"
+    | "permission_request"
+    | "permission_result"
+    | "run_result"
+    | "system";
   content?: string;
   toolUseId?: string;
   toolName?: string;
@@ -33,6 +42,12 @@ export interface AgentEvent {
   level?: string;
   message?: string;
   truncated?: boolean;
+  originalLength?: number;
+  exitCode?: number;
+  stdout?: unknown;
+  stderr?: unknown;
+  startedAt?: string;
+  endedAt?: string;
   requestId?: string;
   decision?: "allow" | "deny";
   reason?: string;
