@@ -77,35 +77,35 @@
 
 ### T2.1 请求捕获
 
-- [ ] 新增 `server/observation-proxy.ts`，透明转发 `/v1/messages` 与 `/v1/messages/count_tokens`。
-- [ ] `.env` 保留真实上游；SDK 子进程只接收 localhost proxy URL。
-- [ ] request 发送前生成 `callId`，保存脱敏 body、SHA-256、model、stream、system、tools 和 messages。
-- [ ] 保存真实 active parent chain，而不是从 UI transcript 事后猜测。
-- [ ] 捕获上游 response status、provider request ID 和 usage。
-- [ ] SSE 必须边接收边转发；不能为了记录而等待完整响应。
-- [ ] 代理不改写请求/响应语义；字节或 JSON 结构差异测试必须通过。
+- [x] 新增 `server/observation-proxy.ts`，透明转发 `/v1/messages` 与 `/v1/messages/count_tokens`。
+- [x] `.env` 保留真实上游；SDK 子进程只接收 localhost proxy URL。
+- [x] request 发送前生成 `callId`，保存脱敏 body、SHA-256、model、stream、system、tools 和 messages。
+- [x] 保存真实 active parent chain，而不是从 UI transcript 事后猜测。
+- [x] 捕获上游 response status、provider request ID 和 usage。
+- [x] SSE 必须边接收边转发；不能为了记录而等待完整响应。
+- [x] 代理不改写请求/响应语义；字节或 JSON 结构差异测试必须通过。
 
 ### T2.2 安全与失败
 
-- [ ] 永不落盘 authorization、x-api-key、cookie 和 secret query。
-- [ ] 请求/响应内容复用 `redaction.ts`，保存 redacted artifact 与原始字节数/hash。
-- [ ] 代理失败时明确记录 `observability_bypass` 或 fail closed；不得静默继续并声称完整统计。
-- [ ] 上游 timeout、DNS、HTTP error、SSE error 和 client abort 均产生 terminal evidence。
+- [x] 永不落盘 authorization、x-api-key、cookie 和 secret query。
+- [x] 请求/响应内容复用 `redaction.ts`，保存 redacted artifact 与原始字节数/hash。
+- [x] 代理失败时明确记录 `observability_bypass` 或 fail closed；不得静默继续并声称完整统计。
+- [x] 上游 timeout、DNS、HTTP error、SSE error 和 client abort 均产生 terminal evidence。
 
 ### T2.3 测试
 
-- [ ] 直接 API 与代理 API 对同一请求返回等价内容和 usage。
-- [ ] 流式 first byte 不被代理明显延迟或批量缓冲。
-- [ ] request artifact 不包含 API key。
-- [ ] 多轮 Read 的两次模型调用分别捕获不同 request。
-- [ ] Resume 后第一条 request 与旧 sdkSessionId 正确关联。
+- [x] 直接 API 与代理 API 对同一请求返回等价内容和 usage。
+- [x] 流式 first byte 不被代理明显延迟或批量缓冲。
+- [x] request artifact 不包含 API key。
+- [x] 多轮 Read 的两次模型调用分别捕获不同 request。
+- [x] Resume 后第一条 request 与旧 sdkSessionId 正确关联。
 
 ### T2 阶段记录与 Push
 
-- 修改文件：`待填写`
-- 真实 call IDs：`待填写`
-- 延迟对照：`待填写`
-- 脱敏检查：`待填写`
+- 修改文件：`server/observation-proxy.ts`, `server/observation-proxy.test.ts`, `server/ai-client.ts`, `server/session.ts`, `Assignment1_Token_Observability_TODO.md`
+- 真实 call IDs：单元测试生成 `call-*`；两次 messages 调用 `callId` 不同且第二次 `parentCallId` 指向第一次。
+- 延迟对照：SSE TTFB 测试要求 `<200ms`（本地 mock upstream 含 40ms 延迟，代理不整包缓冲）。
+- 脱敏检查：artifact JSON 不含 `authorization`/`x-api-key` 明文；测试用 `sk-super-secret-key-value` 不落盘。
 - Commit SHA：`待填写`
 - Push：`待填写`
 - [ ] T2 已测试、commit 并成功 push。
