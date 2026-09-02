@@ -647,6 +647,15 @@ git log --oneline --decorate -10
 
 # 6. 当前结果摘要（2026-09-02）
 
+## 6.1 本轮收尾执行记录
+
+- 实现提交：`494c53e9a400624889d4bfe1ce0b1b1c801d8d95`（`fix(assignment1): complete safety controls and trace validation`）。
+- Push：`2026-09-02` 成功推送 `d8c5bab..494c53e` 到 `origin/main`。
+- 自动验证：`npm ci` 成功；`npm run typecheck` 成功；`npm test` 为 `22/22`；`npm run lint` 成功；`npm run format:check` 成功；Vite `8.2.2` production build 成功；`npm audit --audit-level=moderate` 为 `0 vulnerabilities`；`git diff --check` 成功。
+- 安全检查：Git 未跟踪 `.env`、真实 trace、JSONL、SDK transcript 或密钥；命中内容仅为占位符和脱敏测试数据。
+- 浏览器尝试：已连接 Codex In-app Browser；首次访问 `http://localhost:3001` 时服务未就绪，启动服务后重新加载被浏览器 URL 安全策略明确拒绝。策略同时禁止使用替代浏览器控制方式规避，因此 U2–U7 维持未勾选并作为环境阻塞，而不是伪造通过。
+- 当前页面实现证据：工作目录/审批策略、Stop 状态门控、Bash 分字段、Trace 配对/关联 ID/相对耗时、cache Token 和隐藏上下文 unavailable 均已通过类型检查、自动化测试或 production build；仍缺真实浏览器视觉与交互证据。
+
 | 验收项 | 状态 | 证据 |
 |---|---|---|
 | 第三方 API 对话 | 已完成 | 本地既有验证 |
@@ -739,9 +748,11 @@ user_message
 
 ```powershell
 npm run lint
+npm run format:check
 npm run typecheck
 npm test
 npm run build
+npm audit --audit-level=moderate
 ```
 
 ## 7.7 常见问题
@@ -788,6 +799,7 @@ npm run build
 | C：Trace/Token/Context | 8c730cc | main | 已推送 | API、账本、JSONL 一致性与 CSV 通过 |
 | D：文件调用展示 | 7af01cc | main | 已推送 | Windows 路径失败恢复与 package.json 核对通过 |
 | E：最终审查 | 23c5639 + b0307e3 | main | 已推送 | 强制审批、干净安装、现有测试、构建和 production audit 通过；浏览器与部分边界验收未完成 |
+| F：遗留安全与工程收尾 | 494c53e | main | 已推送 | cwd 恢复复验、控制/审批边界、工具输出、Trace 字段、22 项测试、lint/format、Vite 8 与 audit 0 通过；浏览器因 URL 策略阻塞 |
 
 ## 完成定义
 
