@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import type { Chat, WSClient } from "./types.js";
 import { AgentSession } from "./ai-client.js";
+import {
+  buildObservableRequestSnapshot,
+  loadProjectInstructions,
+  type ObservableRequestSnapshot,
+  type ProjectInstructions,
+} from "./agent-config.js";
 import { chatStore } from "./chat-store.js";
 import type { AgentEvent } from "./events.js";
 import { normalizeSdkMessage } from "./event-normalizer.js";
@@ -24,7 +30,9 @@ const READ_ONLY_TOOLS = new Set(["Read", "Glob", "Grep"]);
 type AgentAdapter = Pick<
   AgentSession,
   "sendMessage" | "getOutputStream" | "interrupt" | "close"
->;
+> & {
+  getObservableRequest?: () => ObservableRequestSnapshot;
+};
 
 export interface SessionDependencies {
   agent?: AgentAdapter;
@@ -33,6 +41,7 @@ export interface SessionDependencies {
   ) => AgentAdapter;
   store?: ChatStore;
   trajectories?: TrajectoryStore;
+  projectInstructions?: ProjectInstructions;
 }
 
 export class Session {
@@ -45,6 +54,7 @@ export class Session {
   private readonly alwaysAllowed = new Set<string>();
   private readonly hookApproved = new Set<string>();
   private readonly toolNames = new Map<string, string>();
+  private readonly projectInstructions: ProjectInstructions;
   private isListening = false;
   private sequence = 0;
   private runId = "";
@@ -53,6 +63,14 @@ export class Session {
   private stoppedRunId?: string;
   private runStartedAt?: string;
   private stopPromise?: Promise<boolean>;
+
+  static async create(chat: Chat, dependencies: SessionDependencies = {}) {
+    if (!chat.cwd) throw new Error("Chat has no validated working directory");
+    const projectInstructions =
+      dependencies.projectInstructions ||
+      (await loadProjectInstructions(chat.cwd));
+    return new Session(chat, { ...dependencies, projectInstructions });
+  }
 
   constructor(
     private readonly chat: Chat,
@@ -70,11 +88,17 @@ export class Session {
     if (!chat.cwd) throw new Error("Chat has no validated working directory");
     this.store = dependencies.store || chatStore;
     this.trajectories = dependencies.trajectories || trajectoryStore;
+    this.projectInstructions = dependencies.projectInstructions || {
+      text: "unavailable",
+      source: "unavailable",
+      status: "unavailable",
+    };
     const agentOptions = {
       cwd: chat.cwd,
       resume: chat.sdkSessionId,
       canUseTool: this.canUseTool,
       preToolUse: this.preToolUse,
+      projectInstructions: this.projectInstructions,
     };
     this.agentSession =
       dependencies.agent ||
@@ -341,6 +365,18 @@ export class Session {
     this.stopPromise = undefined;
     this.runStartedAt = new Date().toISOString();
     this.setStatus("running");
+    const snapshot =
+      this.agentSession.getObservableRequest?.() ||
+      buildObservableRequestSnapshot({
+        cwd: this.chat.cwd!,
+        projectInstructions: this.projectInstructions,
+      });
+    await this.emit(
+      this.build({
+        eventType: "request_snapshot",
+        ...snapshot,
+      }),
+    );
     const stored = this.store.addMessage(this.chatId, {
       role: "user",
       content,

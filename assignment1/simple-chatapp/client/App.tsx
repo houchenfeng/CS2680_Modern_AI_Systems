@@ -211,7 +211,11 @@ export default function App() {
             Trace Viewer
           </button>
         </nav>
-        <div className={view === "chat" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+        <div
+          className={
+            view === "chat" ? "flex min-h-0 flex-1 flex-col" : "hidden"
+          }
+        >
           <ChatWindow
             chatId={selectedChatId}
             events={events}
@@ -226,7 +230,11 @@ export default function App() {
             onResolvePermission={resolvePermission}
           />
         </div>
-        <div className={view === "trace" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+        <div
+          className={
+            view === "trace" ? "flex min-h-0 flex-1 flex-col" : "hidden"
+          }
+        >
           <TraceViewer
             chatId={selectedChatId}
             active={view === "trace"}

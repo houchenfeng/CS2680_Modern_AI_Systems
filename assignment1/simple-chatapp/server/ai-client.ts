@@ -4,9 +4,29 @@ import {
   type HookCallback,
   type Query,
 } from "@anthropic-ai/claude-agent-sdk";
+import {
+  AGENT_TOOLS,
+  ALLOWED_TOOLS,
+  SETTING_SOURCES,
+  SYSTEM_PROMPT,
+  buildObservableRequestSnapshot,
+  composeSystemPrompt,
+  loadProjectInstructions,
+  resolveModel,
+  type ObservableRequestSnapshot,
+  type ProjectInstructions,
+} from "./agent-config.js";
 
-const SYSTEM_PROMPT = `You are a helpful coding assistant operating only inside the configured working directory.
-Use tools when the task requires evidence. Never expose credentials or hidden reasoning. Be concise but complete.`;
+export {
+  AGENT_TOOLS,
+  ALLOWED_TOOLS,
+  SETTING_SOURCES,
+  SYSTEM_PROMPT,
+  buildObservableRequestSnapshot,
+  composeSystemPrompt,
+  loadProjectInstructions,
+  resolveModel,
+};
 
 type UserMessage = {
   type: "user";
@@ -55,14 +75,35 @@ export interface AgentSessionOptions {
   resume?: string;
   canUseTool: CanUseTool;
   preToolUse: HookCallback;
+  projectInstructions?: ProjectInstructions;
+  systemPrompt?: string;
 }
 
 export class AgentSession {
   private readonly queue: MessageQueue;
   private readonly queryHandle: Query;
   private readonly outputIterator: AsyncIterator<any>;
+  private readonly observableRequest: ObservableRequestSnapshot;
 
   constructor(options: AgentSessionOptions) {
+    const projectInstructions =
+      options.projectInstructions ||
+      ({
+        text: "unavailable",
+        source: "unavailable",
+        status: "unavailable",
+      } satisfies ProjectInstructions);
+    const systemPrompt =
+      options.systemPrompt || composeSystemPrompt(projectInstructions);
+    const model = resolveModel();
+    this.observableRequest = buildObservableRequestSnapshot({
+      cwd: options.cwd,
+      projectInstructions,
+      systemPrompt,
+      model,
+      tools: AGENT_TOOLS,
+    });
+
     this.queue = new MessageQueue(options.resume);
     this.queryHandle = query({
       prompt: this.queue as any,
@@ -71,26 +112,22 @@ export class AgentSession {
         resume: options.resume,
         persistSession: true,
         maxTurns: 100,
-        model: process.env.ANTHROPIC_MODEL || "opus",
+        model,
         env: { ...process.env },
-        tools: [
-          "Read",
-          "Write",
-          "Edit",
-          "Glob",
-          "Grep",
-          "Bash",
-          "WebSearch",
-          "WebFetch",
-        ],
-        allowedTools: ["Read", "Glob", "Grep"],
+        tools: [...AGENT_TOOLS],
+        allowedTools: [...ALLOWED_TOOLS],
         permissionMode: "default",
         canUseTool: options.canUseTool,
         hooks: { PreToolUse: [{ hooks: [options.preToolUse] }] },
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt,
+        settingSources: [...SETTING_SOURCES],
       },
     });
     this.outputIterator = this.queryHandle[Symbol.asyncIterator]();
+  }
+
+  getObservableRequest(): ObservableRequestSnapshot {
+    return this.observableRequest;
   }
 
   sendMessage(content: string) {
@@ -109,4 +146,16 @@ export class AgentSession {
   close() {
     this.queue.close();
   }
+}
+
+/** Async factory so callers can load CLAUDE.md before constructing the SDK query. */
+export async function createAgentSession(options: AgentSessionOptions) {
+  const projectInstructions =
+    options.projectInstructions || (await loadProjectInstructions(options.cwd));
+  return new AgentSession({
+    ...options,
+    projectInstructions,
+    systemPrompt:
+      options.systemPrompt || composeSystemPrompt(projectInstructions),
+  });
 }

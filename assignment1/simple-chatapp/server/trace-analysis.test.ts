@@ -5,6 +5,7 @@ import {
   classifyEvent,
   contextCsv,
   contextSummary,
+  expandContextRows,
   filterAndSortEvents,
   tokenLedger,
 } from "./trace-analysis.js";
@@ -114,11 +115,11 @@ test("context category totals exactly match event count, bytes, and estimated to
       error: { message: "missing", source: "tool" },
     }),
   ];
-  const rows = events.map(classifyEvent);
+  const rows = events.flatMap(expandContextRows);
   const summary = contextSummary(events);
   assert.equal(
     Object.values(summary).reduce((sum, item) => sum + item.events, 0),
-    events.length,
+    rows.length,
   );
   assert.equal(
     Object.values(summary).reduce((sum, item) => sum + item.bytes, 0),
@@ -128,4 +129,24 @@ test("context category totals exactly match event count, bytes, and estimated to
     Object.values(summary).reduce((sum, item) => sum + item.estimatedTokens, 0),
     rows.reduce((sum, item) => sum + item.estimatedTokens, 0),
   );
+});
+
+test("request_snapshot expands into system, project, and tool context rows", () => {
+  const snapshot = event(1, {
+    eventType: "request_snapshot",
+    systemPrompt: "base prompt",
+    projectInstructions: "# rules",
+    projectInstructionSource: "demo/CLAUDE.md",
+    tools: ["Read", "Bash"],
+  });
+  const rows = expandContextRows(snapshot);
+  assert.deepEqual(
+    rows.map((row) => row.contextCategory),
+    ["system_harness", "project_instruction", "tool_definition"],
+  );
+  assert.equal(classifyEvent(snapshot).contextCategory, "system_harness");
+  const summary = contextSummary([snapshot]);
+  assert.equal(summary.system_harness?.events, 1);
+  assert.equal(summary.project_instruction?.events, 1);
+  assert.equal(summary.tool_definition?.events, 1);
 });

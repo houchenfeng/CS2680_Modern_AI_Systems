@@ -64,8 +64,7 @@ function ToolCard({
         ) : null}
       </div>
       <JsonDetails label="Input" value={start.input} />
-      {result &&
-      (result.toolName === "Bash" || start.toolName === "Bash") ? (
+      {result && (result.toolName === "Bash" || start.toolName === "Bash") ? (
         <div className="mt-2 grid gap-2">
           <p className="text-xs font-medium text-slate-600">
             Exit code: {result.exitCode ?? "unavailable"}

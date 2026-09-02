@@ -130,7 +130,8 @@ test("normalizes observable command fields and deterministically truncates long 
             type: "tool_result",
             tool_use_id: "bash-3",
             is_error: true,
-            content: "Exit code 137\n[Request interrupted by user for tool use]",
+            content:
+              "Exit code 137\n[Request interrupted by user for tool use]",
           },
         ],
       },

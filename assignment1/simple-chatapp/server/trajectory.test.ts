@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, mkdir, readFile, rm, writeFile, utimes } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+  utimes,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { TrajectoryStore } from "./trajectory.js";
@@ -55,7 +62,9 @@ test("redacts keys, API keys, and authorization values recursively", () => {
 });
 
 test("lists runs in chronological order by file modification time", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "trajectory-list-test-"));
+  const directory = await mkdtemp(
+    path.join(os.tmpdir(), "trajectory-list-test-"),
+  );
   try {
     const store = new TrajectoryStore(directory);
     const chatDir = path.join(directory, "chat");

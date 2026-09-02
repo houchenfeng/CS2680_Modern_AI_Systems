@@ -18,6 +18,7 @@ export interface AgentEvent {
   sequence: number;
   timestamp: string;
   eventType:
+    | "request_snapshot"
     | "user_message"
     | "assistant_message"
     | "tool_start"
@@ -51,4 +52,13 @@ export interface AgentEvent {
   requestId?: string;
   decision?: "allow" | "deny";
   reason?: string;
+  systemPrompt?: string;
+  projectInstructions?: string;
+  projectInstructionSource?: string;
+  projectInstructionStatus?: string;
+  projectInstructionError?: string;
+  tools?: string[];
+  cwd?: string;
+  settingSources?: string[];
+  observabilityNote?: string;
 }

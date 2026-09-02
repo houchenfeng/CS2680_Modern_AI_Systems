@@ -22,6 +22,77 @@ interface Summary {
   >;
 }
 
+function RequestSnapshotCard({ event }: { event: AgentEvent }) {
+  return (
+    <div className="mt-3 space-y-3">
+      <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        {event.observabilityNote ||
+          "This snapshot only includes application-controlled inputs. It does not include hidden SDK runtime or Anthropic server-side prompts."}
+      </p>
+      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs font-medium text-slate-500">Model</dt>
+          <dd className="font-mono text-xs">{event.model || "unavailable"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-500">
+            Working directory
+          </dt>
+          <dd className="break-all font-mono text-xs">
+            {event.cwd || "unavailable"}
+          </dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium text-slate-500">Tools</dt>
+          <dd className="font-mono text-xs">
+            {Array.isArray(event.tools) && event.tools.length
+              ? event.tools.join(", ")
+              : "unavailable"}
+          </dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium text-slate-500">
+            Project instruction source
+          </dt>
+          <dd className="font-mono text-xs">
+            {event.projectInstructionSource || "unavailable"}
+            {event.projectInstructionStatus
+              ? ` · ${event.projectInstructionStatus}`
+              : ""}
+          </dd>
+        </div>
+      </dl>
+      <details className="rounded border border-slate-200">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+          System prompt
+        </summary>
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap border-t border-slate-100 bg-slate-950 p-3 text-xs text-slate-100">
+          {event.systemPrompt || "unavailable"}
+        </pre>
+      </details>
+      <details className="rounded border border-slate-200">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+          Project instructions
+        </summary>
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap border-t border-slate-100 bg-slate-950 p-3 text-xs text-slate-100">
+          {event.projectInstructions || "unavailable"}
+          {event.projectInstructionError
+            ? `\n\n[status] ${event.projectInstructionError}`
+            : ""}
+        </pre>
+      </details>
+      <details className="rounded border border-slate-200">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+          Raw snapshot JSON
+        </summary>
+        <pre className="max-h-80 overflow-auto whitespace-pre-wrap border-t border-slate-100 bg-slate-950 p-3 text-xs text-slate-100">
+          {JSON.stringify(event, null, 2)}
+        </pre>
+      </details>
+    </div>
+  );
+}
+
 function byTimestampThenSequence(a: AgentEvent, b: AgentEvent) {
   const timeDiff = Date.parse(a.timestamp) - Date.parse(b.timestamp);
   if (timeDiff !== 0) return timeDiff;
@@ -29,9 +100,7 @@ function byTimestampThenSequence(a: AgentEvent, b: AgentEvent) {
   return a.sequence - b.sequence;
 }
 
-function mergeContext(
-  summaries: Summary[],
-): Summary["context"] {
+function mergeContext(summaries: Summary[]): Summary["context"] {
   const merged: Summary["context"] = {};
   for (const summary of summaries) {
     for (const [category, values] of Object.entries(summary.context || {})) {
@@ -307,6 +376,7 @@ export function TraceViewer({
             >
               <option value="">All</option>
               {[
+                "request_snapshot",
                 "user_message",
                 "assistant_message",
                 "tool_start",
@@ -515,7 +585,7 @@ export function TraceViewer({
             return (
               <details
                 key={event.eventId}
-                className={`rounded-lg border-l-4 bg-white p-3 ${event.eventType === "tool_error" || event.error ? "border-red-300" : event.eventType === "tool_start" ? "border-l-blue-500 border-slate-200" : pairedStart ? "border-l-emerald-500 border-slate-200" : "border-slate-200"}`}
+                className={`rounded-lg border-l-4 bg-white p-3 ${event.eventType === "request_snapshot" ? "border-l-violet-500 border-slate-200" : event.eventType === "tool_error" || event.error ? "border-red-300" : event.eventType === "tool_start" ? "border-l-blue-500 border-slate-200" : pairedStart ? "border-l-emerald-500 border-slate-200" : "border-slate-200"}`}
               >
                 <summary className="cursor-pointer text-sm">
                   <span className="mr-2 font-mono text-xs text-slate-500">
@@ -524,7 +594,11 @@ export function TraceViewer({
                       : ""}
                     #{event.sequence} · +{relativeMs} ms
                   </span>
-                  <strong>{event.eventType}</strong>
+                  <strong>
+                    {event.eventType === "request_snapshot"
+                      ? "Observable request snapshot"
+                      : event.eventType}
+                  </strong>
                   {event.toolName ? ` · ${event.toolName}` : ""}
                   <span className="ml-2 text-xs text-slate-400">
                     event {event.eventId} · run {event.runId}
@@ -536,9 +610,13 @@ export function TraceViewer({
                     </span>
                   ) : null}
                 </summary>
-                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">
-                  {JSON.stringify(event, null, 2)}
-                </pre>
+                {event.eventType === "request_snapshot" ? (
+                  <RequestSnapshotCard event={event} />
+                ) : (
+                  <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">
+                    {JSON.stringify(event, null, 2)}
+                  </pre>
+                )}
               </details>
             );
           })}

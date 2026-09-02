@@ -65,7 +65,7 @@ async function getOrCreateSession(chatId: string): Promise<Session> {
       chat.workspacePath || ".",
     );
     chat.cwd = workspace.cwd;
-    const session = new Session(chat);
+    const session = await Session.create(chat);
     sessions.set(chatId, session);
     return session;
   })();

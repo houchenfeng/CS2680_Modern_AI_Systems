@@ -20,6 +20,7 @@ export interface TokenUsage {
 }
 
 export type EventType =
+  | "request_snapshot"
   | "user_message"
   | "assistant_message"
   | "tool_start"

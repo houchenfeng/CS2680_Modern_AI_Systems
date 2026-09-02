@@ -87,11 +87,11 @@ test("Stop interrupts once, is idempotent, and a stopped session accepts a later
       .map((item: any) => item.event);
     assert.deepEqual(
       liveEvents.map((item: any) => item.eventType),
-      ["user_message", "run_result"],
+      ["request_snapshot", "user_message", "run_result"],
     );
     assert.deepEqual(
       liveEvents.map((item: any) => item.sequence),
-      [1, 2],
+      [1, 2, 3],
     );
     assert.equal(await value.session.stop(), true);
     await value.session.sendMessage("second");

@@ -1,6 +1,6 @@
 import type { AgentEvent, TokenUsage } from "./events.js";
 
-export const CONTEXT_RULE_VERSION = "1.0.0";
+export const CONTEXT_RULE_VERSION = "1.1.0";
 export type ContextCategory =
   | "system_harness"
   | "tool_definition"
@@ -37,13 +37,69 @@ function observableValue(event: AgentEvent) {
     event.output ??
     event.input ??
     event.content ??
+    event.systemPrompt ??
     event.message ??
     event.error?.message ??
     ""
   );
 }
 
+function rowFrom(
+  event: AgentEvent,
+  contextCategory: ContextCategory,
+  utility: Utility,
+  source: string,
+  value: unknown,
+): ContextRow {
+  const serialized =
+    typeof value === "string" ? value : JSON.stringify(value ?? "");
+  const bytes = Buffer.byteLength(serialized, "utf8");
+  return {
+    sequence: event.sequence,
+    timestamp: event.timestamp,
+    eventType: event.eventType,
+    contextCategory,
+    utility,
+    source,
+    bytes,
+    estimatedTokens: Math.ceil(bytes / 4),
+    toolName: event.toolName || "",
+    truncated: Boolean(event.truncated),
+    ruleVersion: CONTEXT_RULE_VERSION,
+  };
+}
+
 export function classifyEvent(event: AgentEvent): ContextRow {
+  return expandContextRows(event)[0];
+}
+
+export function expandContextRows(event: AgentEvent): ContextRow[] {
+  if (event.eventType === "request_snapshot") {
+    return [
+      rowFrom(
+        event,
+        "system_harness",
+        "necessary",
+        "systemPrompt",
+        event.systemPrompt || "unavailable",
+      ),
+      rowFrom(
+        event,
+        "project_instruction",
+        "necessary",
+        String(event.projectInstructionSource || "CLAUDE.md"),
+        event.projectInstructions || "unavailable",
+      ),
+      rowFrom(
+        event,
+        "tool_definition",
+        "necessary",
+        "tools",
+        event.tools || [],
+      ),
+    ];
+  }
+
   let contextCategory: ContextCategory = "other";
   let utility: Utility = "supporting";
   if (event.eventType === "user_message") {
@@ -77,24 +133,15 @@ export function classifyEvent(event: AgentEvent): ContextRow {
       utility = "necessary";
     }
   }
-  const serialized =
-    typeof observableValue(event) === "string"
-      ? String(observableValue(event))
-      : JSON.stringify(observableValue(event));
-  const bytes = Buffer.byteLength(serialized, "utf8");
-  return {
-    sequence: event.sequence,
-    timestamp: event.timestamp,
-    eventType: event.eventType,
-    contextCategory,
-    utility,
-    source: event.toolName || event.eventType,
-    bytes,
-    estimatedTokens: Math.ceil(bytes / 4),
-    toolName: event.toolName || "",
-    truncated: Boolean(event.truncated),
-    ruleVersion: CONTEXT_RULE_VERSION,
-  };
+  return [
+    rowFrom(
+      event,
+      contextCategory,
+      utility,
+      event.toolName || event.eventType,
+      observableValue(event),
+    ),
+  ];
 }
 
 export interface TokenLedgerEntry extends Partial<
@@ -170,13 +217,12 @@ export function contextCsv(events: AgentEvent[]) {
   return [
     headers.join(","),
     ...events
+      .slice()
       .sort((a, b) => a.sequence - b.sequence)
-      .map((event) => {
-        const row = classifyEvent(event);
-        return headers
-          .map((key) => csvCell(row[key as keyof ContextRow]))
-          .join(",");
-      }),
+      .flatMap((event) => expandContextRows(event))
+      .map((row) =>
+        headers.map((key) => csvCell(row[key as keyof ContextRow])).join(","),
+      ),
   ].join("\r\n");
 }
 
@@ -186,15 +232,16 @@ export function contextSummary(events: AgentEvent[]) {
     { events: number; bytes: number; estimatedTokens: number }
   > = {};
   for (const event of events) {
-    const row = classifyEvent(event);
-    const current = (summary[row.contextCategory] ||= {
-      events: 0,
-      bytes: 0,
-      estimatedTokens: 0,
-    });
-    current.events += 1;
-    current.bytes += row.bytes;
-    current.estimatedTokens += row.estimatedTokens;
+    for (const row of expandContextRows(event)) {
+      const current = (summary[row.contextCategory] ||= {
+        events: 0,
+        bytes: 0,
+        estimatedTokens: 0,
+      });
+      current.events += 1;
+      current.bytes += row.bytes;
+      current.estimatedTokens += row.estimatedTokens;
+    }
   }
   return summary;
 }

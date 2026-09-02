@@ -1,4 +1,11 @@
-import { appendFile, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
+import {
+  appendFile,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  stat,
+} from "node:fs/promises";
 import path from "node:path";
 import type { AgentEvent } from "./events.js";
 import { redact } from "./redaction.js";
@@ -41,7 +48,9 @@ export class TrajectoryStore {
           return { runId: name.slice(0, -6), mtimeMs: fileStat.mtimeMs };
         }),
       );
-      return runs.sort((a, b) => a.mtimeMs - b.mtimeMs).map((item) => item.runId);
+      return runs
+        .sort((a, b) => a.mtimeMs - b.mtimeMs)
+        .map((item) => item.runId);
     } catch {
       return [];
     }
