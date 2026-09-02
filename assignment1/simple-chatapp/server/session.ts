@@ -3,6 +3,7 @@ import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import type { Chat, WSClient } from "./types.js";
 import { AgentSession, createAgentSession } from "./ai-client.js";
 import {
+  SYSTEM_PROMPT,
   buildObservableRequestSnapshot,
   loadProjectInstructions,
   type ObservableRequestSnapshot,
@@ -16,6 +17,8 @@ import { trajectoryStore } from "./trajectory.js";
 import type { ChatStore } from "./chat-store.js";
 import type { TrajectoryStore } from "./trajectory.js";
 import type { ObservedRequestArtifact } from "./observation-proxy.js";
+import { buildContextLedger } from "./context-ledger.js";
+import { computeCallTiming, computeNormalizedPeakCost } from "./pricing.js";
 
 interface PendingPermission {
   requestId: string;
@@ -191,6 +194,42 @@ export class Session {
       return;
     }
 
+    const timing = computeCallTiming({
+      queuedAt: artifact.queuedAt,
+      sentAt: artifact.sentAt,
+      firstByteAt: artifact.firstByteAt,
+      completedAt: artifact.completedAt,
+    });
+    const normalizedPeakCostUsd =
+      phase === "response"
+        ? computeNormalizedPeakCost(artifact.callUsage)
+        : null;
+    const providerReportedCostUsd = null;
+
+    let contextLedger = undefined;
+    if (
+      (phase === "response" || phase === "error") &&
+      artifact.countingBody &&
+      !artifact.path.includes("count_tokens")
+    ) {
+      try {
+        contextLedger = await buildContextLedger({
+          capturedRequest: artifact.countingBody,
+          applicationSystem: SYSTEM_PROMPT,
+          projectInstructions:
+            this.projectInstructions.text === "unavailable"
+              ? "unavailable"
+              : String(this.projectInstructions.text),
+          reportedUsage: artifact.callUsage,
+          requestHash: artifact.requestHash,
+        });
+      } catch (error) {
+        contextLedger = {
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+
     await this.emit(
       this.build({
         eventType: "observed_request",
@@ -210,6 +249,7 @@ export class Session {
         sentAt: artifact.sentAt,
         firstByteAt: artifact.firstByteAt,
         completedAt: artifact.completedAt,
+        timing,
         terminalReason: artifact.terminalReason,
         activeParentChain: artifact.activeParentChain,
         redactedBody: phase === "request" ? artifact.redactedBody : undefined,
@@ -217,6 +257,17 @@ export class Session {
         tools: phase === "request" ? artifact.tools : undefined,
         messages: phase === "request" ? artifact.messages : undefined,
         sdkSessionId: artifact.sdkSessionId || this.sdkSessionId,
+        providerReportedCostUsd,
+        normalizedPeakCostUsd,
+        contextLedger,
+        cacheOverlay: artifact.callUsage
+          ? {
+              uncachedInputTokens: artifact.callUsage.uncachedInputTokens,
+              cacheReadTokens: artifact.callUsage.cacheReadTokens,
+              cacheWriteTokens: artifact.callUsage.cacheWriteTokens,
+              note: "Cache buckets are billing state, not content provenance.",
+            }
+          : undefined,
       }),
     );
   }

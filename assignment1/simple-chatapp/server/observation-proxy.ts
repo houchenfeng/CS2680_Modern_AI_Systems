@@ -28,6 +28,8 @@ export interface ObservedRequestArtifact {
   requestHash: string;
   requestBytes: number;
   redactedBody: unknown;
+  /** In-memory only for count-tokens; never persisted to trajectory. */
+  countingBody?: Record<string, unknown> | null;
   queuedAt: string;
   sentAt: string;
   firstByteAt?: string;
@@ -321,6 +323,10 @@ export class ObservationProxy {
         requestHash: sha256(requestBody),
         requestBytes: requestBody.byteLength,
         redactedBody: redact(parsed),
+        countingBody:
+          parsed && typeof parsed === "object"
+            ? (parsed as Record<string, unknown>)
+            : null,
         queuedAt,
         sentAt: new Date().toISOString(),
         activeParentChain: parentChainFromMessages(record.messages),
