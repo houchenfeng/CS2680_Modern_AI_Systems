@@ -7,7 +7,7 @@ import {
   stat,
 } from "node:fs/promises";
 import path from "node:path";
-import type { AgentEvent } from "./events.js";
+import { migrateEvent, type AgentEvent } from "./events.js";
 import { redact } from "./redaction.js";
 
 export class TrajectoryStore {
@@ -65,7 +65,7 @@ export class TrajectoryStore {
     return raw
       .split(/\r?\n/)
       .filter(Boolean)
-      .map((line) => JSON.parse(line));
+      .map((line) => migrateEvent(JSON.parse(line)));
   }
 
   async removeChat(chatId: string) {

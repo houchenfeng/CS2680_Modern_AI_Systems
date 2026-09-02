@@ -162,19 +162,37 @@ export function tokenLedger(events: AgentEvent[]): TokenLedgerEntry[] {
   return events.flatMap((event) => {
     if (event.eventType !== "run_result" || seen.has(event.eventId)) return [];
     seen.add(event.eventId);
+    const runUsage = event.runUsage;
     const usage = event.usage || { measurement: "unavailable" as const };
+    const inputTokens =
+      runUsage?.uncachedInputTokens ?? usage.inputTokens ?? undefined;
+    const outputTokens =
+      runUsage?.outputTokens ?? usage.outputTokens ?? undefined;
+    const cacheReadTokens =
+      runUsage?.cacheReadTokens ?? usage.cacheReadTokens ?? undefined;
+    const cacheWriteTokens =
+      runUsage?.cacheWriteTokens ?? usage.cacheWriteTokens ?? undefined;
+    const totals = [
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+    ].filter((value): value is number => typeof value === "number");
     return [
       {
         runId: event.runId,
         model: event.model || models.get(event.runId),
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        cacheReadTokens: usage.cacheReadTokens,
-        cacheWriteTokens: usage.cacheWriteTokens,
-        totalTokens: usage.totalTokens,
-        costUsd: event.costUsd,
+        inputTokens: inputTokens === null ? undefined : inputTokens,
+        outputTokens: outputTokens === null ? undefined : outputTokens,
+        cacheReadTokens: cacheReadTokens === null ? undefined : cacheReadTokens,
+        cacheWriteTokens:
+          cacheWriteTokens === null ? undefined : cacheWriteTokens,
+        totalTokens: totals.length
+          ? totals.reduce((sum, value) => sum + value, 0)
+          : usage.totalTokens,
+        costUsd: event.providerReportedCostUsd ?? event.costUsd,
         durationMs: event.durationMs,
-        measurement: usage.measurement,
+        measurement: runUsage?.measurement || usage.measurement,
       },
     ];
   });

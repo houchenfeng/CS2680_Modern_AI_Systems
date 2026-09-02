@@ -10,7 +10,7 @@ export interface Chat {
 }
 
 export interface AgentEvent {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   eventId: string;
   runId: string;
   chatId: string;
@@ -21,13 +21,19 @@ export interface AgentEvent {
     | "request_snapshot"
     | "user_message"
     | "assistant_message"
+    | "assistant_thinking"
     | "tool_start"
     | "tool_result"
     | "tool_error"
     | "permission_request"
     | "permission_result"
     | "run_result"
-    | "system";
+    | "system"
+    | "unknown_sdk_block"
+    | "compact_boundary"
+    | "model_call"
+    | "observed_request"
+    | "observability_bypass";
   content?: string;
   toolUseId?: string;
   toolName?: string;
@@ -38,7 +44,12 @@ export interface AgentEvent {
   durationMs?: number;
   status?: string;
   usage?: Record<string, unknown>;
+  callUsage?: Record<string, unknown>;
+  runUsage?: Record<string, unknown>;
+  modelUsageSnapshot?: Record<string, unknown>;
   costUsd?: number;
+  providerReportedCostUsd?: number | null;
+  normalizedPeakCostUsd?: number | null;
   model?: string;
   level?: string;
   message?: string;
@@ -61,4 +72,15 @@ export interface AgentEvent {
   cwd?: string;
   settingSources?: string[];
   observabilityNote?: string;
+  callId?: string;
+  providerRequestId?: string;
+  parentCallId?: string;
+  messageId?: string;
+  blockIndex?: number;
+  requestHash?: string;
+  usageConflict?: boolean;
+  thinkingChars?: number;
+  thinkingTokensEstimated?: number | null;
+  blockType?: string;
+  rawBlock?: unknown;
 }

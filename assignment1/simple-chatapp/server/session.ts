@@ -112,7 +112,7 @@ export class Session {
     payload: Partial<AgentEvent> & Pick<AgentEvent, "eventType">,
   ): AgentEvent {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       eventId: randomUUID(),
       sequence: ++this.sequence,
       timestamp: new Date().toISOString(),

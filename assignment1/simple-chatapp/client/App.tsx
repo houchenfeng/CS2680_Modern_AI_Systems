@@ -36,7 +36,7 @@ export default function App() {
         if (message.chatId !== selectedChatId) return;
         const history = (message.messages || []).map(
           (item: any, index: number): AgentEvent => ({
-            schemaVersion: 1,
+            schemaVersion: 2,
             eventId: item.id,
             runId: "history",
             chatId: item.chatId,

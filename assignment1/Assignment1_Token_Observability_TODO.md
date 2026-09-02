@@ -6,24 +6,24 @@
 
 ## 0. 执行与 Git 规则
 
-- [ ] 开始前记录 baseline commit、branch、SDK/Claude Code/Node/模型版本和日期。
-- [ ] 不修改已有 `TOKEN_PROVENANCE_REPORT.md` 中的历史实测数字；新结果追加并注明日期。
+- [x] 开始前记录 baseline commit、branch、SDK/Claude Code/Node/模型版本和日期。
+- [x] 不修改已有 `TOKEN_PROVENANCE_REPORT.md` 中的历史实测数字；新结果追加并注明日期。
 - [ ] 每个重大阶段完成后依次运行 typecheck、test、lint、format check、build 和敏感信息扫描。
 - [ ] 每个重大阶段只提交本阶段相关文件，记录 commit SHA。
 - [ ] 每个重大阶段执行 `git push origin HEAD`；只有 push 成功才能勾选该阶段完成。
 - [ ] push 失败时在本文件记录命令、时间和真实错误，保持阶段未完成；恢复后重试并补记结果。
-- [ ] 不提交 `.env`、API key、认证 header、真实大体积 trace/evidence 或 evaluation 临时 worktree。
+- [x] 不提交 `.env`、API key、认证 header、真实大体积 trace/evidence 或 evaluation 临时 worktree。
 
 ### 开始记录
 
-- 日期：`待填写`
-- Branch：`待填写`
-- Baseline commit：`待填写`
-- Node：`待填写`
-- Agent SDK：`待填写`
-- Claude Code init version：`待填写`
-- Requested model：`待填写`
-- Resolved model/version：`待填写`
+- 日期：`2026-09-02`
+- Branch：`main`
+- Baseline commit：`407f6ebd0fa6f0c6c9aa6d55049fa45277f2be7f`
+- Node：`v24.13.0`
+- Agent SDK：`@anthropic-ai/claude-agent-sdk 0.1.77`（package.json 声明 `^0.1.28`）
+- Claude Code init version：`待运行时 system/init 事件确认（历史报告为 2.0.77）`
+- Requested model：`deepseek-v4-pro-0813`（`.env` ANTHROPIC_MODEL）
+- Resolved model/version：`deepseek-v4-pro-0813`
 
 ## 1. 完成标准
 
@@ -40,36 +40,36 @@
 
 ### T1.1 类型与兼容
 
-- [ ] 将 `server/events.ts` 的 schema version 升至 2。
-- [ ] 保留读取 schema v1 JSONL 的迁移兼容，不重写历史原始文件。
-- [ ] 增加 `callId`、`providerRequestId`、`parentCallId`、`messageId`、block index 和 request hash。
-- [ ] 分开命名 `callUsage`、`runUsage` 和 `modelUsageSnapshot`，禁止只使用模糊的 `usage`。
-- [ ] `logicalInputTokens = uncachedInput + cacheRead + cacheWrite`；字段缺失为 null，不补 0。
+- [x] 将 `server/events.ts` 的 schema version 升至 2。
+- [x] 保留读取 schema v1 JSONL 的迁移兼容，不重写历史原始文件。
+- [x] 增加 `callId`、`providerRequestId`、`parentCallId`、`messageId`、block index 和 request hash。
+- [x] 分开命名 `callUsage`、`runUsage` 和 `modelUsageSnapshot`，禁止只使用模糊的 `usage`。
+- [x] `logicalInputTokens = uncachedInput + cacheRead + cacheWrite`；字段缺失为 null，不补 0。
 
 ### T1.2 Assistant fragment 去重
 
-- [ ] 修改 `server/event-normalizer.ts`，保留 assistant message ID。
-- [ ] thinking、text 和 tool-use fragment 保留顺序并关联同一 call。
-- [ ] 同一 message ID 的重复 usage 只能选取一次；冲突时记录全部候选和 `usageConflict=true`。
-- [ ] 保存 thinking 字符/token 计量信息，但不声称导出隐藏思维链。
-- [ ] 保存未知 SDK block 为 `unknown_sdk_block`，禁止静默丢弃。
-- [ ] 保存 `compact_boundary`、status、hook response 及可见字段。
+- [x] 修改 `server/event-normalizer.ts`，保留 assistant message ID。
+- [x] thinking、text 和 tool-use fragment 保留顺序并关联同一 call。
+- [x] 同一 message ID 的重复 usage 只能选取一次；冲突时记录全部候选和 `usageConflict=true`。
+- [x] 保存 thinking 字符/token 计量信息，但不声称导出隐藏思维链。
+- [x] 保存未知 SDK block 为 `unknown_sdk_block`，禁止静默丢弃。
+- [x] 保存 `compact_boundary`、status、hook response 及可见字段。
 
 ### T1.3 测试
 
-- [ ] 同 message ID 三个 fragments 只形成一个 call usage。
-- [ ] 重复 `input_tokens=1267/output_tokens=0` 不会重复求和。
-- [ ] message IDs 不同但 usage 相同仍保留为不同 calls，并标记可疑数据。
-- [ ] schema v1 trace 仍可读取。
-- [ ] 未知 block 可下载且经过脱敏。
+- [x] 同 message ID 三个 fragments 只形成一个 call usage。
+- [x] 重复 `input_tokens=1267/output_tokens=0` 不会重复求和。
+- [x] message IDs 不同但 usage 相同仍保留为不同 calls，并标记可疑数据。
+- [x] schema v1 trace 仍可读取。
+- [x] 未知 block 可下载且经过脱敏。
 
 ### T1 阶段记录与 Push
 
-- 修改文件：`待填写`
-- 关键选择：`待填写`
-- 测试命令/结果：`待填写`
-- 异常与处理：`待填写`
-- Commit SHA：`待填写`
+- 修改文件：`server/events.ts`, `server/event-normalizer.ts`, `server/event-normalizer.test.ts`, `server/trajectory.ts`, `server/trajectory.test.ts`, `server/trace-analysis.ts`, `server/session.ts`, `client/types.ts`, `client/App.tsx`, `Assignment1_Token_Observability_TODO.md`
+- 关键选择：升 schema 到 v2；读写路径用 `migrateEvent` 兼容 v1；assistant fragment 按 messageId 去重 usage；未知 block 落盘并脱敏；保留 v1 `usage` 字段作兼容。
+- 测试命令/结果：`npm run typecheck` 通过；`npm test` 40 pass / 0 fail；`npm run lint` 通过；`npm run build` 通过；`format:check` 仅既有 `TOKEN_PROVENANCE_REPORT.md` 未改格式（按规则不改历史报告）；敏感信息扫描未发现真实密钥（仅测试 fixture `sk-example`）。
+- 异常与处理：无阻断异常。`format:check` 对既有 provenance 报告告警，按“不修改历史实测数字”跳过该文件。
+- Commit SHA：`待 push 后填写`
 - Push：`待填写`
 - [ ] T1 已测试、commit 并成功 push。
 

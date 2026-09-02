@@ -1,5 +1,12 @@
-import type { AgentEvent, TokenUsage } from "./events.js";
-import { normalizeError } from "./redaction.js";
+import { createHash, randomUUID } from "node:crypto";
+import type { AgentEvent, CallUsage, TokenUsage } from "./events.js";
+import {
+  callUsageFromProvider,
+  legacyUsageFromCall,
+  modelUsageSnapshotFrom,
+  runUsageFromProvider,
+} from "./events.js";
+import { normalizeError, redact } from "./redaction.js";
 
 type EventBuilder = (
   payload: Partial<AgentEvent> & Pick<AgentEvent, "eventType">,
@@ -40,7 +47,6 @@ function parseExitCodeFromText(text: string): number | undefined {
 function commandFields(block: any) {
   const content = flattenToolContent(block?.content);
 
-  // Structured object payloads (tests / some SDK variants).
   if (content && typeof content === "object" && !Array.isArray(content)) {
     const record = content as Record<string, unknown>;
     return {
@@ -55,8 +61,6 @@ function commandFields(block: any) {
     };
   }
 
-  // Claude Agent SDK Bash results are usually a plain stdout string.
-  // Errors may embed "Exit code N" in the text (e.g. interrupted runs).
   if (typeof content === "string") {
     const prefixed = content.match(/^Exit code[: ]+(\d+)\n([\s\S]*)$/i);
     if (prefixed) {
@@ -81,28 +85,84 @@ function commandFields(block: any) {
   };
 }
 
+/** @deprecated Prefer callUsageFromProvider; kept for older TokenUsage callers. */
 function usageFrom(message: any): TokenUsage {
-  const usage = message?.usage;
-  if (!usage) return { measurement: "unavailable" };
-  const inputTokens = usage.input_tokens;
-  const outputTokens = usage.output_tokens;
-  const cacheReadTokens = usage.cache_read_input_tokens;
-  const cacheWriteTokens = usage.cache_creation_input_tokens;
-  const numeric = [
-    inputTokens,
-    outputTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-  ].filter(Number.isFinite);
+  return legacyUsageFromCall(callUsageFromProvider(message?.usage, "sdk"));
+}
+
+function usageFingerprint(usage: CallUsage): string {
+  return [
+    usage.uncachedInputTokens,
+    usage.cacheReadTokens,
+    usage.cacheWriteTokens,
+    usage.outputTokens,
+  ].join("|");
+}
+
+function selectCallUsage(
+  message: any,
+  messageId: string | undefined,
+  seenUsageByMessageId: Map<string, CallUsage>,
+): { callUsage?: CallUsage; usageConflict?: boolean } {
+  const candidate = callUsageFromProvider(
+    message?.message?.usage ?? message?.usage,
+    "assistant_fragment",
+  );
+  if (candidate.measurement === "unavailable") return {};
+
+  if (!messageId) {
+    return { callUsage: candidate };
+  }
+
+  const previous = seenUsageByMessageId.get(messageId);
+  if (!previous) {
+    seenUsageByMessageId.set(messageId, candidate);
+    return { callUsage: candidate };
+  }
+
+  if (usageFingerprint(previous) === usageFingerprint(candidate)) {
+    // Same message ID repeated the same usage — do not sum again.
+    return {};
+  }
+
+  const conflicted: CallUsage = {
+    ...previous,
+    usageConflict: true,
+    usageCandidates: [
+      ...(previous.usageCandidates || []),
+      ...(candidate.usageCandidates || []),
+    ],
+  };
+  seenUsageByMessageId.set(messageId, conflicted);
+  return { callUsage: conflicted, usageConflict: true };
+}
+
+const seenUsageByMessageId = new Map<string, CallUsage>();
+const callIdByMessageId = new Map<string, string>();
+
+/** Test helper: clear per-process message usage dedupe state. */
+export function resetNormalizerState() {
+  seenUsageByMessageId.clear();
+  callIdByMessageId.clear();
+}
+
+function callIdForMessage(messageId: string | undefined): string {
+  if (!messageId) return `call-${randomUUID()}`;
+  const existing = callIdByMessageId.get(messageId);
+  if (existing) return existing;
+  const created = `call-${createHash("sha256").update(messageId).digest("hex").slice(0, 16)}`;
+  callIdByMessageId.set(messageId, created);
+  return created;
+}
+
+function thinkingMetrics(text: string) {
+  const thinkingChars = text.length;
   return {
-    inputTokens,
-    outputTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-    totalTokens: numeric.length
-      ? numeric.reduce((sum, value) => sum + value, 0)
-      : undefined,
-    measurement: numeric.length ? "reported" : "unavailable",
+    thinkingChars,
+    // Character/4 is an estimate only; never claimed as authoritative CoT export.
+    thinkingTokensEstimated: thinkingChars
+      ? Math.ceil(thinkingChars / 4)
+      : null,
   };
 }
 
@@ -112,18 +172,72 @@ export function normalizeSdkMessage(
 ): AgentEvent[] {
   const sdkSessionId = message?.session_id;
   if (message?.type === "assistant") {
+    const messageId =
+      typeof message.message?.id === "string" ? message.message.id : undefined;
+    const callId = callIdForMessage(messageId);
     const content = Array.isArray(message.message?.content)
       ? message.message.content
       : [];
-    return content.flatMap((block: any) => {
-      if (block.type === "text")
+    const { callUsage, usageConflict } = selectCallUsage(
+      message,
+      messageId,
+      seenUsageByMessageId,
+    );
+    let attachedUsage = false;
+
+    const events = content.flatMap((block: any, blockIndex: number) => {
+      const shared = {
+        sdkSessionId,
+        messageId,
+        callId,
+        blockIndex,
+        ...(usageConflict ? { usageConflict: true } : {}),
+      };
+      const withUsageOnce = () => {
+        if (attachedUsage || !callUsage) return {};
+        attachedUsage = true;
+        return {
+          callUsage,
+          usage: legacyUsageFromCall(callUsage),
+          usageConflict: callUsage.usageConflict || usageConflict,
+        };
+      };
+
+      if (block.type === "text") {
         return [
           build({
             eventType: "assistant_message",
             content: block.text,
-            sdkSessionId,
+            ...shared,
+            ...withUsageOnce(),
           }),
         ];
+      }
+      if (block.type === "thinking") {
+        const text = String(block.thinking ?? "");
+        return [
+          build({
+            eventType: "assistant_thinking",
+            content: text,
+            ...thinkingMetrics(text),
+            ...shared,
+            ...withUsageOnce(),
+          }),
+        ];
+      }
+      if (block.type === "redacted_thinking") {
+        return [
+          build({
+            eventType: "assistant_thinking",
+            content: "[redacted_thinking]",
+            thinkingChars: 0,
+            thinkingTokensEstimated: null,
+            blockType: "redacted_thinking",
+            ...shared,
+            ...withUsageOnce(),
+          }),
+        ];
+      }
       if (block.type === "tool_use") {
         return [
           build({
@@ -131,25 +245,65 @@ export function normalizeSdkMessage(
             toolUseId: block.id,
             toolName: block.name,
             input: block.input,
-            sdkSessionId,
+            ...shared,
+            ...withUsageOnce(),
           }),
         ];
       }
-      return [];
+
+      return [
+        build({
+          eventType: "unknown_sdk_block",
+          blockType: String(block?.type || "unknown"),
+          rawBlock: redact(block),
+          ...shared,
+          ...withUsageOnce(),
+        }),
+      ];
     });
+
+    if (!events.length && callUsage) {
+      return [
+        build({
+          eventType: "model_call",
+          messageId,
+          callId,
+          callUsage,
+          usage: legacyUsageFromCall(callUsage),
+          usageConflict,
+          sdkSessionId,
+        }),
+      ];
+    }
+    return events;
   }
+
   if (message?.type === "user") {
     const content = Array.isArray(message.message?.content)
       ? message.message.content
       : [];
-    return content.flatMap((block: any) => {
-      if (block.type !== "tool_result") return [];
+    return content.flatMap((block: any, blockIndex: number) => {
+      if (block.type !== "tool_result") {
+        if (block.type) {
+          return [
+            build({
+              eventType: "unknown_sdk_block",
+              blockType: String(block.type),
+              rawBlock: redact(block),
+              blockIndex,
+              sdkSessionId,
+            }),
+          ];
+        }
+        return [];
+      }
       const isError = Boolean(block.is_error);
       const command = commandFields(block);
       return [
         build({
           eventType: isError ? "tool_error" : "tool_result",
           toolUseId: block.tool_use_id,
+          blockIndex,
           ...observedOutput(block.content),
           ...command,
           isError,
@@ -159,16 +313,33 @@ export function normalizeSdkMessage(
       ];
     });
   }
+
   if (message?.type === "result") {
     const success = message.subtype === "success" && !message.is_error;
+    const runUsage = runUsageFromProvider(message.usage);
+    const modelKey =
+      message.modelUsage && typeof message.modelUsage === "object"
+        ? Object.keys(message.modelUsage)[0]
+        : undefined;
+    const modelUsageSnapshot = modelKey
+      ? modelUsageSnapshotFrom(modelKey, message.modelUsage[modelKey])
+      : undefined;
     return [
       build({
         eventType: "run_result",
         status: success ? "success" : "error",
         durationMs: message.duration_ms,
+        durationApiMs: message.duration_api_ms,
         usage: usageFrom(message),
+        runUsage,
+        modelUsageSnapshot,
         costUsd: message.total_cost_usd,
+        providerReportedCostUsd:
+          typeof message.total_cost_usd === "number"
+            ? message.total_cost_usd
+            : null,
         sdkSessionId,
+        numTurns: message.num_turns,
         error: success
           ? undefined
           : normalizeError(
@@ -178,6 +349,7 @@ export function normalizeSdkMessage(
       }),
     ];
   }
+
   if (message?.type === "system" && message.subtype === "init") {
     return [
       build({
@@ -185,9 +357,75 @@ export function normalizeSdkMessage(
         level: "info",
         message: `Agent initialized with model ${message.model}`,
         model: message.model,
+        tools: message.tools,
+        claudeCodeVersion: message.claude_code_version || message.version,
         sdkSessionId,
       }),
     ];
   }
+
+  if (
+    message?.type === "system" &&
+    (message.subtype === "compact_boundary" ||
+      message.subtype === "compact" ||
+      message.compact_boundary)
+  ) {
+    return [
+      build({
+        eventType: "compact_boundary",
+        level: "info",
+        message: message.message || "Context compaction boundary",
+        rawBlock: redact({
+          subtype: message.subtype,
+          compact_boundary: message.compact_boundary,
+          uuid: message.uuid,
+        }),
+        sdkSessionId,
+      }),
+    ];
+  }
+
+  if (message?.type === "system" && message.subtype === "status") {
+    return [
+      build({
+        eventType: "system",
+        level: "info",
+        message: message.message || message.status || "status",
+        rawBlock: redact({
+          subtype: message.subtype,
+          status: message.status,
+        }),
+        sdkSessionId,
+      }),
+    ];
+  }
+
+  if (message?.type === "system" && message.hook_event_name) {
+    return [
+      build({
+        eventType: "system",
+        level: "info",
+        message: `Hook response: ${message.hook_event_name}`,
+        rawBlock: redact({
+          hook_event_name: message.hook_event_name,
+          hook_id: message.hook_id,
+          content: message.content,
+        }),
+        sdkSessionId,
+      }),
+    ];
+  }
+
+  if (message?.type) {
+    return [
+      build({
+        eventType: "unknown_sdk_block",
+        blockType: String(message.type),
+        rawBlock: redact(message),
+        sdkSessionId,
+      }),
+    ];
+  }
+
   return [];
 }

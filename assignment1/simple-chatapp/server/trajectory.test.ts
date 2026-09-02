@@ -16,7 +16,7 @@ import { redact } from "./redaction.js";
 
 function event(sequence: number): AgentEvent {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     eventId: `event-${sequence}`,
     runId: "run",
     chatId: "chat",
@@ -102,6 +102,47 @@ test("downloaded JSONL is byte-for-byte identical to persisted JSONL and remains
     const downloaded = await store.read("chat", "run");
     assert.equal(downloaded, persisted);
     assert.doesNotMatch(downloaded, /secret-secret-secret/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("schema v1 JSONL remains readable via in-memory migration", async () => {
+  const directory = await mkdtemp(
+    path.join(os.tmpdir(), "trajectory-v1-migrate-"),
+  );
+  try {
+    const chatDir = path.join(directory, "chat");
+    await mkdir(chatDir, { recursive: true });
+    const line = JSON.stringify({
+      schemaVersion: 1,
+      eventId: "legacy",
+      runId: "run-legacy",
+      chatId: "chat",
+      sequence: 1,
+      timestamp: "2026-09-01T00:00:00.000Z",
+      eventType: "run_result",
+      usage: {
+        inputTokens: 100,
+        outputTokens: 5,
+        cacheReadTokens: 50,
+        cacheWriteTokens: 10,
+        totalTokens: 165,
+        measurement: "reported",
+      },
+      costUsd: 0.02,
+    });
+    await writeFile(
+      path.join(chatDir, "run-legacy.jsonl"),
+      `${line}\n`,
+      "utf8",
+    );
+    const store = new TrajectoryStore(directory);
+    const events = await store.events("chat", "run-legacy");
+    assert.equal(events[0].schemaVersion, 2);
+    assert.equal(events[0].runUsage?.logicalInputTokens, 160);
+    const raw = await store.read("chat", "run-legacy");
+    assert.match(raw, /"schemaVersion":1/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
