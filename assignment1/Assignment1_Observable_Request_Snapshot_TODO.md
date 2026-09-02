@@ -101,4 +101,5 @@ request_snapshot → user_message → system/init → assistant/tool events → 
 
 - 已实现应用可观测请求快照：统一配置源、显式 CLAUDE.md、关闭隐式 settingSources、每 run 持久化并在 Trace Viewer 展示。
 - 已知限制：快照仅覆盖应用明确提供给 SDK 的输入；不包含 SDK/服务端隐藏提示；`npm audit` 本次因网络不可用未完成。
-- Commit / Push：见本轮 git 结果（用户已要求 push）。
+- Commit：`0d60a7f` — `feat(trace): add observable request snapshot for each agent run`
+- Push：见下一节远端结果。
