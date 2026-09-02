@@ -1,0 +1,250 @@
+# Assignment 1 — 第一步：逐调用 Token、缓存、价格与耗时 TODO
+
+> 执行顺序：先完整完成本文件，再执行 `Assignment1_Failure_Evidence_TODO.md`，最后执行 `Assignment1_Evaluation_TODO.md`。
+>
+> 文档规则：实施过程、命令、异常、测试结果、commit SHA 和 push 结果只更新在本文件。不得创建额外的 `progress.md`、`summary.md`、`test-report.md` 或临时 TODO。必要的源码、测试、价格配置和运行时 JSONL/artifact 不属于中间文档。
+
+## 0. 执行与 Git 规则
+
+- [ ] 开始前记录 baseline commit、branch、SDK/Claude Code/Node/模型版本和日期。
+- [ ] 不修改已有 `TOKEN_PROVENANCE_REPORT.md` 中的历史实测数字；新结果追加并注明日期。
+- [ ] 每个重大阶段完成后依次运行 typecheck、test、lint、format check、build 和敏感信息扫描。
+- [ ] 每个重大阶段只提交本阶段相关文件，记录 commit SHA。
+- [ ] 每个重大阶段执行 `git push origin HEAD`；只有 push 成功才能勾选该阶段完成。
+- [ ] push 失败时在本文件记录命令、时间和真实错误，保持阶段未完成；恢复后重试并补记结果。
+- [ ] 不提交 `.env`、API key、认证 header、真实大体积 trace/evidence 或 evaluation 临时 worktree。
+
+### 开始记录
+
+- 日期：`待填写`
+- Branch：`待填写`
+- Baseline commit：`待填写`
+- Node：`待填写`
+- Agent SDK：`待填写`
+- Claude Code init version：`待填写`
+- Requested model：`待填写`
+- Resolved model/version：`待填写`
+
+## 1. 完成标准
+
+- [ ] 每个真实模型调用有唯一 `callId/providerRequestId`，能够关联所属 run、真实 request、response、assistant blocks、tool call/result。
+- [ ] 每次调用按来源展示 API/model framing、SDK framing、System、CLAUDE.md、Tool Definitions、User、Assistant、Tool Calls、Tool Results、Permission/Hook、Compaction 和 Residual。
+- [ ] 每次调用 token 来源覆盖率 `>=95%`；不足时显示 residual 和原因，禁止强制分摊。
+- [ ] 内容来源和 cache 状态分开显示，不再将固定 6,144 cache-read 误标成 unknown。
+- [ ] 每次调用记录 uncached input、cache-read、cache-write、logical input 和 output。
+- [ ] 每次调用同时显示 provider-reported cost 和按 DeepSeek V4 Pro 峰段价格归一化的美元成本。
+- [ ] 每次调用记录 queued、sent、first byte、first visible、first useful、completed、API duration 和 wall-clock。
+- [ ] 多轮视图能展示相邻 request 中新增、保留、移除和摘要化的内容。
+
+## 2. 阶段 T1 — Schema v2 与调用边界
+
+### T1.1 类型与兼容
+
+- [ ] 将 `server/events.ts` 的 schema version 升至 2。
+- [ ] 保留读取 schema v1 JSONL 的迁移兼容，不重写历史原始文件。
+- [ ] 增加 `callId`、`providerRequestId`、`parentCallId`、`messageId`、block index 和 request hash。
+- [ ] 分开命名 `callUsage`、`runUsage` 和 `modelUsageSnapshot`，禁止只使用模糊的 `usage`。
+- [ ] `logicalInputTokens = uncachedInput + cacheRead + cacheWrite`；字段缺失为 null，不补 0。
+
+### T1.2 Assistant fragment 去重
+
+- [ ] 修改 `server/event-normalizer.ts`，保留 assistant message ID。
+- [ ] thinking、text 和 tool-use fragment 保留顺序并关联同一 call。
+- [ ] 同一 message ID 的重复 usage 只能选取一次；冲突时记录全部候选和 `usageConflict=true`。
+- [ ] 保存 thinking 字符/token 计量信息，但不声称导出隐藏思维链。
+- [ ] 保存未知 SDK block 为 `unknown_sdk_block`，禁止静默丢弃。
+- [ ] 保存 `compact_boundary`、status、hook response 及可见字段。
+
+### T1.3 测试
+
+- [ ] 同 message ID 三个 fragments 只形成一个 call usage。
+- [ ] 重复 `input_tokens=1267/output_tokens=0` 不会重复求和。
+- [ ] message IDs 不同但 usage 相同仍保留为不同 calls，并标记可疑数据。
+- [ ] schema v1 trace 仍可读取。
+- [ ] 未知 block 可下载且经过脱敏。
+
+### T1 阶段记录与 Push
+
+- 修改文件：`待填写`
+- 关键选择：`待填写`
+- 测试命令/结果：`待填写`
+- 异常与处理：`待填写`
+- Commit SHA：`待填写`
+- Push：`待填写`
+- [ ] T1 已测试、commit 并成功 push。
+
+## 3. 阶段 T2 — 本地透明请求观测代理
+
+### T2.1 请求捕获
+
+- [ ] 新增 `server/observation-proxy.ts`，透明转发 `/v1/messages` 与 `/v1/messages/count_tokens`。
+- [ ] `.env` 保留真实上游；SDK 子进程只接收 localhost proxy URL。
+- [ ] request 发送前生成 `callId`，保存脱敏 body、SHA-256、model、stream、system、tools 和 messages。
+- [ ] 保存真实 active parent chain，而不是从 UI transcript 事后猜测。
+- [ ] 捕获上游 response status、provider request ID 和 usage。
+- [ ] SSE 必须边接收边转发；不能为了记录而等待完整响应。
+- [ ] 代理不改写请求/响应语义；字节或 JSON 结构差异测试必须通过。
+
+### T2.2 安全与失败
+
+- [ ] 永不落盘 authorization、x-api-key、cookie 和 secret query。
+- [ ] 请求/响应内容复用 `redaction.ts`，保存 redacted artifact 与原始字节数/hash。
+- [ ] 代理失败时明确记录 `observability_bypass` 或 fail closed；不得静默继续并声称完整统计。
+- [ ] 上游 timeout、DNS、HTTP error、SSE error 和 client abort 均产生 terminal evidence。
+
+### T2.3 测试
+
+- [ ] 直接 API 与代理 API 对同一请求返回等价内容和 usage。
+- [ ] 流式 first byte 不被代理明显延迟或批量缓冲。
+- [ ] request artifact 不包含 API key。
+- [ ] 多轮 Read 的两次模型调用分别捕获不同 request。
+- [ ] Resume 后第一条 request 与旧 sdkSessionId 正确关联。
+
+### T2 阶段记录与 Push
+
+- 修改文件：`待填写`
+- 真实 call IDs：`待填写`
+- 延迟对照：`待填写`
+- 脱敏检查：`待填写`
+- Commit SHA：`待填写`
+- Push：`待填写`
+- [ ] T2 已测试、commit 并成功 push。
+
+## 4. 阶段 T3 — Count-tokens 与逐来源 Context Ledger
+
+### T3.1 固定归因顺序
+
+每次捕获真实 request 后，使用同一个 `/messages/count_tokens` 按固定规则计算：
+
+```text
+C0 = 最小合法 API/model framing
+C1 = C0 + application system
+C2 = C1 + CLAUDE.md/project instructions
+C3 = C2 + tool definitions/configuration
+C4 = C3 + user messages
+C5 = C4 + assistant text/thinking history
+C6 = C5 + historical tool-use blocks
+C7 = C6 + tool results/errors
+C8 = C7 + permission/hook/compaction/retrieval content
+```
+
+- [ ] 新增 `server/token-counter.ts`，实现重试、timeout、measurement 和 raw count evidence。
+- [ ] 新增 `server/context-ledger.ts`，以相邻差值生成来源 token。
+- [ ] 固定加入顺序和规则版本 `CONTEXT_RULE_VERSION`；不得为优化结果临时改顺序。
+- [ ] tool definitions 行明确包含 schema、工具配置和工具专用 system prompt 的联合增量。
+- [ ] thinking 只统计真实 request 中存在的 block；redacted/不可见内容不反推。
+- [ ] count endpoint 失败时降级为 estimate，但不得进入权威 coverage。
+
+### T3.2 95% gate
+
+```text
+reportedLogicalInput = uncached + cacheRead + cacheWrite
+residual = reportedLogicalInput - countTokens(fullCapturedRequest)
+coverage = 1 - abs(residual) / reportedLogicalInput
+```
+
+- [ ] 正常 call 要求 `coverage >=0.95`。
+- [ ] coverage 不足时保存 request hash、reported/count 值、residual 和原因。
+- [ ] provenance 合计必须等于完整 count-tokens 结果。
+- [ ] provider usage 缺失时 coverage 为 null，不可伪造 100%。
+
+### T3.3 固定回归 fixture
+
+- [ ] 首轮完整配置 fixture：总输入 6,902。
+- [ ] Tool surface：6,053，约 87.70%。
+- [ ] CLAUDE.md：约 694，约 10.06%。
+- [ ] Application system：约 29，约 0.42%。
+- [ ] Direct API framing：约 96；user：约 10；SDK framing 差值约 20。
+- [ ] 上述数值只作为当前模型/版本 regression fixture，不外推到其他模型。
+
+### T3 阶段记录与 Push
+
+- 静态覆盖率：`待填写`
+- 多轮各 call 覆盖率：`待填写`
+- residual 原因：`待填写`
+- Commit SHA：`待填写`
+- Push：`待填写`
+- [ ] T3 已测试、commit 并成功 push。
+
+## 5. 阶段 T4 — Cache、峰段成本与时间
+
+### T4.1 Cache overlay
+
+- [ ] 内容来源图和 cache overlay 分开。
+- [ ] 每个 call 显示 uncached/cache-read/cache-write；cache 是计费状态，不是来源类别。
+- [ ] 冷/热相同 request 的来源 token 应稳定；仅 cache bucket 和成本变化。
+- [ ] 保存 prefix/request hash，以解释缓存是否命中。
+- [ ] 缓存写入没有独立费率时按 miss 计费，并记录假设。
+
+### T4.2 版本化 DeepSeek 峰段价格
+
+截至 2026-09-02 的官方 DeepSeek V4 Pro 峰段价格：
+
+| 项目 | USD / 1M tokens |
+|---|---:|
+| Cache-hit input | 0.044 |
+| Cache-miss input | 1.32 |
+| Output | 3.96 |
+
+来源：<https://api-docs.deepseek.com/quick_start/pricing/>。
+
+- [ ] 新增 `server/pricing.ts`。
+- [ ] 新增版本化配置，包含 model alias、resolved version、effectiveAt、retrievedAt、tier、currency、rates 和 source URL。
+- [ ] 保存 `providerReportedCostUsd` 与 `normalizedPeakCostUsd`，禁止互相覆盖。
+- [ ] usage 缺失时成本为 null。
+
+```text
+normalizedPeakCostUsd =
+    cacheRead × 0.044 / 1e6
+  + (uncached + cacheWrite) × 1.32 / 1e6
+  + output × 3.96 / 1e6
+```
+
+### T4.3 时间
+
+- [ ] queuedAt、sentAt、firstByteAt、firstVisibleOutputAt、firstUsefulOutputAt、completedAt。
+- [ ] wallClock、queue、TTFB、time-to-first-visible、time-to-first-useful、duration_api_ms。
+- [ ] 每个 tool start/end/duration；并行工具按关键路径计算，不简单相加。
+- [ ] orchestration gap 只有依赖关系可确定时才计算，否则为 unavailable。
+
+### T4 阶段记录与 Push
+
+- 冷/热缓存结果：`待填写`
+- Provider cost vs normalized cost：`待填写`
+- Timing 结果：`待填写`
+- Commit SHA：`待填写`
+- Push：`待填写`
+- [ ] T4 已测试、commit 并成功 push。
+
+## 6. 阶段 T5 — 多轮 UI 与最终验收
+
+- [ ] Trace Viewer 增加 Calls 视图，以模型调用而不是 run 为最小单位。
+- [ ] 每个 call 展示来源、token、占比、evidence、cache、成本、时间和 residual。
+- [ ] 增加相邻 calls 的 Context Diff：新增、保留、移除、摘要化。
+- [ ] Tool result 只从产生后的 call 开始计入。
+- [ ] tool-use 在生成 call 属于 output，在下一 call 属于 input history。
+- [ ] 分开显示 new user、prior user、assistant、thinking、tool calls、tool results。
+- [ ] 多轮至少验证：五轮无工具、成功 Read 两调用、失败 Read retry、并行工具、compaction、Resume。
+- [ ] 任意正常多轮 attempt 的每个 call coverage >=95%。
+
+### T5 阶段记录与 Push
+
+- UI 截图/会话 IDs：`待填写`
+- 多轮 call 数与 coverage：`待填写`
+- 已知限制：`待填写`
+- Commit SHA：`待填写`
+- Push：`待填写`
+- [ ] T5 已测试、commit 并成功 push。
+
+## 7. 第一步最终记录
+
+- 已完成内容：`待填写`
+- 最终测试数量：`待填写`
+- 静态来源覆盖率：`待填写`
+- 多轮最低/平均覆盖率：`待填写`
+- Cache 与价格结论：`待填写`
+- 耗时结论：`待填写`
+- 剩余限制：`待填写`
+- 最终 commit：`待填写`
+- 最终 push：`待填写`
+- [ ] 第一步完成，可以进入失败证据与诊断。
