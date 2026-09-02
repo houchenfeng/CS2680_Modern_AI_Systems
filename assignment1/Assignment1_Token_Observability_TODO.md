@@ -69,9 +69,9 @@
 - 关键选择：升 schema 到 v2；读写路径用 `migrateEvent` 兼容 v1；assistant fragment 按 messageId 去重 usage；未知 block 落盘并脱敏；保留 v1 `usage` 字段作兼容。
 - 测试命令/结果：`npm run typecheck` 通过；`npm test` 40 pass / 0 fail；`npm run lint` 通过；`npm run build` 通过；`format:check` 仅既有 `TOKEN_PROVENANCE_REPORT.md` 未改格式（按规则不改历史报告）；敏感信息扫描未发现真实密钥（仅测试 fixture `sk-example`）。
 - 异常与处理：无阻断异常。`format:check` 对既有 provenance 报告告警，按“不修改历史实测数字”跳过该文件。
-- Commit SHA：`待 push 后填写`
-- Push：`待填写`
-- [ ] T1 已测试、commit 并成功 push。
+- Commit SHA：`ef8c177311aa649e01fd8feeb49ba6a157749690`
+- Push：`成功 2026-09-02；origin/main 407f6eb..ef8c177`
+- [x] T1 已测试、commit 并成功 push。
 
 ## 3. 阶段 T2 — 本地透明请求观测代理
 

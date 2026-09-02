@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import type { Chat, WSClient } from "./types.js";
-import { AgentSession } from "./ai-client.js";
+import { AgentSession, createAgentSession } from "./ai-client.js";
 import {
   buildObservableRequestSnapshot,
   loadProjectInstructions,
@@ -15,6 +15,7 @@ import { normalizeError, redact } from "./redaction.js";
 import { trajectoryStore } from "./trajectory.js";
 import type { ChatStore } from "./chat-store.js";
 import type { TrajectoryStore } from "./trajectory.js";
+import type { ObservedRequestArtifact } from "./observation-proxy.js";
 
 interface PendingPermission {
   requestId: string;
@@ -32,22 +33,29 @@ type AgentAdapter = Pick<
   "sendMessage" | "getOutputStream" | "interrupt" | "close"
 > & {
   getObservableRequest?: () => ObservableRequestSnapshot;
+  setObservationContext?: (context: {
+    chatId?: string;
+    runId?: string;
+    sdkSessionId?: string;
+  }) => void;
 };
 
 export interface SessionDependencies {
   agent?: AgentAdapter;
   agentFactory?: (
     options: ConstructorParameters<typeof AgentSession>[0],
-  ) => AgentAdapter;
+  ) => AgentAdapter | Promise<AgentAdapter>;
   store?: ChatStore;
   trajectories?: TrajectoryStore;
   projectInstructions?: ProjectInstructions;
+  disableObservationProxy?: boolean;
 }
 
 export class Session {
   public readonly chatId: string;
   private readonly subscribers = new Set<WSClient>();
-  private readonly agentSession: AgentAdapter;
+  private agentSession: AgentAdapter;
+  private agentReady: Promise<void> = Promise.resolve();
   private readonly store: ChatStore;
   private readonly trajectories: TrajectoryStore;
   private readonly pendingPermissions = new Map<string, PendingPermission>();
@@ -69,7 +77,39 @@ export class Session {
     const projectInstructions =
       dependencies.projectInstructions ||
       (await loadProjectInstructions(chat.cwd));
-    return new Session(chat, { ...dependencies, projectInstructions });
+
+    if (dependencies.agent) {
+      return new Session(chat, { ...dependencies, projectInstructions });
+    }
+
+    const sessionRef: { current: Session | null } = { current: null };
+    const onObservation = async (
+      artifact: ObservedRequestArtifact,
+      phase: "request" | "response" | "error" | "bypass",
+    ) => {
+      const session = sessionRef.current;
+      if (!session) return;
+      await session.handleObservation(artifact, phase);
+    };
+
+    const session = new Session(chat, {
+      ...dependencies,
+      projectInstructions,
+      agentFactory: async (options) => {
+        if (dependencies.agentFactory) {
+          return dependencies.agentFactory(options);
+        }
+        return createAgentSession({
+          ...options,
+          chatId: chat.id,
+          onObservation,
+          disableObservationProxy: dependencies.disableObservationProxy,
+        });
+      },
+    });
+    sessionRef.current = session;
+    await session.ensureAgentReady();
+    return session;
   }
 
   constructor(
@@ -99,13 +139,86 @@ export class Session {
       canUseTool: this.canUseTool,
       preToolUse: this.preToolUse,
       projectInstructions: this.projectInstructions,
+      chatId: this.chatId,
+      disableObservationProxy: dependencies.disableObservationProxy,
     };
-    this.agentSession =
-      dependencies.agent ||
-      dependencies.agentFactory?.(agentOptions) ||
-      new AgentSession(agentOptions);
+
+    if (dependencies.agent) {
+      this.agentSession = dependencies.agent;
+    } else if (dependencies.agentFactory) {
+      const created = dependencies.agentFactory(agentOptions);
+      if (
+        created &&
+        typeof (created as Promise<AgentAdapter>).then === "function"
+      ) {
+        this.agentSession = null as unknown as AgentAdapter;
+        this.agentReady = (created as Promise<AgentAdapter>).then((agent) => {
+          this.agentSession = agent;
+        });
+      } else {
+        this.agentSession = created as AgentAdapter;
+      }
+    } else {
+      this.agentSession = new AgentSession({
+        ...agentOptions,
+        disableObservationProxy: true,
+      });
+    }
     if (wasInterrupted)
       this.store.updateChat(this.chatId, { status: this.status });
+  }
+
+  async ensureAgentReady() {
+    await this.agentReady;
+  }
+
+  private async handleObservation(
+    artifact: ObservedRequestArtifact,
+    phase: "request" | "response" | "error" | "bypass",
+  ) {
+    if (phase === "bypass") {
+      await this.emit(
+        this.build({
+          eventType: "observability_bypass",
+          callId: artifact.callId,
+          level: "error",
+          message: artifact.error || "Observation proxy bypassed",
+          requestHash: artifact.requestHash,
+          terminalReason: artifact.terminalReason,
+          error: normalizeError(artifact.error || "bypass", "proxy"),
+        }),
+      );
+      return;
+    }
+
+    await this.emit(
+      this.build({
+        eventType: "observed_request",
+        callId: artifact.callId,
+        parentCallId: artifact.parentCallId,
+        providerRequestId: artifact.providerRequestId,
+        requestHash: artifact.requestHash,
+        model: artifact.model,
+        callUsage: artifact.callUsage,
+        observationPhase: phase,
+        stream: artifact.stream,
+        requestBytes: artifact.requestBytes,
+        responseBytes: artifact.responseBytes,
+        responseHash: artifact.responseHash,
+        statusCode: artifact.statusCode,
+        queuedAt: artifact.queuedAt,
+        sentAt: artifact.sentAt,
+        firstByteAt: artifact.firstByteAt,
+        completedAt: artifact.completedAt,
+        terminalReason: artifact.terminalReason,
+        activeParentChain: artifact.activeParentChain,
+        redactedBody: phase === "request" ? artifact.redactedBody : undefined,
+        system: phase === "request" ? artifact.system : undefined,
+        tools: phase === "request" ? artifact.tools : undefined,
+        messages: phase === "request" ? artifact.messages : undefined,
+        sdkSessionId: artifact.sdkSessionId || this.sdkSessionId,
+      }),
+    );
   }
 
   private build(
@@ -358,6 +471,7 @@ export class Session {
   }
 
   async sendMessage(content: string) {
+    await this.ensureAgentReady();
     if (this.status === "running" || this.status === "waiting_permission")
       throw new Error("A run is already active");
     this.runId = `run-${randomUUID()}`;
@@ -365,6 +479,11 @@ export class Session {
     this.stopPromise = undefined;
     this.runStartedAt = new Date().toISOString();
     this.setStatus("running");
+    this.agentSession.setObservationContext?.({
+      chatId: this.chatId,
+      runId: this.runId,
+      sdkSessionId: this.sdkSessionId,
+    });
     const snapshot =
       this.agentSession.getObservableRequest?.() ||
       buildObservableRequestSnapshot({

@@ -16,6 +16,12 @@ import {
   type ObservableRequestSnapshot,
   type ProjectInstructions,
 } from "./agent-config.js";
+import {
+  ObservationProxy,
+  proxyEnv,
+  type ObservedRequestArtifact,
+  type ObservationListener,
+} from "./observation-proxy.js";
 
 export {
   AGENT_TOOLS,
@@ -77,6 +83,14 @@ export interface AgentSessionOptions {
   preToolUse: HookCallback;
   projectInstructions?: ProjectInstructions;
   systemPrompt?: string;
+  onObservation?: ObservationListener;
+  chatId?: string;
+  runId?: string;
+  /** Disable proxy (unit tests). Default false when upstream URL is set. */
+  disableObservationProxy?: boolean;
+  /** Pre-started proxy (createAgentSession). */
+  observationProxy?: ObservationProxy | null;
+  env?: NodeJS.ProcessEnv;
 }
 
 export class AgentSession {
@@ -84,6 +98,7 @@ export class AgentSession {
   private readonly queryHandle: Query;
   private readonly outputIterator: AsyncIterator<any>;
   private readonly observableRequest: ObservableRequestSnapshot;
+  private readonly proxy: ObservationProxy | null;
 
   constructor(options: AgentSessionOptions) {
     const projectInstructions =
@@ -103,6 +118,7 @@ export class AgentSession {
       model,
       tools: AGENT_TOOLS,
     });
+    this.proxy = options.observationProxy ?? null;
 
     this.queue = new MessageQueue(options.resume);
     this.queryHandle = query({
@@ -113,7 +129,7 @@ export class AgentSession {
         persistSession: true,
         maxTurns: 100,
         model,
-        env: { ...process.env },
+        env: options.env ? { ...options.env } : { ...process.env },
         tools: [...AGENT_TOOLS],
         allowedTools: [...ALLOWED_TOOLS],
         permissionMode: "default",
@@ -126,8 +142,20 @@ export class AgentSession {
     this.outputIterator = this.queryHandle[Symbol.asyncIterator]();
   }
 
+  setObservationContext(context: {
+    chatId?: string;
+    runId?: string;
+    sdkSessionId?: string;
+  }) {
+    this.proxy?.setContext(context);
+  }
+
   getObservableRequest(): ObservableRequestSnapshot {
     return this.observableRequest;
+  }
+
+  getObservationProxy(): ObservationProxy | null {
+    return this.proxy;
   }
 
   sendMessage(content: string) {
@@ -145,17 +173,47 @@ export class AgentSession {
   }
   close() {
     this.queue.close();
+    void this.proxy?.stop();
   }
 }
 
-/** Async factory so callers can load CLAUDE.md before constructing the SDK query. */
+/** Async factory: starts localhost observation proxy then constructs the SDK query. */
 export async function createAgentSession(options: AgentSessionOptions) {
   const projectInstructions =
     options.projectInstructions || (await loadProjectInstructions(options.cwd));
+  const systemPrompt =
+    options.systemPrompt || composeSystemPrompt(projectInstructions);
+
+  let proxy: ObservationProxy | null = null;
+  let env: NodeJS.ProcessEnv = { ...process.env };
+  const upstream = process.env.ANTHROPIC_BASE_URL;
+  const enableProxy =
+    !options.disableObservationProxy &&
+    Boolean(upstream) &&
+    options.observationProxy !== null;
+
+  if (enableProxy && upstream) {
+    proxy = new ObservationProxy({
+      upstreamBaseUrl: upstream,
+      failClosed: process.env.OBSERVABILITY_FAIL_CLOSED === "1",
+      context: {
+        chatId: options.chatId,
+        runId: options.runId,
+        sdkSessionId: options.resume,
+      },
+      onObservation: options.onObservation,
+    });
+    const proxyBaseUrl = await proxy.start();
+    env = proxyEnv(env, proxyBaseUrl);
+  }
+
   return new AgentSession({
     ...options,
     projectInstructions,
-    systemPrompt:
-      options.systemPrompt || composeSystemPrompt(projectInstructions),
+    systemPrompt,
+    observationProxy: proxy,
+    env,
   });
 }
+
+export type { ObservedRequestArtifact, ObservationListener };
