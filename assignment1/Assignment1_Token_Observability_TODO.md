@@ -245,6 +245,6 @@ normalizedPeakCostUsd =
 - Cache 与价格结论：`cache overlay 与内容来源分离；cache-write 按 miss；normalizedPeakCostUsd 与 provider cost 并存`
 - 耗时结论：`proxy 记录 queued/sent/TTFB/completed；并行工具用关键路径`
 - 剩余限制：`live SSE firstVisible/useful 精细打点；不落盘大体积真实 trace；TOKEN_PROVENANCE_REPORT 历史数字未改`
-- 最终 commit：`616d10716338ea070c2093ed6589383c75190497`
-- 最终 push：`成功 2026-09-02 origin/main`
+- 最终 commit：`aab1cc64819487059a670cb045be6cd4a44705c3`
+- 最终 push：`成功 2026-09-02 origin/main → aab1cc6`
 - [x] 第一步完成，可以进入失败证据与诊断。
