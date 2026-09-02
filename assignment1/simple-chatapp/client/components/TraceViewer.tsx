@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentEvent } from "../types";
 
 interface Summary {
@@ -20,7 +20,15 @@ interface Summary {
   >;
 }
 
-export function TraceViewer({ chatId }: { chatId: string | null }) {
+export function TraceViewer({
+  chatId,
+  active = true,
+  refreshKey = 0,
+}: {
+  chatId: string | null;
+  active?: boolean;
+  refreshKey?: number;
+}) {
   const [runs, setRuns] = useState<string[]>([]);
   const [runId, setRunId] = useState("");
   const [events, setEvents] = useState<AgentEvent[]>([]);
@@ -29,21 +37,34 @@ export function TraceViewer({ chatId }: { chatId: string | null }) {
   const [toolName, setToolName] = useState("");
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [error, setError] = useState("");
+  const runsRef = useRef<string[]>([]);
 
   useEffect(() => {
-    setRuns([]);
-    setRunId("");
-    setEvents([]);
-    setSummary(null);
-    if (!chatId) return;
+    if (!chatId) {
+      runsRef.current = [];
+      setRuns([]);
+      setRunId("");
+      setEvents([]);
+      setSummary(null);
+      return;
+    }
+    if (!active) return;
     void fetch(`/api/chats/${chatId}/traces`)
       .then((response) => response.json())
       .then((items: string[]) => {
+        const previous = runsRef.current;
+        runsRef.current = items;
         setRuns(items);
-        setRunId(items.at(-1) || "");
+        const latest = items.at(-1) || "";
+        setRunId((current) => {
+          if (!current || !items.includes(current)) return latest;
+          if (items.length > previous.length && current === previous.at(-1))
+            return latest;
+          return current;
+        });
       })
       .catch((caught) => setError(caught.message));
-  }, [chatId]);
+  }, [chatId, active, refreshKey]);
 
   useEffect(() => {
     if (!chatId || !runId) return;
@@ -113,12 +134,19 @@ export function TraceViewer({ chatId }: { chatId: string | null }) {
             <select
               value={runId}
               onChange={(event) => setRunId(event.target.value)}
-              className="mt-1 block rounded border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 block max-w-xs rounded border border-slate-300 px-2 py-1 text-sm"
             >
-              {runs.map((run) => (
-                <option key={run}>{run}</option>
+              {runs.map((run, index) => (
+                <option key={run} value={run}>
+                  {`Turn ${index + 1} · ${run}`}
+                </option>
               ))}
             </select>
+            {runs.length ? (
+              <span className="mt-1 block text-[11px] text-slate-400">
+                {runs.length} run{runs.length === 1 ? "" : "s"} in this session
+              </span>
+            ) : null}
           </label>
           <label className="text-xs text-slate-600">
             Event type

@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, readdir, rm } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import type { AgentEvent } from "./events.js";
 import { redact } from "./redaction.js";
@@ -31,9 +31,17 @@ export class TrajectoryStore {
   async list(chatId: string) {
     const directory = path.join(this.root, chatId);
     try {
-      return (await readdir(directory))
-        .filter((name) => name.endsWith(".jsonl"))
-        .map((name) => name.slice(0, -6));
+      const names = (await readdir(directory)).filter((name) =>
+        name.endsWith(".jsonl"),
+      );
+      const runs = await Promise.all(
+        names.map(async (name) => {
+          const filePath = path.join(directory, name);
+          const fileStat = await stat(filePath);
+          return { runId: name.slice(0, -6), mtimeMs: fileStat.mtimeMs };
+        }),
+      );
+      return runs.sort((a, b) => a.mtimeMs - b.mtimeMs).map((item) => item.runId);
     } catch {
       return [];
     }

@@ -21,6 +21,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [workspacePath, setWorkspacePath] = useState(".");
   const [view, setView] = useState<"chat" | "trace">("chat");
+  const [traceRefreshKey, setTraceRefreshKey] = useState(0);
 
   const fetchChats = useCallback(async () => {
     const response = await fetch(`${API_BASE}/chats`);
@@ -78,6 +79,7 @@ export default function App() {
         );
         if (event.eventType === "run_result") {
           setIsLoading(false);
+          setTraceRefreshKey((previous) => previous + 1);
           void fetchChats();
         }
         return;
@@ -209,7 +211,7 @@ export default function App() {
             Trace Viewer
           </button>
         </nav>
-        {view === "chat" ? (
+        <div className={view === "chat" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
           <ChatWindow
             chatId={selectedChatId}
             events={events}
@@ -223,9 +225,14 @@ export default function App() {
             }
             onResolvePermission={resolvePermission}
           />
-        ) : (
-          <TraceViewer chatId={selectedChatId} />
-        )}
+        </div>
+        <div className={view === "trace" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+          <TraceViewer
+            chatId={selectedChatId}
+            active={view === "trace"}
+            refreshKey={traceRefreshKey}
+          />
+        </div>
       </div>
     </div>
   );

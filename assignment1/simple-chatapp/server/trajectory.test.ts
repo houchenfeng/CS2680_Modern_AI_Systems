@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile, utimes } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { TrajectoryStore } from "./trajectory.js";
@@ -52,6 +52,27 @@ test("redacts keys, API keys, and authorization values recursively", () => {
   assert.equal(safe.authorization, "[REDACTED]");
   assert.equal(safe.nested.ANTHROPIC_API_KEY, "[REDACTED]");
   assert.doesNotMatch(JSON.stringify(safe), /sk-example/);
+});
+
+test("lists runs in chronological order by file modification time", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "trajectory-list-test-"));
+  try {
+    const store = new TrajectoryStore(directory);
+    const chatDir = path.join(directory, "chat");
+    await mkdir(chatDir, { recursive: true });
+    const first = path.join(chatDir, "run-first.jsonl");
+    const second = path.join(chatDir, "run-second.jsonl");
+    await writeFile(first, '{"eventType":"run_result"}\n', "utf8");
+    await writeFile(second, '{"eventType":"run_result"}\n', "utf8");
+    const older = Date.now() - 60_000;
+    const newer = Date.now();
+    await utimes(first, older / 1000, older / 1000);
+    await utimes(second, newer / 1000, newer / 1000);
+
+    assert.deepEqual(await store.list("chat"), ["run-first", "run-second"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("downloaded JSONL is byte-for-byte identical to persisted JSONL and remains redacted", async () => {
