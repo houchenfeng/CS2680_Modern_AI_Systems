@@ -180,8 +180,8 @@ export default function App() {
   const selectedChat = chats.find((chat) => chat.id === selectedChatId) || null;
 
   return (
-    <div className="flex h-screen flex-col bg-slate-100 md:flex-row">
-      <aside className="h-64 w-full shrink-0 md:h-auto md:w-64">
+    <div className="flex h-screen overflow-hidden flex-col bg-slate-100 md:flex-row">
+      <aside className="flex h-64 w-full shrink-0 flex-col overflow-hidden md:h-full md:w-64">
         <ChatList
           chats={chats}
           selectedChatId={selectedChatId}
@@ -196,7 +196,7 @@ export default function App() {
           onWorkspacePathChange={setWorkspacePath}
         />
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <nav className="flex gap-1 border-b border-slate-200 bg-white px-4 pt-2">
           <button
             onClick={() => setView("chat")}

@@ -126,7 +126,7 @@ export function TraceViewer({
       </div>
     );
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-5">
+    <main className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5">
       <div className="mx-auto max-w-6xl space-y-5">
         <header className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
           <label className="text-xs text-slate-600">

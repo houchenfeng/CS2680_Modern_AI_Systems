@@ -64,15 +64,16 @@ function ToolCard({
         ) : null}
       </div>
       <JsonDetails label="Input" value={start.input} />
-      {result?.toolName === "Bash" || start.toolName === "Bash" ? (
+      {result &&
+      (result.toolName === "Bash" || start.toolName === "Bash") ? (
         <div className="mt-2 grid gap-2">
           <p className="text-xs font-medium text-slate-600">
-            Exit code: {result?.exitCode ?? "unavailable"}
+            Exit code: {result.exitCode ?? "unavailable"}
           </p>
-          {result?.stdout !== undefined ? (
+          {result.stdout !== undefined ? (
             <JsonDetails label="stdout" value={result.stdout} />
           ) : null}
-          {result?.stderr !== undefined ? (
+          {result.stderr !== undefined ? (
             <JsonDetails label="stderr" value={result.stderr} />
           ) : null}
         </div>
@@ -207,7 +208,7 @@ export function ChatWindow({
     );
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col bg-white">
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
       <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
         <div className="min-w-0">
           <h1 className="font-semibold text-slate-900">Agent session</h1>
