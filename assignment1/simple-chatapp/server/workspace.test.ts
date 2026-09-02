@@ -103,3 +103,28 @@ test("persists chat metadata, messages, workspace, and SDK session mapping", asy
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("normalizes interrupted chat statuses when persisted records are loaded", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "chat-status-test-"));
+  try {
+    const file = path.join(root, "chats.json");
+    const first = new ChatStore(file);
+    const resumable = first.createChat({ cwd: root, workspacePath: "." });
+    const interrupted = first.createChat({ cwd: root, workspacePath: "." });
+    first.updateChat(resumable.id, {
+      sdkSessionId: "sdk-session",
+      status: "waiting_permission",
+    });
+    first.updateChat(interrupted.id, { status: "running" });
+
+    const restored = new ChatStore(file);
+    assert.equal(restored.getChat(resumable.id)?.status, "resumable");
+    assert.equal(restored.getChat(interrupted.id)?.status, "error");
+
+    const persistedAgain = new ChatStore(file);
+    assert.equal(persistedAgain.getChat(resumable.id)?.status, "resumable");
+    assert.equal(persistedAgain.getChat(interrupted.id)?.status, "error");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

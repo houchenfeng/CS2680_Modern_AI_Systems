@@ -124,6 +124,7 @@ test("permission Allow and Deny are isolated by requestId and duplicate decision
   const ws = client();
   value.session.subscribe(ws);
   try {
+    await value.session.sendMessage("exercise concurrent permissions");
     const signal = new AbortController().signal;
     const first = (value.session as any).canUseTool(
       "Write",
@@ -179,6 +180,7 @@ test("permission timeout and last-client disconnect default to denial", async ()
   const ws = client();
   value.session.subscribe(ws);
   try {
+    await value.session.sendMessage("exercise permission cleanup");
     const timed = await (value.session as any).canUseTool(
       "Write",
       {},
@@ -198,6 +200,72 @@ test("permission timeout and last-client disconnect default to denial", async ()
   } finally {
     if (previous === undefined) delete process.env.PERMISSION_TIMEOUT_MS;
     else process.env.PERMISSION_TIMEOUT_MS = previous;
+    value.session.close();
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
+test("a completed run safely denies every still-pending permission", async () => {
+  const value = await fixture();
+  const ws = client();
+  value.session.subscribe(ws);
+  try {
+    await value.session.sendMessage("finish while approvals are pending");
+    const signal = new AbortController().signal;
+    const first = (value.session as any).canUseTool(
+      "Write",
+      {},
+      { signal, toolUseID: "pending-a" },
+    );
+    const second = (value.session as any).canUseTool(
+      "Bash",
+      {},
+      { signal, toolUseID: "pending-b" },
+    );
+    await waitFor(
+      () =>
+        ws.messages.filter(
+          (item: any) => item.event?.eventType === "permission_request",
+        ).length === 2,
+    );
+    value.agent.push({ type: "result", subtype: "success", is_error: false });
+    assert.equal((await first).behavior, "deny");
+    assert.equal((await second).behavior, "deny");
+    await waitFor(
+      () => value.store.getChat(value.chat.id)?.status === "completed",
+    );
+    const permissionResults = ws.messages.filter(
+      (item: any) => item.event?.eventType === "permission_result",
+    );
+    assert.equal(permissionResults.length, 2);
+    assert.ok(
+      permissionResults.every(
+        (item: any) => item.event.reason === "Run already finished",
+      ),
+    );
+  } finally {
+    value.session.close();
+    await rm(value.directory, { recursive: true, force: true });
+  }
+});
+
+test("permission callbacks arriving after a run result are denied", async () => {
+  const value = await fixture();
+  try {
+    await value.session.sendMessage("finish before a late tool callback");
+    value.agent.push({ type: "result", subtype: "success", is_error: false });
+    await waitFor(
+      () => value.store.getChat(value.chat.id)?.status === "completed",
+    );
+
+    const result = await (value.session as any).canUseTool(
+      "Bash",
+      { command: "echo late" },
+      { signal: new AbortController().signal, toolUseID: "late-tool" },
+    );
+    assert.equal(result.behavior, "deny");
+    assert.equal(result.message, "Run already finished");
+  } finally {
     value.session.close();
     await rm(value.directory, { recursive: true, force: true });
   }

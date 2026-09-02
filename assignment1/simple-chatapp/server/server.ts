@@ -42,10 +42,21 @@ app.get("/", (req, res) => {
 
 // Session management
 const sessions: Map<string, Session> = new Map();
+const sessionCreations = new Map<string, Promise<Session>>();
+
+function subscribeExclusively(session: Session, client: WSClient) {
+  for (const existing of sessions.values()) {
+    if (existing !== session) existing.unsubscribe(client);
+  }
+  session.subscribe(client);
+}
 
 async function getOrCreateSession(chatId: string): Promise<Session> {
-  let session = sessions.get(chatId);
-  if (!session) {
+  const existing = sessions.get(chatId);
+  if (existing) return existing;
+  const pending = sessionCreations.get(chatId);
+  if (pending) return pending;
+  const creation = (async () => {
     const chat = chatStore.getChat(chatId);
     if (!chat) throw new Error("Chat not found");
     if (!chat.cwd) throw new Error("Chat has no saved workspace");
@@ -54,10 +65,16 @@ async function getOrCreateSession(chatId: string): Promise<Session> {
       chat.workspacePath || ".",
     );
     chat.cwd = workspace.cwd;
-    session = new Session(chat);
+    const session = new Session(chat);
     sessions.set(chatId, session);
+    return session;
+  })();
+  sessionCreations.set(chatId, creation);
+  try {
+    return await creation;
+  } finally {
+    sessionCreations.delete(chatId);
   }
-  return session;
 }
 
 // REST API: Get all chats
@@ -212,7 +229,7 @@ wss.on("connection", (ws: WSClient) => {
         case "subscribe": {
           void getOrCreateSession(message.chatId)
             .then((session) => {
-              session.subscribe(ws);
+              subscribeExclusively(session, ws);
               console.log(`Client subscribed to chat ${message.chatId}`);
 
               // Send existing messages
@@ -241,7 +258,7 @@ wss.on("connection", (ws: WSClient) => {
         case "chat": {
           void getOrCreateSession(message.chatId)
             .then((session) => {
-              session.subscribe(ws);
+              subscribeExclusively(session, ws);
               return session.sendMessage(message.content);
             })
             .catch((error) => {

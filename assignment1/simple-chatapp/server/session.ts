@@ -60,7 +60,13 @@ export class Session {
   ) {
     this.chatId = chat.id;
     this.sdkSessionId = chat.sdkSessionId;
-    this.status = chat.sdkSessionId ? "resumable" : chat.status || "new";
+    const wasInterrupted =
+      chat.status === "running" || chat.status === "waiting_permission";
+    this.status = chat.sdkSessionId
+      ? "resumable"
+      : wasInterrupted
+        ? "error"
+        : chat.status || "new";
     if (!chat.cwd) throw new Error("Chat has no validated working directory");
     this.store = dependencies.store || chatStore;
     this.trajectories = dependencies.trajectories || trajectoryStore;
@@ -74,6 +80,8 @@ export class Session {
       dependencies.agent ||
       dependencies.agentFactory?.(agentOptions) ||
       new AgentSession(agentOptions);
+    if (wasInterrupted)
+      this.store.updateChat(this.chatId, { status: this.status });
   }
 
   private build(
@@ -132,6 +140,12 @@ export class Session {
     input: Record<string, unknown>,
     options: { signal: AbortSignal; toolUseID: string },
   ): Promise<PermissionResult> => {
+    if (this.status !== "running" && this.status !== "waiting_permission")
+      return {
+        behavior: "deny",
+        message: "Run already finished",
+        toolUseID: options.toolUseID,
+      };
     if (this.hookApproved.delete(options.toolUseID))
       return {
         behavior: "allow",
@@ -265,6 +279,12 @@ export class Session {
     return true;
   }
 
+  private async denyPendingPermissions(reason: string) {
+    for (const requestId of [...this.pendingPermissions.keys()]) {
+      await this.resolvePermission(requestId, "deny", false, reason);
+    }
+  }
+
   private async startListening() {
     if (this.isListening) return;
     this.isListening = true;
@@ -284,6 +304,7 @@ export class Session {
               content: event.content,
             });
           if (event.eventType === "run_result") {
+            await this.denyPendingPermissions("Run already finished");
             const endedAt = new Date().toISOString();
             event.startedAt = this.runStartedAt;
             event.endedAt = endedAt;

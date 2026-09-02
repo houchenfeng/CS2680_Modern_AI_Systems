@@ -187,10 +187,9 @@ export function ChatWindow({
     );
   const canStop =
     chat?.status === "running" || chat?.status === "waiting_permission";
-  useEffect(
-    () => endRef.current?.scrollIntoView({ behavior: "smooth" }),
-    [events],
-  );
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [events]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();

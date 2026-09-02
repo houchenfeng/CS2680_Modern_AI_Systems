@@ -10,7 +10,8 @@ const WS_URL = `ws://${window.location.hostname}:3001/ws`;
 const useWebSocket =
   typeof websocketModule === "function"
     ? websocketModule
-    : (websocketModule as unknown as { default: typeof websocketModule }).default;
+    : (websocketModule as unknown as { default: typeof websocketModule })
+        .default;
 
 export default function App() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -31,6 +32,7 @@ export default function App() {
   const handleWSMessage = useCallback(
     (message: any) => {
       if (message.type === "history") {
+        if (message.chatId !== selectedChatId) return;
         const history = (message.messages || []).map(
           (item: any, index: number): AgentEvent => ({
             schemaVersion: 1,
@@ -49,6 +51,7 @@ export default function App() {
       }
       if (message.type === "agent_event") {
         const event = message.event as AgentEvent;
+        if (event.chatId !== selectedChatId) return;
         setEvents((previous) =>
           previous.some((item) => item.eventId === event.eventId)
             ? previous
@@ -84,7 +87,7 @@ export default function App() {
         setIsLoading(false);
       }
     },
-    [fetchChats],
+    [fetchChats, selectedChatId],
   );
 
   const { sendJsonMessage, readyState, lastJsonMessage } = useWebSocket(
@@ -103,7 +106,7 @@ export default function App() {
 
   useEffect(() => {
     void fetchChats().catch((caught) => setError(caught.message));
-  }, [fetchChats]);
+  }, [fetchChats, selectedChatId]);
 
   const createChat = async () => {
     const response = await fetch(`${API_BASE}/chats`, {
@@ -175,8 +178,8 @@ export default function App() {
   const selectedChat = chats.find((chat) => chat.id === selectedChatId) || null;
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      <aside className="w-64 shrink-0">
+    <div className="flex h-screen flex-col bg-slate-100 md:flex-row">
+      <aside className="h-64 w-full shrink-0 md:h-auto md:w-64">
         <ChatList
           chats={chats}
           selectedChatId={selectedChatId}

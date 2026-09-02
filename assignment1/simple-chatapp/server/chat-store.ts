@@ -30,8 +30,18 @@ export class ChatStore {
   private load() {
     if (!existsSync(this.file)) return;
     const state = JSON.parse(readFileSync(this.file, "utf8")) as StoredState;
-    this.chats = new Map(state.chats.map((chat) => [chat.id, chat]));
+    let normalizedInterruptedState = false;
+    this.chats = new Map(
+      state.chats.map((chat) => {
+        if (chat.status === "running" || chat.status === "waiting_permission") {
+          chat.status = chat.sdkSessionId ? "resumable" : "error";
+          normalizedInterruptedState = true;
+        }
+        return [chat.id, chat];
+      }),
+    );
     this.messages = new Map(Object.entries(state.messages));
+    if (normalizedInterruptedState) this.persist();
   }
 
   private persist() {
