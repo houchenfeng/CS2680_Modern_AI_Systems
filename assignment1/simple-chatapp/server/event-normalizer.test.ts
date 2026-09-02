@@ -102,6 +102,66 @@ test("normalizes observable command fields and deterministically truncates long 
   assert.equal(command.exitCode, 7);
   assert.equal(command.stdout, "ok");
   assert.equal(command.stderr, "warning");
+
+  const [plain] = normalizeSdkMessage(
+    {
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "bash-2",
+            content: "ALLOW_MARKER",
+          },
+        ],
+      },
+    },
+    builder(),
+  );
+  assert.equal(plain.exitCode, 0);
+  assert.equal(plain.stdout, "ALLOW_MARKER");
+
+  const [interrupted] = normalizeSdkMessage(
+    {
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "bash-3",
+            is_error: true,
+            content: "Exit code 137\n[Request interrupted by user for tool use]",
+          },
+        ],
+      },
+    },
+    builder(),
+  );
+  assert.equal(interrupted.exitCode, 137);
+  assert.equal(
+    interrupted.stderr,
+    "[Request interrupted by user for tool use]",
+  );
+
+  const [denied] = normalizeSdkMessage(
+    {
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "bash-4",
+            is_error: true,
+            content: "Denied by user",
+          },
+        ],
+      },
+    },
+    builder(),
+  );
+  assert.equal(denied.exitCode, undefined);
+  assert.equal(denied.stdout, "Denied by user");
+
   const [large] = normalizeSdkMessage(
     {
       type: "user",

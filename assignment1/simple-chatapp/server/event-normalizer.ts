@@ -17,17 +17,67 @@ function observedOutput(value: unknown) {
   };
 }
 
+function flattenToolContent(content: unknown): unknown {
+  if (!Array.isArray(content)) return content;
+  const texts = content
+    .map((part) => {
+      if (typeof part === "string") return part;
+      if (part && typeof part === "object" && "text" in part)
+        return String((part as { text?: unknown }).text ?? "");
+      return null;
+    })
+    .filter((part): part is string => part !== null);
+  return texts.length ? texts.join("\n") : content;
+}
+
+function parseExitCodeFromText(text: string): number | undefined {
+  const match =
+    text.match(/Exit code[: ]+(\d+)/i) ||
+    text.match(/<exit_code>\s*(\d+)\s*<\/exit_code>/i);
+  return match ? Number(match[1]) : undefined;
+}
+
 function commandFields(block: any) {
-  const candidate =
-    block?.content &&
-    typeof block.content === "object" &&
-    !Array.isArray(block.content)
-      ? block.content
-      : block;
+  const content = flattenToolContent(block?.content);
+
+  // Structured object payloads (tests / some SDK variants).
+  if (content && typeof content === "object" && !Array.isArray(content)) {
+    const record = content as Record<string, unknown>;
+    return {
+      exitCode:
+        typeof record.exitCode === "number"
+          ? record.exitCode
+          : typeof record.exit_code === "number"
+            ? record.exit_code
+            : undefined,
+      stdout: record.stdout,
+      stderr: record.stderr,
+    };
+  }
+
+  // Claude Agent SDK Bash results are usually a plain stdout string.
+  // Errors may embed "Exit code N" in the text (e.g. interrupted runs).
+  if (typeof content === "string") {
+    const prefixed = content.match(/^Exit code[: ]+(\d+)\n([\s\S]*)$/i);
+    if (prefixed) {
+      return {
+        exitCode: Number(prefixed[1]),
+        stdout: undefined,
+        stderr: prefixed[2] || undefined,
+      };
+    }
+    const embedded = parseExitCodeFromText(content);
+    return {
+      exitCode: embedded ?? (block.is_error ? undefined : 0),
+      stdout: content,
+      stderr: undefined,
+    };
+  }
+
   return {
-    exitCode: candidate?.exitCode ?? candidate?.exit_code,
-    stdout: candidate?.stdout,
-    stderr: candidate?.stderr,
+    exitCode: block?.exitCode ?? block?.exit_code,
+    stdout: block?.stdout,
+    stderr: block?.stderr,
   };
 }
 

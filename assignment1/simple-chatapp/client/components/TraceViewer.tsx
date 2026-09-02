@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentEvent } from "../types";
 
+const ALL_RUNS = "__all__";
+
 interface Summary {
   ledger: Array<{
     runId: string;
@@ -20,6 +22,115 @@ interface Summary {
   >;
 }
 
+function byTimestampThenSequence(a: AgentEvent, b: AgentEvent) {
+  const timeDiff = Date.parse(a.timestamp) - Date.parse(b.timestamp);
+  if (timeDiff !== 0) return timeDiff;
+  if (a.runId !== b.runId) return a.runId.localeCompare(b.runId);
+  return a.sequence - b.sequence;
+}
+
+function mergeContext(
+  summaries: Summary[],
+): Summary["context"] {
+  const merged: Summary["context"] = {};
+  for (const summary of summaries) {
+    for (const [category, values] of Object.entries(summary.context || {})) {
+      const current = (merged[category] ||= {
+        events: 0,
+        bytes: 0,
+        estimatedTokens: 0,
+      });
+      current.events += values.events;
+      current.bytes += values.bytes;
+      current.estimatedTokens += values.estimatedTokens;
+    }
+  }
+  return merged;
+}
+
+function sumLedgerField(
+  ledger: Summary["ledger"],
+  field:
+    | "inputTokens"
+    | "outputTokens"
+    | "cacheReadTokens"
+    | "cacheWriteTokens"
+    | "totalTokens"
+    | "costUsd"
+    | "durationMs",
+) {
+  let sum = 0;
+  let sawValue = false;
+  for (const item of ledger) {
+    const value = item[field];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      sum += value;
+      sawValue = true;
+    }
+  }
+  return sawValue ? sum : undefined;
+}
+
+function formatLedgerNumber(value: number | undefined) {
+  return value === undefined ? "unavailable" : value;
+}
+
+function LedgerRows({
+  item,
+  showRun = false,
+}: {
+  item: Summary["ledger"][number];
+  showRun?: boolean;
+}) {
+  return (
+    <dl className="grid grid-cols-2 gap-1 text-sm">
+      {showRun ? (
+        <>
+          <dt>Run</dt>
+          <dd className="truncate font-mono text-xs">{item.runId}</dd>
+        </>
+      ) : null}
+      <dt>Measurement</dt>
+      <dd>{item.measurement}</dd>
+      <dt>Model</dt>
+      <dd>{item.model || "unavailable"}</dd>
+      <dt>Input / output</dt>
+      <dd>
+        {formatLedgerNumber(item.inputTokens)} /{" "}
+        {formatLedgerNumber(item.outputTokens)}
+      </dd>
+      <dt>Cache read / write</dt>
+      <dd>
+        {formatLedgerNumber(item.cacheReadTokens)} /{" "}
+        {formatLedgerNumber(item.cacheWriteTokens)}
+      </dd>
+      <dt>Total</dt>
+      <dd>{formatLedgerNumber(item.totalTokens)}</dd>
+      <dt>Cost</dt>
+      <dd>{formatLedgerNumber(item.costUsd)}</dd>
+      <dt>Wall-clock duration</dt>
+      <dd>
+        {formatLedgerNumber(item.durationMs)}
+        {item.durationMs === undefined ? "" : " ms"}
+      </dd>
+      <dt>Hidden context</dt>
+      <dd>unavailable</dd>
+    </dl>
+  );
+}
+
+async function loadRunEvents(chatId: string, runId: string) {
+  const response = await fetch(`/api/traces/${chatId}/${runId}`);
+  if (!response.ok) throw new Error(`Failed to load run ${runId}`);
+  return (await response.json()) as AgentEvent[];
+}
+
+async function loadRunSummary(chatId: string, runId: string) {
+  const response = await fetch(`/api/traces/${chatId}/${runId}/summary`);
+  if (!response.ok) throw new Error(`Failed to load summary for ${runId}`);
+  return (await response.json()) as Summary;
+}
+
 export function TraceViewer({
   chatId,
   active = true,
@@ -30,7 +141,7 @@ export function TraceViewer({
   refreshKey?: number;
 }) {
   const [runs, setRuns] = useState<string[]>([]);
-  const [runId, setRunId] = useState("");
+  const [runId, setRunId] = useState(ALL_RUNS);
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [eventType, setEventType] = useState("");
@@ -43,7 +154,7 @@ export function TraceViewer({
     if (!chatId) {
       runsRef.current = [];
       setRuns([]);
-      setRunId("");
+      setRunId(ALL_RUNS);
       setEvents([]);
       setSummary(null);
       return;
@@ -52,14 +163,11 @@ export function TraceViewer({
     void fetch(`/api/chats/${chatId}/traces`)
       .then((response) => response.json())
       .then((items: string[]) => {
-        const previous = runsRef.current;
         runsRef.current = items;
         setRuns(items);
-        const latest = items.at(-1) || "";
         setRunId((current) => {
-          if (!current || !items.includes(current)) return latest;
-          if (items.length > previous.length && current === previous.at(-1))
-            return latest;
+          if (current === ALL_RUNS) return ALL_RUNS;
+          if (!current || !items.includes(current)) return ALL_RUNS;
           return current;
         });
       })
@@ -68,20 +176,39 @@ export function TraceViewer({
 
   useEffect(() => {
     if (!chatId || !runId) return;
+    if (runId === ALL_RUNS) {
+      if (!runs.length) {
+        setEvents([]);
+        setSummary({ ledger: [], context: {} });
+        return;
+      }
+      void Promise.all([
+        Promise.all(runs.map((id) => loadRunEvents(chatId, id))),
+        Promise.all(runs.map((id) => loadRunSummary(chatId, id))),
+      ])
+        .then(([eventGroups, summaries]) => {
+          setEvents(eventGroups.flat().sort(byTimestampThenSequence));
+          setSummary({
+            ledger: summaries.flatMap((item) => item.ledger),
+            context: mergeContext(summaries),
+          });
+          setError("");
+        })
+        .catch((caught) => setError(caught.message));
+      return;
+    }
+
     void Promise.all([
-      fetch(`/api/traces/${chatId}/${runId}`).then((response) =>
-        response.json(),
-      ),
-      fetch(`/api/traces/${chatId}/${runId}/summary`).then((response) =>
-        response.json(),
-      ),
+      loadRunEvents(chatId, runId),
+      loadRunSummary(chatId, runId),
     ])
       .then(([nextEvents, nextSummary]) => {
         setEvents(nextEvents);
         setSummary(nextSummary);
+        setError("");
       })
       .catch((caught) => setError(caught.message));
-  }, [chatId, runId]);
+  }, [chatId, runId, runs, refreshKey]);
 
   const filtered = useMemo(
     () =>
@@ -94,8 +221,12 @@ export function TraceViewer({
               event.eventType === "tool_error" ||
               Boolean(event.error)),
         )
-        .sort((a, b) => a.sequence - b.sequence),
-    [events, eventType, toolName, errorsOnly],
+        .sort(
+          runId === ALL_RUNS
+            ? byTimestampThenSequence
+            : (a, b) => a.sequence - b.sequence,
+        ),
+    [events, eventType, toolName, errorsOnly, runId],
   );
   const toolNames = useMemo(
     () =>
@@ -104,11 +235,11 @@ export function TraceViewer({
       ] as string[],
     [events],
   );
-  const runStartedAt = events.length
-    ? Date.parse(
-        [...events].sort((a, b) => a.sequence - b.sequence)[0].timestamp,
-      )
-    : 0;
+  const timelineStart = filtered.length
+    ? Date.parse(filtered[0].timestamp)
+    : events.length
+      ? Date.parse([...events].sort(byTimestampThenSequence)[0].timestamp)
+      : 0;
   const toolStarts = useMemo(
     () =>
       new Map(
@@ -118,6 +249,23 @@ export function TraceViewer({
       ),
     [events],
   );
+
+  const downloadAllJsonl = () => {
+    const body = events
+      .slice()
+      .sort(byTimestampThenSequence)
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+    const blob = new Blob([body ? `${body}\n` : ""], {
+      type: "application/x-ndjson",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${chatId || "session"}-all-runs.jsonl`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!chatId)
     return (
@@ -136,6 +284,7 @@ export function TraceViewer({
               onChange={(event) => setRunId(event.target.value)}
               className="mt-1 block max-w-xs rounded border border-slate-300 px-2 py-1 text-sm"
             >
+              <option value={ALL_RUNS}>ALL · all turns</option>
               {runs.map((run, index) => (
                 <option key={run} value={run}>
                   {`Turn ${index + 1} · ${run}`}
@@ -145,6 +294,7 @@ export function TraceViewer({
             {runs.length ? (
               <span className="mt-1 block text-[11px] text-slate-400">
                 {runs.length} run{runs.length === 1 ? "" : "s"} in this session
+                {runId === ALL_RUNS ? " · showing oldest → newest" : ""}
               </span>
             ) : null}
           </label>
@@ -192,7 +342,18 @@ export function TraceViewer({
             />{" "}
             Errors only
           </label>
-          {runId ? (
+          {runId === ALL_RUNS ? (
+            <div className="ml-auto flex gap-2">
+              <button
+                type="button"
+                onClick={downloadAllJsonl}
+                disabled={!events.length}
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Download JSONL
+              </button>
+            </div>
+          ) : runId ? (
             <div className="ml-auto flex gap-2">
               <a
                 className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
@@ -216,38 +377,94 @@ export function TraceViewer({
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="mb-3 font-semibold">Token ledger</h2>
               {summary.ledger.length ? (
-                summary.ledger.map((item) => (
-                  <dl
-                    key={item.runId}
-                    className="grid grid-cols-2 gap-1 text-sm"
-                  >
-                    <dt>Measurement</dt>
-                    <dd>{item.measurement}</dd>
-                    <dt>Model</dt>
-                    <dd>{item.model || "unavailable"}</dd>
-                    <dt>Input / output</dt>
-                    <dd>
-                      {item.inputTokens ?? "unavailable"} /{" "}
-                      {item.outputTokens ?? "unavailable"}
-                    </dd>
-                    <dt>Cache read / write</dt>
-                    <dd>
-                      {item.cacheReadTokens ?? "unavailable"} /{" "}
-                      {item.cacheWriteTokens ?? "unavailable"}
-                    </dd>
-                    <dt>Total</dt>
-                    <dd>{item.totalTokens ?? "unavailable"}</dd>
-                    <dt>Cost</dt>
-                    <dd>{item.costUsd ?? "unavailable"}</dd>
-                    <dt>Wall-clock duration</dt>
-                    <dd>
-                      {item.durationMs ?? "unavailable"}
-                      {item.durationMs === undefined ? "" : " ms"}
-                    </dd>
-                    <dt>Hidden context</dt>
-                    <dd>unavailable</dd>
-                  </dl>
-                ))
+                <div className="space-y-3">
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Session total
+                      {runId === ALL_RUNS
+                        ? ` · ${summary.ledger.length} turn${summary.ledger.length === 1 ? "" : "s"}`
+                        : ""}
+                    </p>
+                    <dl className="grid grid-cols-2 gap-1 text-sm">
+                      <dt>Input tokens</dt>
+                      <dd>
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "inputTokens"),
+                        )}
+                      </dd>
+                      <dt>Output tokens</dt>
+                      <dd>
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "outputTokens"),
+                        )}
+                      </dd>
+                      <dt>Cache read / write</dt>
+                      <dd>
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "cacheReadTokens"),
+                        )}{" "}
+                        /{" "}
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "cacheWriteTokens"),
+                        )}
+                      </dd>
+                      <dt>Total tokens</dt>
+                      <dd>
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "totalTokens"),
+                        )}
+                      </dd>
+                      <dt>Cost</dt>
+                      <dd>
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "costUsd"),
+                        )}
+                      </dd>
+                      <dt>Wall-clock duration</dt>
+                      <dd>
+                        {formatLedgerNumber(
+                          sumLedgerField(summary.ledger, "durationMs"),
+                        )}
+                        {sumLedgerField(summary.ledger, "durationMs") ===
+                        undefined
+                          ? ""
+                          : " ms"}
+                      </dd>
+                    </dl>
+                  </div>
+                  {summary.ledger.map((item, index) => {
+                    const turnIndex = runs.indexOf(item.runId);
+                    const label =
+                      turnIndex >= 0
+                        ? `Turn ${turnIndex + 1}`
+                        : `Turn ${index + 1}`;
+                    return (
+                      <details
+                        key={item.runId}
+                        className="rounded border border-slate-200 bg-white"
+                      >
+                        <summary className="cursor-pointer list-none px-3 py-2 text-sm marker:content-none [&::-webkit-details-marker]:hidden">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-medium text-slate-800">
+                              {label}
+                              <span className="ml-2 font-mono text-xs font-normal text-slate-400">
+                                {item.runId}
+                              </span>
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              in {formatLedgerNumber(item.inputTokens)} / out{" "}
+                              {formatLedgerNumber(item.outputTokens)} · total{" "}
+                              {formatLedgerNumber(item.totalTokens)}
+                            </span>
+                          </div>
+                        </summary>
+                        <div className="border-t border-slate-100 px-3 py-3">
+                          <LedgerRows item={item} showRun />
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
               ) : (
                 <p className="text-sm text-slate-500">Usage unavailable</p>
               )}
@@ -292,8 +509,9 @@ export function TraceViewer({
               : undefined;
             const relativeMs = Math.max(
               0,
-              Date.parse(event.timestamp) - runStartedAt,
+              Date.parse(event.timestamp) - timelineStart,
             );
+            const turnIndex = runs.indexOf(event.runId);
             return (
               <details
                 key={event.eventId}
@@ -301,6 +519,9 @@ export function TraceViewer({
               >
                 <summary className="cursor-pointer text-sm">
                   <span className="mr-2 font-mono text-xs text-slate-500">
+                    {runId === ALL_RUNS && turnIndex >= 0
+                      ? `T${turnIndex + 1} · `
+                      : ""}
                     #{event.sequence} · +{relativeMs} ms
                   </span>
                   <strong>{event.eventType}</strong>
