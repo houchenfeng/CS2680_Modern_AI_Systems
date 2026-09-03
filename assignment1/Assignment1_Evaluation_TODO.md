@@ -91,8 +91,8 @@
 - Evaluator bugs：`E07 初版 OR 条件过宽，已收紧为必须 setObservationContext`
 - Task/scorer 版本变化：`无（仍 v1）`
 - 最终 Final manifest hash：`54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839`
-- Commit SHA：`见第 8 节 Final commit`
-- Push：`见第 8 节 Final push`
+- Commit SHA：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`
+- Push：`成功`（与第 8 节同批）
 - [x] Pilot 完成、final manifest 冻结并成功 push。
 
 ## 6. 阶段 E4 — Final 重复评测
@@ -134,8 +134,8 @@
 - TTFU/wall variance：`见 final-aggregate.json`
 - Failure distribution：`harness:10 tool:7 specification:7 inconclusive:6`
 - 三条 case IDs：`final-E01-a08/a09/a10`
-- Commit SHA：`见第 8 节 Final commit`
-- Push：`见第 8 节 Final push`
+- Commit SHA：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`
+- Push：`成功`（与第 8 节同批）
 - [x] E5 已测试、commit 并成功 push。
 
 ## 8. 最终交付检查
@@ -148,13 +148,13 @@
 - [x] 代码/tests/UI/API/文档完成
 - [x] 敏感值与 runtime artifacts 未入库（`evaluation/runtime/` gitignore）
 - [x] typecheck/test/lint/build 通过（104 tests）
-- [ ] 最终重大更新已 commit 并 push
+- [x] 最终重大更新已 commit 并 push
 
 ### 最终记录
 
-- Final commit：`待填写`
-- Final push：`待填写`
+- Final commit：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`
+- Final push：`成功 12f7ac8..361b5a3`（docs SHA 回填见后续 docs commit）
 - 远端 branch：`main`
 - 已知限制：`评测 harness 使用 oracle/broken 仓库态（非 live 百次 LLM agent）。成本为固定 scaffolding 0.18/0.55 以验证公式与失败入分子；与 DeepSeek 峰段定价模块并存于 attempt.pricingVersion。`
 - 作业写作可引用结果：`evaluation/results/final-aggregate.json`、`pilot-aggregate.json`、各 `*.summary.json`
-- [ ] 第三步与全部改造完成。
+- [x] 第三步与全部改造完成。
