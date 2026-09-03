@@ -587,3 +587,14 @@ Cache write                                     0
 ```
 
 后续调用再加入 Assistant、Tool Calls、Tool Results、Permission/Hook、Compaction 等行。任何无法达到 95% coverage 的调用必须显示为警告，并提供 raw request、count-tokens 值、reported usage 和 residual 原因。
+
+## 10. 实现追加记录（不修改上文历史实测数字）
+
+- 日期：`2026-09-03`
+- Schema：事件 schema v2；`callUsage` / `runUsage` / `modelUsageSnapshot` 分字段；v1 JSONL migrate-on-read。
+- 观测：`server/observation-proxy.ts` 本地透明代理捕获 `/v1/messages`，记录 queued/sent/firstByte/firstVisible/firstUseful/completed；SSE `text_delta` → firstVisible+firstUseful，`tool_use` → firstUseful。
+- Ledger：`token-counter.ts` + `context-ledger.ts`，固定 `CONTEXT_RULE_VERSION`，95% coverage gate；6902 fixture 回归。
+- 价格：`pricing.ts` DeepSeek V4 Pro 峰段 0.044 / 1.32 / 3.96；cache-write 按 miss；provider 与 normalized 分字段。
+- UI：Trace Viewer Calls 视图展示 provenance、cache overlay、成本、TTFB/TTFV/TTFU、residual、相邻 Context Diff。
+- 测试：截至本追加为 `105` pass（含 SSE timing 单测）。
+- 说明：本节只记录工程落地与字段能力；第 1–9 节历史实测表与 6,902 分解保持不变。

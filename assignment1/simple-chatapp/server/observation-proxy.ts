@@ -33,6 +33,10 @@ export interface ObservedRequestArtifact {
   queuedAt: string;
   sentAt: string;
   firstByteAt?: string;
+  /** First streamed assistant text (or text block start) timestamp. */
+  firstVisibleOutputAt?: string;
+  /** First non-empty text or tool_use output timestamp. */
+  firstUsefulOutputAt?: string;
   completedAt?: string;
   statusCode?: number;
   providerRequestId?: string;
@@ -170,6 +174,107 @@ function extractUsageFromSse(text: string): CallUsage | undefined {
     }
   }
   return undefined;
+}
+
+function classifySsePayload(payload: {
+  type?: string;
+  delta?: { type?: string; text?: string };
+  content_block?: { type?: string; text?: string };
+}): { visible: boolean; useful: boolean } {
+  const blockType = payload.content_block?.type;
+  const deltaType = payload.delta?.type;
+  const text =
+    typeof payload.delta?.text === "string"
+      ? payload.delta.text
+      : typeof payload.content_block?.text === "string"
+        ? payload.content_block.text
+        : "";
+
+  if (payload.type === "content_block_start") {
+    if (blockType === "text") {
+      return { visible: true, useful: text.trim().length > 0 };
+    }
+    if (blockType === "tool_use" || blockType === "thinking") {
+      return { visible: blockType === "thinking", useful: true };
+    }
+  }
+
+  if (payload.type === "content_block_delta") {
+    if (deltaType === "text_delta") {
+      return { visible: true, useful: text.trim().length > 0 };
+    }
+    if (
+      deltaType === "input_json_delta" ||
+      deltaType === "thinking_delta" ||
+      deltaType === "tool_use"
+    ) {
+      return { visible: deltaType === "thinking_delta", useful: true };
+    }
+  }
+
+  return { visible: false, useful: false };
+}
+
+/**
+ * Scan Anthropic-style SSE for first visible / first useful output markers.
+ * When `nowIso` is provided (live stream), stamps use that instant for newly
+ * discovered markers; otherwise markers are left unset (caller supplies times).
+ */
+export function noteSseOutputMarkers(
+  artifact: Pick<
+    ObservedRequestArtifact,
+    "firstVisibleOutputAt" | "firstUsefulOutputAt"
+  >,
+  sseChunkOrFull: string,
+  nowIso?: string,
+): void {
+  const matches = [...sseChunkOrFull.matchAll(/data:\s*(\{.*\})/g)];
+  for (const match of matches) {
+    try {
+      const payload = JSON.parse(match[1]) as {
+        type?: string;
+        delta?: { type?: string; text?: string };
+        content_block?: { type?: string; text?: string };
+      };
+      const { visible, useful } = classifySsePayload(payload);
+      const stamp = nowIso || new Date().toISOString();
+      if (visible && !artifact.firstVisibleOutputAt) {
+        artifact.firstVisibleOutputAt = stamp;
+      }
+      if (useful && !artifact.firstUsefulOutputAt) {
+        artifact.firstUsefulOutputAt = stamp;
+      }
+      if (artifact.firstVisibleOutputAt && artifact.firstUsefulOutputAt) break;
+    } catch {
+      // continue
+    }
+  }
+}
+
+function markNonStreamOutputTiming(
+  artifact: ObservedRequestArtifact,
+  bodyText: string,
+) {
+  try {
+    const json = JSON.parse(bodyText) as {
+      content?: Array<{ type?: string; text?: string }>;
+    };
+    const blocks = Array.isArray(json.content) ? json.content : [];
+    const hasText = blocks.some(
+      (block) => block.type === "text" && String(block.text || "").length > 0,
+    );
+    const hasUseful = blocks.some(
+      (block) =>
+        block.type === "tool_use" ||
+        (block.type === "text" && String(block.text || "").trim().length > 0) ||
+        block.type === "thinking",
+    );
+    const stamp = artifact.firstByteAt || artifact.completedAt;
+    if (hasText && stamp) artifact.firstVisibleOutputAt = stamp;
+    if (hasUseful && stamp) artifact.firstUsefulOutputAt = stamp;
+  } catch {
+    // ignore
+  }
 }
 
 function extractProviderRequestId(
@@ -378,6 +483,7 @@ export class ObservationProxy {
           } catch {
             // non-json
           }
+          markNonStreamOutputTiming(artifact, text);
         }
         await this.emit(artifact, "response");
         res.end(text);
@@ -387,6 +493,7 @@ export class ObservationProxy {
       const reader = upstream.body.getReader();
       const chunks: Buffer[] = [];
       let firstChunk = true;
+      let sseCarry = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -396,6 +503,16 @@ export class ObservationProxy {
           firstChunk = false;
         }
         chunks.push(buffer);
+        if (isEventStream) {
+          const piece = buffer.toString("utf8");
+          sseCarry += piece;
+          const nowIso = new Date().toISOString();
+          noteSseOutputMarkers(artifact, sseCarry, nowIso);
+          // Keep a small carry so split JSON across chunks can still match.
+          if (sseCarry.length > 8_192) {
+            sseCarry = sseCarry.slice(-4_096);
+          }
+        }
         // Stream through immediately — do not wait for full response.
         res.write(buffer);
       }
@@ -412,6 +529,7 @@ export class ObservationProxy {
       );
       if (isEventStream) {
         artifact.callUsage = extractUsageFromSse(responseText);
+        noteSseOutputMarkers(artifact, responseText, artifact.firstByteAt);
       } else {
         try {
           const json = JSON.parse(responseText);
@@ -419,6 +537,7 @@ export class ObservationProxy {
         } catch {
           // ignore
         }
+        markNonStreamOutputTiming(artifact, responseText);
       }
       artifact.terminalReason = "completed";
       if (isMessageApi) await this.emit(artifact, "response");
@@ -480,5 +599,7 @@ export const __test = {
   sha256,
   parentChainFromMessages,
   extractUsageFromSse,
+  noteSseOutputMarkers,
+  classifySsePayload,
   normalizeUpstream,
 };

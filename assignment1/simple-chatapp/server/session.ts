@@ -203,6 +203,8 @@ export class Session {
       queuedAt: artifact.queuedAt,
       sentAt: artifact.sentAt,
       firstByteAt: artifact.firstByteAt,
+      firstVisibleOutputAt: artifact.firstVisibleOutputAt,
+      firstUsefulOutputAt: artifact.firstUsefulOutputAt,
       completedAt: artifact.completedAt,
     });
     const normalizedPeakCostUsd =
@@ -253,6 +255,8 @@ export class Session {
         queuedAt: artifact.queuedAt,
         sentAt: artifact.sentAt,
         firstByteAt: artifact.firstByteAt,
+        firstVisibleOutputAt: artifact.firstVisibleOutputAt,
+        firstUsefulOutputAt: artifact.firstUsefulOutputAt,
         completedAt: artifact.completedAt,
         timing,
         terminalReason: artifact.terminalReason,

@@ -21,7 +21,7 @@
 - Baseline commit：`407f6ebd0fa6f0c6c9aa6d55049fa45277f2be7f`
 - Node：`v24.13.0`
 - Agent SDK：`@anthropic-ai/claude-agent-sdk 0.1.77`（package.json 声明 `^0.1.28`）
-- Claude Code init version：`待运行时 system/init 事件确认（历史报告为 2.0.77）`
+- Claude Code init version：`system/init → event-normalizer 写入 claudeCodeVersion（字段：claude_code_version || version）；本机无落盘 live init 时对照历史报告 2.0.77，以实际 init 事件为准`
 - Requested model：`deepseek-v4-pro-0813`（`.env` ANTHROPIC_MODEL）
 - Resolved model/version：`deepseek-v4-pro-0813`
 
@@ -211,7 +211,7 @@ normalizedPeakCostUsd =
 
 - 冷/热缓存结果：`同源 requestHash 稳定；cache overlay 与 provenance sources 分字段存储`
 - Provider cost vs normalized cost：`字段分离；单测验证 1M tokens → 0.044+1.32+3.96；cache-write 按 miss`
-- Timing 结果：`proxy 记录 queued/sent/firstByte/completed；computeCallTiming 派生 queue/TTFB/wall-clock`
+- Timing 结果：`proxy 记录 queued/sent/firstByte/firstVisible/firstUseful/completed；SSE text_delta→visible+useful；tool_use→useful；computeCallTiming 派生 queue/TTFB/TTFV/TTFU/wall-clock`
 - Commit SHA：`5fd677b6f21b0914cb33b45036a04ed1d115a9e9`
 - Push：`成功 2026-09-02；含于 origin/main 0c23d0c..616d107`
 - [x] T4 已测试、commit 并成功 push。
@@ -229,22 +229,22 @@ normalizedPeakCostUsd =
 
 ### T5 阶段记录与 Push
 
-- UI 截图/会话 IDs：`Calls/Events 切换已落地；真实会话需在本地连上游后产生 observed_request`
-- 多轮 call 数与 coverage：`buildCallViewModels + context-ledger gate；fixture coverage 100%；proxy 双调用 parent 链已测`
-- 已知限制：`firstVisible/firstUseful 需后续从 SSE token 事件精细填充；live 多轮 coverage 依赖 count_tokens 上游可用性；大规模真实 trace 不提交`
-- Commit SHA：`616d10716338ea070c2093ed6589383c75190497`
-- Push：`成功 2026-09-02；origin/main → 616d107`
+- UI 截图/会话 IDs：`Calls/Events 切换已落地；Calls 展示 provenance/cache/成本/TTFB/TTFV/TTFU/coverage/residual/context diff`
+- 多轮 call 数与 coverage：`buildCallViewModels + context-ledger gate；fixture coverage 100%；proxy 双调用 parent 链已测；SSE timing 单测`
+- 已知限制：`live 多轮 coverage 依赖 count_tokens 上游可用性；大规模真实 trace 不提交；Claude Code 版本以每次 system/init 为准`
+- Commit SHA：`616d10716338ea070c2093ed6589383c75190497`（Calls UI）；SSE TTFV/TTFU 补齐见第 7 节最终 commit
+- Push：`成功 2026-09-02；origin/main → 616d107`（后续 timing 补齐另见第 7 节）
 - [x] T5 已测试、commit 并成功 push。
 
 ## 7. 第一步最终记录
 
-- 已完成内容：`Schema v2 + fragment 去重；localhost observation proxy；count-tokens ledger + 95% gate；DeepSeek 峰段价格与 timing；TraceViewer Calls 视图`
-- 最终测试数量：`63`
+- 已完成内容：`Schema v2 + fragment 去重；localhost observation proxy；count-tokens ledger + 95% gate；DeepSeek 峰段价格与 timing（含 SSE firstVisible/firstUseful）；TraceViewer Calls 视图（TTFV/TTFU）`
+- 最终测试数量：`105`（含 observation SSE timing）
 - 静态来源覆盖率：`98.18% 应用可控；fixture 全量 100%`
 - 多轮最低/平均覆盖率：`fixture/gate 已实现；live 需上游 count_tokens`
 - Cache 与价格结论：`cache overlay 与内容来源分离；cache-write 按 miss；normalizedPeakCostUsd 与 provider cost 并存`
-- 耗时结论：`proxy 记录 queued/sent/TTFB/completed；并行工具用关键路径`
-- 剩余限制：`live SSE firstVisible/useful 精细打点；不落盘大体积真实 trace；TOKEN_PROVENANCE_REPORT 历史数字未改`
-- 最终 commit：`aab1cc64819487059a670cb045be6cd4a44705c3`
-- 最终 push：`成功 2026-09-02 origin/main → aab1cc6`
-- [x] 第一步完成，可以进入失败证据与诊断。
+- 耗时结论：`proxy 记录 queued/sent/TTFB/firstVisible/firstUseful/completed；并行工具用关键路径；Calls UI 展示 TTFV/TTFU`
+- 剩余限制：`不落盘大体积真实 trace；TOKEN_PROVENANCE_REPORT 历史数字未改，仅追加实现记录；live Claude Code 版本依赖 init 事件`
+- 最终 commit：`待本批 timing 补齐后回填`
+- 最终 push：`待填写`
+- [ ] 第一步完成，可以进入失败证据与诊断。

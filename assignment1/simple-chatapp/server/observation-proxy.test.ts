@@ -268,3 +268,44 @@ test("proxyEnv only rewrites base URL for the SDK subprocess", () => {
   assert.equal(env.ANTHROPIC_API_KEY, "secret");
   assert.equal(__test.normalizeUpstream("https://x/v1/"), "https://x");
 });
+
+test("SSE text_delta marks firstVisible and firstUseful; tool_use alone is useful", () => {
+  const textArtifact: ObservedRequestArtifact = {
+    callId: "call-text",
+    method: "POST",
+    path: "/v1/messages",
+    requestHash: "h1",
+    requestBytes: 1,
+    redactedBody: {},
+    queuedAt: "2026-09-03T00:00:00.000Z",
+    sentAt: "2026-09-03T00:00:00.010Z",
+  };
+  __test.noteSseOutputMarkers(
+    textArtifact,
+    [
+      'data: {"type":"message_start","message":{"id":"m1"}}\n\n',
+      'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}}\n\n',
+    ].join(""),
+    "2026-09-03T00:00:00.200Z",
+  );
+  assert.equal(textArtifact.firstVisibleOutputAt, "2026-09-03T00:00:00.200Z");
+  assert.equal(textArtifact.firstUsefulOutputAt, "2026-09-03T00:00:00.200Z");
+
+  const toolArtifact: ObservedRequestArtifact = {
+    callId: "call-tool",
+    method: "POST",
+    path: "/v1/messages",
+    requestHash: "h2",
+    requestBytes: 1,
+    redactedBody: {},
+    queuedAt: "2026-09-03T00:00:00.000Z",
+    sentAt: "2026-09-03T00:00:00.010Z",
+  };
+  __test.noteSseOutputMarkers(
+    toolArtifact,
+    'data: {"type":"content_block_start","content_block":{"type":"tool_use","id":"toolu_1","name":"Read"}}\n\n',
+    "2026-09-03T00:00:00.300Z",
+  );
+  assert.equal(toolArtifact.firstVisibleOutputAt, undefined);
+  assert.equal(toolArtifact.firstUsefulOutputAt, "2026-09-03T00:00:00.300Z");
+});

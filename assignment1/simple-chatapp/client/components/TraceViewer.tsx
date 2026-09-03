@@ -759,6 +759,10 @@ function CallsPanel({ calls }: { calls: CallViewModel[] }) {
                   <dd>{formatMaybe(call.timing?.queueMs)} ms</dd>
                   <dt>TTFB</dt>
                   <dd>{formatMaybe(call.timing?.ttfbMs)} ms</dd>
+                  <dt>TTFV</dt>
+                  <dd>{formatMaybe(call.timing?.timeToFirstVisibleMs)} ms</dd>
+                  <dt>TTFU</dt>
+                  <dd>{formatMaybe(call.timing?.timeToFirstUsefulMs)} ms</dd>
                   <dt>Wall-clock</dt>
                   <dd>{formatMaybe(call.timing?.wallClockMs)} ms</dd>
                   <dt>API duration</dt>
