@@ -152,8 +152,8 @@
 
 ### 最终记录
 
-- Final commit：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`
-- Final push：`成功 12f7ac8..361b5a3`（docs SHA 回填见后续 docs commit）
+- Final commit：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`（结果与 E07/tsconfig）；文档回填：`00a2ce4`
+- Final push：`成功 12f7ac8..00a2ce4`
 - 远端 branch：`main`
 - 已知限制：`评测 harness 使用 oracle/broken 仓库态（非 live 百次 LLM agent）。成本为固定 scaffolding 0.18/0.55 以验证公式与失败入分子；与 DeepSeek 峰段定价模块并存于 attempt.pricingVersion。`
 - 作业写作可引用结果：`evaluation/results/final-aggregate.json`、`pilot-aggregate.json`、各 `*.summary.json`
