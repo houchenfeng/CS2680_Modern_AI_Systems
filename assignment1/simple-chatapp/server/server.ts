@@ -21,6 +21,27 @@ import {
   filterAndSortEvents,
   tokenLedger,
 } from "./trace-analysis.js";
+import { evidenceStore } from "./evidence-store.js";
+import { createReplayBundle, replayTool } from "./tool-replay.js";
+import {
+  buildDesignedTranscript,
+  compareDesignedVsSent,
+  sentMessagesToBlocks,
+} from "./context-diff.js";
+import {
+  freezeSpec,
+  getSpecVersions,
+  reviseSpec,
+  diagnoseSpecificationClarity,
+} from "./task-spec.js";
+import {
+  createDiagnosis,
+  persistDiagnosis,
+  reviseDiagnosis,
+  listDiagnoses,
+  classifyReadMaxTurnsLoop,
+} from "./failure-diagnosis.js";
+import { FAILURE_FIXTURES } from "./failure-fixtures.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -202,6 +223,193 @@ app.get("/api/traces/:chatId/:runId/raw", async (req, res) => {
     res.status(404).json({ error: normalizeError(error, "storage") });
   }
 });
+
+app.get("/api/evidence/:chatId/:runId", async (req, res) => {
+  try {
+    res.json(await evidenceStore.list(req.params.chatId, req.params.runId));
+  } catch (error) {
+    res.status(500).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.get("/api/evidence/:chatId/:runId/:sha256", async (req, res) => {
+  try {
+    const meta = await evidenceStore.readMeta(
+      req.params.chatId,
+      req.params.runId,
+      req.params.sha256,
+    );
+    const body = await evidenceStore.read(
+      req.params.chatId,
+      req.params.runId,
+      req.params.sha256,
+    );
+    res.json({
+      meta,
+      content:
+        meta.mimeType === "application/json"
+          ? JSON.parse(body.toString("utf8"))
+          : body.toString("utf8"),
+    });
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.post("/api/tools/replay", async (req, res) => {
+  try {
+    const {
+      toolName,
+      input,
+      toolInput,
+      cwd,
+      chatId,
+      runId,
+      toolUseId,
+      eventId,
+      originalResult,
+      attemptDir,
+    } = req.body || {};
+    if (!toolName || !cwd || !chatId || !runId) {
+      return res.status(400).json({
+        error: normalizeError(
+          new Error("toolName, cwd, chatId, and runId are required"),
+          "validation",
+        ),
+      });
+    }
+    const resolvedInput = toolInput ?? input ?? {};
+    const bundle = await createReplayBundle({
+      toolName,
+      toolInput: resolvedInput,
+      cwd,
+      chatId,
+      runId,
+      toolUseId,
+      eventId,
+      originalResult: originalResult ?? null,
+    });
+    const result = await replayTool(bundle, {
+      evidenceStore,
+      originalResult: originalResult ?? null,
+      attemptDir,
+    });
+    res.json({ bundle, result });
+  } catch (error) {
+    res.status(500).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.post("/api/context/diff", async (req, res) => {
+  try {
+    const { chatId, runId, sent } = req.body || {};
+    const events = await trajectoryStore.events(chatId, runId);
+    const designed = buildDesignedTranscript(events as any);
+    const sentInput = sent || {};
+    const sentBlocks = sentMessagesToBlocks(sentInput);
+    const diff = compareDesignedVsSent(designed, sentBlocks);
+    res.json({ designed, sentBlocks, diff });
+  } catch (error) {
+    res.status(400).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.post("/api/task-specs", (req, res) => {
+  try {
+    const spec = freezeSpec(req.body || {});
+    res.status(201).json(spec);
+  } catch (error) {
+    res.status(400).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.post("/api/task-specs/:taskId/revise", (req, res) => {
+  try {
+    const versions = getSpecVersions(req.params.taskId);
+    const previous = versions[versions.length - 1];
+    if (!previous) {
+      return res.status(404).json({
+        error: normalizeError(new Error("Task spec not found"), "validation"),
+      });
+    }
+    const spec = reviseSpec(previous, req.body || {});
+    res.status(201).json(spec);
+  } catch (error) {
+    res.status(400).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.get("/api/task-specs/:taskId", (req, res) => {
+  res.json(getSpecVersions(req.params.taskId));
+});
+
+app.post("/api/task-specs/diagnose", (req, res) => {
+  try {
+    const spec = req.body?.spec || req.body;
+    res.json(
+      diagnoseSpecificationClarity(spec, {
+        analystNotes: req.body?.analystNotes,
+      }),
+    );
+  } catch (error) {
+    res.status(400).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.get("/api/failure-diagnoses/fixtures", (_req, res) => {
+  res.json(FAILURE_FIXTURES);
+});
+
+app.get("/api/failure-diagnoses/read-max-turns", (_req, res) => {
+  res.json(classifyReadMaxTurnsLoop());
+});
+
+app.get("/api/failure-diagnoses/:taskId", async (req, res) => {
+  try {
+    res.json(await listDiagnoses(req.params.taskId));
+  } catch (error) {
+    res.status(500).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.post("/api/failure-diagnoses", async (req, res) => {
+  try {
+    const diagnosis = createDiagnosis(req.body || {});
+    await persistDiagnosis(diagnosis);
+    res.status(201).json(diagnosis);
+  } catch (error) {
+    res.status(400).json({ error: normalizeError(error, "validation") });
+  }
+});
+
+app.post(
+  "/api/failure-diagnoses/:taskId/:diagnosisId/revise",
+  async (req, res) => {
+    try {
+      const records = await listDiagnoses(req.params.taskId);
+      const previous = [...records]
+        .reverse()
+        .find(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            "diagnosisId" in item &&
+            (item as { diagnosisId: string }).diagnosisId ===
+              req.params.diagnosisId &&
+            "classification" in item,
+        ) as import("./failure-diagnosis.js").FailureDiagnosis | undefined;
+      if (!previous) {
+        return res.status(404).json({
+          error: normalizeError(new Error("Diagnosis not found"), "validation"),
+        });
+      }
+      const revision = await reviseDiagnosis(previous, req.body || {});
+      res.status(201).json(revision);
+    } catch (error) {
+      res.status(400).json({ error: normalizeError(error, "validation") });
+    }
+  },
+);
 
 // Create HTTP server
 const server = createServer(app);

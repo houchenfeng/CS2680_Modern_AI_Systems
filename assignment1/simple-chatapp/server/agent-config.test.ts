@@ -144,19 +144,30 @@ test("request snapshot is redacted before persistence and emitted once before us
     const events = messages
       .filter((item) => item.type === "agent_event")
       .map((item) => item.event);
-    assert.equal(events[0].eventType, "request_snapshot");
-    assert.equal(events[1].eventType, "user_message");
-    assert.equal(events[0].sequence, 1);
-    assert.equal(events[1].sequence, 2);
-    assert.equal(events[0].runId, events[1].runId);
-    assert.equal(events[0].chatId, chat.id);
-    assert.deepEqual(events[0].settingSources, []);
-    assert.deepEqual(events[0].tools, [...AGENT_TOOLS]);
-    assert.doesNotMatch(JSON.stringify(events[0]), /sk-example|secret-secret/);
-    assert.match(String(events[0].projectInstructions), /\[REDACTED\]/);
+    const snapshot = events.find(
+      (event: any) => event.eventType === "request_snapshot",
+    );
+    const user = events.find(
+      (event: any) => event.eventType === "user_message",
+    );
+    const frozen = events.find(
+      (event: any) =>
+        event.eventType === "system" &&
+        String(event.message || "").includes("Task specification frozen"),
+    );
+    assert.ok(snapshot);
+    assert.ok(user);
+    assert.ok(frozen);
+    assert.ok(frozen.sequence < snapshot.sequence);
+    assert.ok(snapshot.sequence < user.sequence);
+    assert.equal(snapshot.runId, user.runId);
+    assert.equal(snapshot.chatId, chat.id);
+    assert.deepEqual(snapshot.settingSources, []);
+    assert.deepEqual(snapshot.tools, [...AGENT_TOOLS]);
+    assert.doesNotMatch(JSON.stringify(snapshot), /sk-example|secret-secret/);
+    assert.match(String(snapshot.projectInstructions), /\[REDACTED\]/);
 
-    const persisted = await trajectories.events(chat.id, events[0].runId);
-    assert.equal(persisted[0].eventType, "request_snapshot");
+    const persisted = await trajectories.events(chat.id, snapshot.runId);
     assert.equal(
       persisted.filter((item) => item.eventType === "request_snapshot").length,
       1,
@@ -166,7 +177,7 @@ test("request snapshot is redacted before persistence and emitted once before us
         persisted.findIndex((item) => item.eventType === "user_message"),
     );
     assert.doesNotMatch(
-      JSON.stringify(redact(persisted[0])),
+      JSON.stringify(redact(snapshot)),
       /sk-example|secret-secret/,
     );
 

@@ -19,6 +19,9 @@ import type { TrajectoryStore } from "./trajectory.js";
 import type { ObservedRequestArtifact } from "./observation-proxy.js";
 import { buildContextLedger } from "./context-ledger.js";
 import { computeCallTiming, computeNormalizedPeakCost } from "./pricing.js";
+import { evidenceStore, uiFold, UI_FOLD_THRESHOLD } from "./evidence-store.js";
+import { freezeSpec, type TaskSpecSnapshot } from "./task-spec.js";
+import { exceptionFrom } from "./failure-fields.js";
 
 interface PendingPermission {
   requestId: string;
@@ -74,6 +77,8 @@ export class Session {
   private stoppedRunId?: string;
   private runStartedAt?: string;
   private stopPromise?: Promise<boolean>;
+  private taskSpec?: TaskSpecSnapshot;
+  private lastSuccessfulEventId?: string;
 
   static async create(chat: Chat, dependencies: SessionDependencies = {}) {
     if (!chat.cwd) throw new Error("Chat has no validated working directory");
@@ -303,6 +308,69 @@ export class Session {
       this.sdkSessionId = event.sdkSessionId;
       this.store.updateChat(this.chatId, { sdkSessionId: event.sdkSessionId });
     }
+
+    // Persist full redacted artifacts for large/error payloads; fold in the event.
+    if (
+      event.eventType === "tool_result" ||
+      event.eventType === "tool_error" ||
+      event.eventType === "unknown_sdk_block" ||
+      event.eventType === "observability_bypass"
+    ) {
+      try {
+        const payload = {
+          toolInput: event.input,
+          toolOutput: event.output,
+          stdout: event.stdout,
+          stderr: event.stderr,
+          exitCode: event.exitCode,
+          isError: event.isError,
+          error: event.error,
+          rawBlock: event.rawBlock,
+          exception: event.error
+            ? exceptionFrom(new Error(event.error.message))
+            : undefined,
+        };
+        const serialized = JSON.stringify(payload);
+        if (
+          serialized.length > UI_FOLD_THRESHOLD ||
+          event.eventType === "tool_error" ||
+          event.eventType === "unknown_sdk_block" ||
+          event.eventType === "observability_bypass"
+        ) {
+          const meta = await evidenceStore.store({
+            chatId: this.chatId,
+            runId: this.runId || event.runId,
+            content: payload,
+            kind: event.eventType,
+            sourceEventId: event.eventId,
+          });
+          event.evidenceSha256 = meta.sha256;
+          event.evidencePath = meta.relativePath;
+          const folded = uiFold(event.output ?? event.stdout ?? payload, meta);
+          if (folded.truncated) {
+            event.output = folded.preview;
+            event.truncated = true;
+            event.originalLength = folded.originalLength;
+          }
+        }
+      } catch (error) {
+        event.evidenceStoreError = normalizeError(error, "storage");
+      }
+    }
+
+    if (
+      event.eventType !== "tool_error" &&
+      event.eventType !== "run_result" &&
+      !event.error
+    ) {
+      this.lastSuccessfulEventId = event.eventId;
+    }
+    if (event.eventType === "run_result") {
+      event.lastSuccessfulEventId = this.lastSuccessfulEventId;
+      event.taskSpecHash = this.taskSpec?.specHash;
+      event.taskSpecVersion = this.taskSpec?.version;
+    }
+
     try {
       this.broadcast({
         type: "agent_event",
@@ -317,6 +385,7 @@ export class Session {
             level: "error",
             message: "Trajectory storage failed",
             error: normalizeError(error, "storage"),
+            lastSuccessfulEventId: this.lastSuccessfulEventId,
           }),
         ),
       });
@@ -530,6 +599,43 @@ export class Session {
     this.stopPromise = undefined;
     this.runStartedAt = new Date().toISOString();
     this.setStatus("running");
+    this.taskSpec = freezeSpec({
+      taskId: `${this.chatId}/${this.runId}`,
+      prompt: content,
+      acceptanceCriteria: [
+        "Complete the user request using only allowed tools",
+        "Do not expose credentials or hidden reasoning",
+      ],
+      outOfScope: [
+        "Modifying files outside the workspace",
+        "Exfiltrating secrets",
+      ],
+      allowedTools: [
+        "Read",
+        "Write",
+        "Edit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "WebSearch",
+        "WebFetch",
+      ],
+      budget: { maxTurns: 100 },
+      doneCondition:
+        "Run reaches a successful or explicitly stopped terminal result",
+      verifierVersion: "failure-verifier-1.0.0",
+      scorerVersion: "failure-scorer-1.0.0",
+    });
+    await this.emit(
+      this.build({
+        eventType: "system",
+        level: "info",
+        message: "Task specification frozen",
+        taskSpecHash: this.taskSpec.specHash,
+        taskSpecVersion: this.taskSpec.version,
+        taskSpec: this.taskSpec,
+      }),
+    );
     this.agentSession.setObservationContext?.({
       chatId: this.chatId,
       runId: this.runId,

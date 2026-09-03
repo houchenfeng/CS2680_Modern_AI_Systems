@@ -3,6 +3,7 @@ import websocketModule, { ReadyState } from "react-use-websocket";
 import { ChatList } from "./components/ChatList";
 import { ChatWindow } from "./components/ChatWindow";
 import { TraceViewer } from "./components/TraceViewer";
+import { FailureDiagnosisPanel } from "./components/FailureDiagnosisPanel";
 import type { AgentEvent, Chat } from "./types";
 
 const API_BASE = "/api";
@@ -20,7 +21,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workspacePath, setWorkspacePath] = useState(".");
-  const [view, setView] = useState<"chat" | "trace">("chat");
+  const [view, setView] = useState<"chat" | "trace" | "diagnosis">("chat");
   const [traceRefreshKey, setTraceRefreshKey] = useState(0);
 
   const fetchChats = useCallback(async () => {
@@ -210,6 +211,12 @@ export default function App() {
           >
             Trace Viewer
           </button>
+          <button
+            onClick={() => setView("diagnosis")}
+            className={`rounded-t px-4 py-2 text-sm ${view === "diagnosis" ? "bg-slate-100 font-medium" : "text-slate-500"}`}
+          >
+            Failure Diagnosis
+          </button>
         </nav>
         <div
           className={
@@ -239,6 +246,16 @@ export default function App() {
             chatId={selectedChatId}
             active={view === "trace"}
             refreshKey={traceRefreshKey}
+          />
+        </div>
+        <div
+          className={
+            view === "diagnosis" ? "flex min-h-0 flex-1 flex-col" : "hidden"
+          }
+        >
+          <FailureDiagnosisPanel
+            chatId={selectedChatId}
+            active={view === "diagnosis"}
           />
         </div>
       </div>
