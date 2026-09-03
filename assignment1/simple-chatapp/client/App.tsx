@@ -4,6 +4,7 @@ import { ChatList } from "./components/ChatList";
 import { ChatWindow } from "./components/ChatWindow";
 import { TraceViewer } from "./components/TraceViewer";
 import { FailureDiagnosisPanel } from "./components/FailureDiagnosisPanel";
+import { EvaluationPanel } from "./components/EvaluationPanel";
 import type { AgentEvent, Chat } from "./types";
 
 const API_BASE = "/api";
@@ -21,7 +22,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workspacePath, setWorkspacePath] = useState(".");
-  const [view, setView] = useState<"chat" | "trace" | "diagnosis">("chat");
+  const [view, setView] = useState<"chat" | "trace" | "diagnosis" | "evaluation">(
+    "chat",
+  );
   const [traceRefreshKey, setTraceRefreshKey] = useState(0);
 
   const fetchChats = useCallback(async () => {
@@ -217,6 +220,12 @@ export default function App() {
           >
             Failure Diagnosis
           </button>
+          <button
+            onClick={() => setView("evaluation")}
+            className={`rounded-t px-4 py-2 text-sm ${view === "evaluation" ? "bg-slate-100 font-medium" : "text-slate-500"}`}
+          >
+            Evaluation
+          </button>
         </nav>
         <div
           className={
@@ -257,6 +266,13 @@ export default function App() {
             chatId={selectedChatId}
             active={view === "diagnosis"}
           />
+        </div>
+        <div
+          className={
+            view === "evaluation" ? "flex min-h-0 flex-1 flex-col" : "hidden"
+          }
+        >
+          <EvaluationPanel active={view === "evaluation"} />
         </div>
       </div>
     </div>

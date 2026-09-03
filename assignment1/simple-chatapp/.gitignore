@@ -29,3 +29,6 @@ Thumbs.db
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Evaluation attempt worktrees / large artifacts (summaries in evaluation/results/ stay trackable)
+evaluation/runtime/

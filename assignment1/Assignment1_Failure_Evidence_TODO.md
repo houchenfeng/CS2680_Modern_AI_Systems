@@ -130,6 +130,6 @@
 - 四类失败各案例：`FAILURE_FIXTURES`
 - Evidence 完整率：`大输出落盘 + UI fold；runtime gitignore`
 - 已知限制：`live SSE firstVisible 精细打点仍依赖代理；大体积 evidence 不入库`
-- 最终 commit：`待 push 后填写`
-- 最终 push：`待填写`
-- [ ] 第二步完成，可以进入十任务重复评测。
+- 最终 commit：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
+- 最终 push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
+- [x] 第二步完成，可以进入十任务重复评测。

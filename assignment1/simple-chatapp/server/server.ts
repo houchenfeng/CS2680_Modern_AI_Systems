@@ -42,6 +42,7 @@ import {
   classifyReadMaxTurnsLoop,
 } from "./failure-diagnosis.js";
 import { FAILURE_FIXTURES } from "./failure-fixtures.js";
+import { readFile } from "node:fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -410,6 +411,48 @@ app.post(
     }
   },
 );
+
+app.get("/api/evaluation/:phase/aggregate", async (req, res) => {
+  try {
+    const phase = req.params.phase;
+    if (phase !== "pilot" && phase !== "final") {
+      return res.status(400).json({
+        error: normalizeError(new Error("phase must be pilot|final"), "validation"),
+      });
+    }
+    const file = path.join(
+      process.cwd(),
+      "evaluation",
+      "results",
+      `${phase}-aggregate.json`,
+    );
+    const raw = await readFile(file, "utf8");
+    res.type("application/json").send(raw);
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
+
+app.get("/api/evaluation/:phase/index", async (req, res) => {
+  try {
+    const phase = req.params.phase;
+    if (phase !== "pilot" && phase !== "final") {
+      return res.status(400).json({
+        error: normalizeError(new Error("phase must be pilot|final"), "validation"),
+      });
+    }
+    const file = path.join(
+      process.cwd(),
+      "evaluation",
+      "results",
+      `${phase}-index.json`,
+    );
+    const raw = await readFile(file, "utf8");
+    res.type("application/json").send(raw);
+  } catch (error) {
+    res.status(404).json({ error: normalizeError(error, "storage") });
+  }
+});
 
 // Create HTTP server
 const server = createServer(app);

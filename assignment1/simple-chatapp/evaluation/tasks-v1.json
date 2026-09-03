@@ -1,0 +1,368 @@
+{
+  "manifestVersion": "1.0.0",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "tasks": [
+    {
+      "id": "E01",
+      "title": "Assistant fragment 去重与调用关联",
+      "taskVersion": "1.0.0",
+      "prompt": "修改事件规范化和 trace 分析，使同一 SDK assistant message ID 的 thinking、text、tool-use fragments 关联同一 callId，usage 不重复求和。保留 block 顺序，并增加重复 usage 与 output=0 测试。\n\nModify event normalization and trace analysis so thinking, text, and tool-use fragments that share the same SDK assistant message ID map to one callId without double-counting usage. Preserve block order and add tests for duplicate usage and output=0.",
+      "allowedPaths": [
+        "server/events.ts",
+        "server/event-normalizer.ts",
+        "server/trace-analysis.ts",
+        "server/events.test.ts",
+        "server/event-normalizer.test.ts",
+        "server/trace-analysis.test.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/",
+        "client/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 40,
+      "firstUsefulPredicate": "首次修改允许模块且该修改保留在最终通过 diff / First edit to an allowed module that remains in the final passing diff",
+      "acceptanceCriteria": [
+        "同 message ID 多 fragment 只有一个 call usage",
+        "block 不丢（三个 fragment → blocks=3）",
+        "现有测试通过"
+      ],
+      "verifierId": "E01",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E02",
+      "title": "Compaction、Hook 与未知 SDK block",
+      "taskVersion": "1.0.0",
+      "prompt": "记录 compact_boundary、hook_response、status 和未知 SDK block；未知内容必须经过脱敏并可下载，不能静默丢弃。\n\nRecord compact_boundary, hook_response, status, and unknown SDK blocks; unknown content must be redacted and downloadable, never silently dropped.",
+      "allowedPaths": [
+        "server/event-normalizer.ts",
+        "server/events.ts",
+        "server/redaction.ts",
+        "server/event-normalizer.test.ts",
+        "server/events.test.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/",
+        "client/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 40,
+      "firstUsefulPredicate": "第一个新增事件类型通过测试 / First newly added event type passes its test",
+      "acceptanceCriteria": [
+        "pre_tokens、hook stdout/stderr/exit、status、unknown artifact 可恢复",
+        "未知内容经脱敏且可下载"
+      ],
+      "verifierId": "E02",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E03",
+      "title": "逐调用 Context Ledger 与 95% gate",
+      "taskVersion": "1.0.0",
+      "prompt": "实现纯函数 Context Ledger，输入 captured request、count-tokens 与 provider usage，输出固定类别、占比、coverage、residual 和 measurement；低于 95% 警告。\n\nImplement a pure-function Context Ledger that takes a captured request, count-tokens results, and provider usage and emits fixed categories, shares, coverage, residual, and measurement; warn below 95% coverage.",
+      "allowedPaths": [
+        "server/context-ledger.ts",
+        "server/context-ledger.test.ts",
+        "server/token-counter.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/",
+        "client/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 40,
+      "firstUsefulPredicate": "fixture 首次 coverage >=0.95 / First fixture coverage >= 0.95",
+      "acceptanceCriteria": [
+        "6,902 fixture 得到工具 6,053、CLAUDE.md 694、system 29",
+        "cache 不作为来源",
+        "coverage gate 95%"
+      ],
+      "verifierId": "E03",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E04",
+      "title": "版本化 DeepSeek Peak Pricing",
+      "taskVersion": "1.0.0",
+      "prompt": "新增版本化价格表与成本模块，分别保存 provider cost 和 V4 Pro peak normalized cost。\n\nAdd a versioned pricing table and cost module that stores provider cost and V4 Pro peak normalized cost separately.",
+      "allowedPaths": [
+        "server/pricing.ts",
+        "server/pricing.test.ts",
+        "server/events.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/",
+        "client/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 300000,
+      "maxTurns": 30,
+      "firstUsefulPredicate": "第一个 pricing test 通过 / First pricing test passes",
+      "acceptanceCriteria": [
+        "正确使用 0.044/1.32/3.96 USD/M",
+        "历史版本不漂移",
+        "缺失 usage 返回 null"
+      ],
+      "verifierId": "E04",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E05",
+      "title": "完整 Tool Error Artifact 与安全 Replay",
+      "taskVersion": "1.0.0",
+      "prompt": "当前 UI 会截断长输出。实现完整脱敏 artifact 存储，并为 Read 增加 agent 外安全 replay 和 ground-truth diff。\n\nUI truncates long output today. Implement full redacted artifact storage plus a safe out-of-agent Read replay with ground-truth diff.",
+      "allowedPaths": [
+        "server/evidence-store.ts",
+        "server/tool-replay.ts",
+        "server/evidence-store.test.ts",
+        "server/tool-replay.test.ts",
+        "server/redaction.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 40,
+      "firstUsefulPredicate": "missing-file artifact 首次 hash 校验通过 / First missing-file artifact hash check passes",
+      "acceptanceCriteria": [
+        "64KB+ error 可按 hash 取回",
+        "UI 仍折叠（UI_FOLD_THRESHOLD）",
+        "replay 不修改用户工作树"
+      ],
+      "verifierId": "E05",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E06",
+      "title": "Designed vs Sent Context Diff",
+      "taskVersion": "1.0.0",
+      "prompt": "比较 designed transcript 与透明代理 sent transcript，检测 missing、unexpected、reordered、truncated、wrong-parent 和 wrong-tool-result-pair。\n\nCompare designed vs proxy-sent transcripts and detect missing, unexpected, reordered, truncated, wrong-parent, and wrong-tool-result-pair diffs.",
+      "allowedPaths": [
+        "server/context-diff.ts",
+        "server/context-diff.test.ts",
+        "server/observation-proxy.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/",
+        "client/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 40,
+      "firstUsefulPredicate": "第一个 missing block 被准确定位 / First missing block correctly located",
+      "acceptanceCriteria": [
+        "六类隐藏 fixture 全识别",
+        "相同时为空 diff",
+        "DiffKind 含 missing 与 wrong-parent"
+      ],
+      "verifierId": "E06",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E07",
+      "title": "Resume 多轮上下文完整性",
+      "taskVersion": "1.0.0",
+      "prompt": "新增集成测试：两轮对话、工具读取、后端重启、SDK Resume、第三轮依赖第一轮工具结果；验证恢复后真实 request parent chain。\n\nAdd an integration test for two-turn chat, tool reads, backend restart, SDK Resume, and a third turn that depends on first-turn tool results; verify the restored request parent chain.",
+      "allowedPaths": [
+        "server/session.ts",
+        "server/session.test.ts",
+        "server/trajectory.ts",
+        "server/trajectory.test.ts",
+        "server/ai-client.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 900000,
+      "maxTurns": 50,
+      "firstUsefulPredicate": "Resume 后捕获第一条正确关联 request / First correctly linked request captured after Resume",
+      "acceptanceCriteria": [
+        "关键事实或合法 summary 存在",
+        "消息不重复",
+        "cwd/session 正确"
+      ],
+      "verifierId": "E07",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E08",
+      "title": "Permission/Stop/Timeout 失败证据链",
+      "taskVersion": "1.0.0",
+      "prompt": "完整记录 Allow、Deny、Timeout、Disconnect、Stop 和迟到 callback；每个 pending tool 最终只有一个 terminal permission result。\n\nFully record Allow, Deny, Timeout, Disconnect, Stop, and late callbacks; each pending tool ends with exactly one terminal permission result.",
+      "allowedPaths": [
+        "server/session.ts",
+        "server/session.test.ts",
+        "server/failure-fields.ts",
+        "server/events.ts"
+      ],
+      "forbiddenPaths": [
+        "evaluation/",
+        "client/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 40,
+      "firstUsefulPredicate": "首个 terminal permission 与 request 正确配对 / First terminal permission correctly paired with its request",
+      "acceptanceCriteria": [
+        "所有分支有 IDs/reason/timing",
+        "完成 run 不回到 waiting",
+        "timeout/disconnect 测试存在"
+      ],
+      "verifierId": "E08",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E09",
+      "title": "冻结 Task Spec 与 Repository Verifier",
+      "taskVersion": "1.0.0",
+      "prompt": "实现 task manifest、isolated attempt runner 和独立 repository verifier。成功由文件、hash、tests 和 git diff 判断，不能读取 agent 的完成声明。\n\nImplement a task manifest, isolated attempt runner, and independent repository verifier. Success is judged by files, hashes, tests, and git diff — never by agent done text.",
+      "allowedPaths": [
+        "server/task-spec.ts",
+        "server/task-spec.test.ts",
+        "evaluation/"
+      ],
+      "forbiddenPaths": [
+        "node_modules/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 50,
+      "firstUsefulPredicate": "第一个 isolated verifier JSON 通过 schema / First isolated verifier JSON passes schema",
+      "acceptanceCriteria": [
+        "prompt/spec/scorer/version 运行前 hash",
+        "输出 verifier JSON",
+        "freezeSpec 存在"
+      ],
+      "verifierId": "E09",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    },
+    {
+      "id": "E10",
+      "title": "四步失败诊断与统计面板",
+      "taskVersion": "1.0.0",
+      "prompt": "Trace Viewer 增加 Tool→Harness→Specification→Model 向导，并展示成功率、cost/completion、TTFU、方差和失败分类。\n\nAdd a Tool→Harness→Specification→Model diagnosis wizard to Trace Viewer, showing success rate, cost/completion, TTFU, variance, and failure classification.",
+      "allowedPaths": [
+        "server/failure-diagnosis.ts",
+        "server/failure-diagnosis.test.ts",
+        "server/failure-fixtures.ts",
+        "server/failure-fields.ts",
+        "client/components/FailureDiagnosisPanel.tsx",
+        "client/components/TraceViewer.tsx",
+        "client/App.tsx",
+        "evaluation/metrics.ts"
+      ],
+      "forbiddenPaths": [
+        "node_modules/"
+      ],
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "timeoutMs": 600000,
+      "maxTurns": 50,
+      "firstUsefulPredicate": "第一条完整 diagnosis record 通过 schema / First complete diagnosis record passes schema",
+      "acceptanceCriteria": [
+        "tool fail 后 model 不可填写",
+        "每个结论有 evidenceRef",
+        "失败成本进入分子（7-success/3-failure cost fixture）"
+      ],
+      "verifierId": "E10",
+      "scorerVersion": "eval-scorer-1.0.0",
+      "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+      "pricingVersion": "deepseek-v4-pro-peak-2026-09-02"
+    }
+  ]
+}
