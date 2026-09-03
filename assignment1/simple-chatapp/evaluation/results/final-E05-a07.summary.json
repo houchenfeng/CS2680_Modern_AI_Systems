@@ -1,0 +1,64 @@
+{
+  "taskId": "E05",
+  "taskVersion": "1.0.0",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "attemptId": "final-E05-a07",
+  "mode": "oracle",
+  "cacheStratum": "cold",
+  "status": "complete",
+  "success": true,
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "baselineHash": "fbdbc2ec4b46664ffa9f4598da6dfd011b430cda523841c4463147318118ef7d",
+  "finalDiffHash": "fbdbc2ec4b46664ffa9f4598da6dfd011b430cda523841c4463147318118ef7d",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "pricingMeta": {
+    "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+    "retrievedAt": "2026-09-02T00:00:00.000Z",
+    "effectiveAt": "2026-09-02T00:00:00.000Z",
+    "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "cacheWriteBillingAssumption": "bill_as_miss"
+  },
+  "utcDate": "2026-09-03T02:14:19.095Z",
+  "timezone": "Asia/Shanghai",
+  "providerCostUsd": 0.18,
+  "normalizedPeakCostUsd": 0.18,
+  "wallClockMs": 186,
+  "timeToFirstUsefulMs": 200,
+  "turns": 2,
+  "toolCalls": 1,
+  "toolErrors": 0,
+  "failureClassification": null,
+  "failureConfidence": null,
+  "evidenceRefs": [
+    "verifier:E05:pass"
+  ],
+  "interruptions": [],
+  "verifier": {
+    "status": "pass",
+    "exitCode": 0,
+    "checks": [
+      {
+        "name": "evidence-store.ts exists",
+        "passed": true
+      },
+      {
+        "name": "tool-replay.ts exists",
+        "passed": true
+      },
+      {
+        "name": "UI_FOLD_THRESHOLD",
+        "passed": true
+      }
+    ],
+    "fileHashes": {
+      "server/evidence-store.ts": "72da25ee5d36398d046b2914a3588b1196b2d9bfdd12e2cf3c354a5fd014675b",
+      "server/tool-replay.ts": "60bef0852b3df6baeb44e50b39fd9d48ab51ade955cc6f19fb56422efeedef1a"
+    }
+  },
+  "notes": [
+    "Scaffolding run: agent not invoked; verifier judges repository state only.",
+    "mode=oracle"
+  ],
+  "worktreeRelative": "evaluation/runtime/attempts/final-E05-a07"
+}

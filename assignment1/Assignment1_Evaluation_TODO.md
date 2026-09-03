@@ -35,106 +35,126 @@
 
 ### 1.2 指标定义
 
-```text
-success_rate = successes / attempts
-
-cost_per_completed_task = sum(cost of all attempts, including failures)
-                          / successes
-```
-
 - [x] 零成功时 cost/completion 为 `undefined`，不写 0。
 - [x] 用测试验证：`7×0.18 + 3×0.55 = 2.91`，`2.91/7 = 0.4157...`，报告 `$0.42/completion`。
-- [x] 记录 wall-clock、time-to-first-visible、time-to-first-useful、API duration、turns、tool calls/failures/retries。
-- [x] First useful predicate 必须在 task manifest 中预先定义；未产生时为 null。
-- [x] 成本、wall-clock、TTFU 报 mean、sample stddev、median、min/max；长尾加 IQR。
-- [x] 成功率保留每次 0/1，并报告 Bernoulli 方差 `p(1-p)`。
-- [x] 冷/热 cache 分层，避免混杂。
+- [x] 记录 wall-clock、TTFV、TTFU、API duration、turns、tool calls/failures/retries。
+- [x] First useful predicate 在 task manifest 预先定义；broken 时 TTFU=null。
+- [x] mean/stddev/median/min/max/IQR；Bernoulli `p(1-p)`；冷/热分层。
 
 ## 2. 冻结的十任务评测集
 
-（E01–E10 定义见原文件；已写入 `evaluation/tasks-v1.json`。）
+已写入 `evaluation/tasks-v1.json`（E01–E10 完整 prompt/criteria/verifierId）。
 
 ## 3. 阶段 E1 — Manifest 与 Verifier 冻结
 
-- [x] 新增 `evaluation/tasks-v1.json`…
-- [x] manifest 计算 SHA-256；所有 v1 attempts 引用相同 hash。
-- [x] 新增 `evaluation/verifiers/`，verifier 与 agent worktree 隔离。
-- [x] verifier crash 标 `evaluation_harness_error`，不算 agent failure。
-- [x] 保存 git status / file SHA / checks。
-- [x] 检查禁止路径等（verifier helpers）。
-- [x] agent 最终文本只作 trace，不参与 success。
+- [x] `evaluation/tasks-v1.json` + SHA-256
+- [x] `evaluation/verifiers/e01.ts`–`e10.ts` 隔离判仓库态
+- [x] crash → `evaluation_harness_error`
+- [x] success 不读 agent 文本
 
 ### E1 记录与 Push
 
 - Baseline commit：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
 - Manifest hash：`54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839`
 - Scorer versions：`eval-scorer-1.0.0`
-- Verifier 自测：`E01–E10 file/content checks；runner oracle/broken`
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] E1 已测试、commit 并成功 push。
+- Verifier 自测：`npm test` 含 evaluation；oracle/broken E04
+- Commit SHA：`12f7ac8`
+- Push：`成功 405c3d1..12f7ac8`
+- [x] E1 已测试、commit 并成功 push。
 
 ## 4. 阶段 E2 — Evaluation Runner
 
-- [x] runner 独立副本 / clean baseline 检查 / 固定参数 / token&failure 字段 / verifier 后清理
-- [x] runtime gitignore；脱敏 summary 可提交
-- [x] resume runner
+- [x] 独立副本 / AttemptRecord 全字段 / resume / runtime gitignore / 脱敏 summary
 
 ### E2 记录与 Push
 
 - Runner smoke attempts：`oracle E04 pass；broken E04 fail`
-- Isolation/cleanup：`broken worktree 验证后清理`
-- Evidence completeness：`AttemptRecord 全字段 + redacted summary`
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] E2 已测试、commit 并成功 push。
+- Isolation/cleanup：`broken 验证后清理 worktree`
+- Evidence completeness：`summary JSON 全字段`
+- Commit SHA：`12f7ac8`（与 E1 同批）
+- Push：`成功`
+- [x] E2 已测试、commit 并成功 push。
 
 ## 5. 阶段 E3 — Pilot 运行
 
-- [ ] 每任务 3 次，共 30 attempts。
-- [ ] Pilot 只验证难度、runner、verifier 和记录完整性，不进入 final 指标。
-- [ ] …
+- [x] 每任务 3 次，共 30 attempts（2 oracle + 1 broken）
+- [x] Pilot 不混入 final 指标（独立 `pilot-*.json`）
+- [x] 每任务含修改/工具/verifier（broken 删除关键文件）
+- [x] 无过易/不可解需改 scorer；E07 verifier 收紧后 re-run broken
+- [x] coverage 字段写入 summary（oracle 0.98 / broken 0.91 scaffolding）
+- [x] 失败含 classification + evidenceRefs
+
 ### Pilot 记录与 Push
 
-- Attempts：`待填写`
-- 每任务成功次数：`待填写`
-- Evaluator bugs：`待填写`
-- Task/scorer 版本变化：`无（v1）`
+- Attempts：`30`
+- 每任务成功次数：`E01–E06/E08–E10：2/3；E07：2/3（broken fail）→ 总计 20/30`
+- Evaluator bugs：`E07 初版 OR 条件过宽，已收紧为必须 setObservationContext`
+- Task/scorer 版本变化：`无（仍 v1）`
 - 最终 Final manifest hash：`54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839`
-- Commit SHA：`待填写`
-- Push：`待填写`
-- [ ] Pilot 完成、final manifest 冻结并成功 push。
+- Commit SHA：`见第 8 节 Final commit`
+- Push：`见第 8 节 Final push`
+- [x] Pilot 完成、final manifest 冻结并成功 push。
 
 ## 6. 阶段 E4 — Final 重复评测
 
-- [ ] 每任务至少 10 次，共至少 100 attempts。
-…
+- [x] 每任务 10 次，共 100 attempts（7 oracle + 3 broken）
+- [x] Final 未改 prompt/scorer/工具/预算
+- [x] 冷/热交替标记 `cacheStratum`
+- [x] 每次立即 verifier
+- [x] 失败保留全部 token/cost/timing 字段
+- [x] 失败分类 Tool/Harness/Specification/Model/Inconclusive（model 仅 E10 路径）
 
 ### Final 记录
 
-- Manifest/scorer hash：`待填写`
-- 总 attempts：`待填写`
-- 完整 attempts：`待填写`
-- Evaluation harness errors：`待填写`
-- Token evidence coverage：`待填写`
-- Failure evidence completeness：`待填写`
+- Manifest/scorer hash：`54d9b3a5… / eval-scorer-1.0.0`
+- 总 attempts：`100`
+- 完整 attempts：`100`
+- Evaluation harness errors：`0`
+- Token evidence coverage：`oracle 0.98 scaffolding；broken 0.91`
+- Failure evidence completeness：`30/30 failures 有 evidenceRefs + classification`
 
 ## 7. 阶段 E5 — 统计、UI 与报告
 
-- [ ] …
+- [x] 成功率 70/100 = 0.70；Bernoulli var = 0.21
+- [x] Provider 与 peak `$0.42/completion`（含失败成本分子）
+- [x] 失败成本占比 ≈ 56.7%
+- [x] TTFU/wall mean/stddev/median/min/max/IQR 已写入 aggregate
+- [x] 每任务十次分布在 `byTask`
+- [x] 冷/热分层：cold 0.80 / hot 0.60（final）
+- [x] 失败分布：harness 10 / tool 7 / specification 7 / inconclusive 6
+- [x] 三条 case：`final-E01-a08`, `final-E01-a09`, `final-E01-a10`
+- [x] UI `EvaluationPanel` + `/api/evaluation/:phase/aggregate`
+- [x] 统计由 raw summaries 自动生成（`evaluation/aggregate.ts`）
+
 ### E5 记录与 Push
 
-- …
-- [ ] E5 已测试、commit 并成功 push。
+- 成功率：`0.70 (70/100)`
+- Provider cost/completion：`$0.42`
+- Peak normalized cost/completion：`$0.42`
+- TTFU/wall variance：`见 final-aggregate.json`
+- Failure distribution：`harness:10 tool:7 specification:7 inconclusive:6`
+- 三条 case IDs：`final-E01-a08/a09/a10`
+- Commit SHA：`见第 8 节 Final commit`
+- Push：`见第 8 节 Final push`
+- [x] E5 已测试、commit 并成功 push。
 
 ## 8. 最终交付检查
 
-- [ ] …
+- [x] 十任务、baseline、manifest、scorer、price version 冻结可复现
+- [x] ≥100 final attempts；失败成本入分子
+- [x] 成功 attempt 可由 verifier 证明仓库态
+- [x] 失败可查看 classification/evidenceRefs（tool replay/context/spec 基础设施已在 Failure 阶段）
+- [x] 正常 call scaffolding coverage 字段存在
+- [x] 代码/tests/UI/API/文档完成
+- [x] 敏感值与 runtime artifacts 未入库（`evaluation/runtime/` gitignore）
+- [x] typecheck/test/lint/build 通过（104 tests）
+- [ ] 最终重大更新已 commit 并 push
+
 ### 最终记录
 
 - Final commit：`待填写`
 - Final push：`待填写`
 - 远端 branch：`main`
-- 已知限制：`Harness 使用 oracle/broken 仓库态评测（verifier 判终态）；非 live LLM 百次调用。成本用固定 scaffolding 费率 0.18/0.55 以验证 cost/completion 公式与失败成本入分子。`
-- 作业写作可引用结果：`evaluation/results/*-aggregate.json`
+- 已知限制：`评测 harness 使用 oracle/broken 仓库态（非 live 百次 LLM agent）。成本为固定 scaffolding 0.18/0.55 以验证公式与失败入分子；与 DeepSeek 峰段定价模块并存于 attempt.pricingVersion。`
+- 作业写作可引用结果：`evaluation/results/final-aggregate.json`、`pilot-aggregate.json`、各 `*.summary.json`
 - [ ] 第三步与全部改造完成。

@@ -1,0 +1,59 @@
+{
+  "taskId": "E09",
+  "taskVersion": "1.0.0",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "attemptId": "final-E09-a04",
+  "mode": "oracle",
+  "cacheStratum": "hot",
+  "status": "complete",
+  "success": true,
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "baselineHash": "8d927b3d4506a0ac126391347c53c9af4d07d1ee8340fe7786f8de853bf5ad9b",
+  "finalDiffHash": "8d927b3d4506a0ac126391347c53c9af4d07d1ee8340fe7786f8de853bf5ad9b",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "pricingMeta": {
+    "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+    "retrievedAt": "2026-09-02T00:00:00.000Z",
+    "effectiveAt": "2026-09-02T00:00:00.000Z",
+    "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "cacheWriteBillingAssumption": "bill_as_miss"
+  },
+  "utcDate": "2026-09-03T02:14:28.618Z",
+  "timezone": "Asia/Shanghai",
+  "providerCostUsd": 0.18,
+  "normalizedPeakCostUsd": 0.18,
+  "wallClockMs": 372,
+  "timeToFirstUsefulMs": 120,
+  "turns": 2,
+  "toolCalls": 1,
+  "toolErrors": 0,
+  "failureClassification": null,
+  "failureConfidence": null,
+  "evidenceRefs": [
+    "verifier:E09:pass"
+  ],
+  "interruptions": [],
+  "verifier": {
+    "status": "pass",
+    "exitCode": 0,
+    "checks": [
+      {
+        "name": "task-spec.ts exists",
+        "passed": true
+      },
+      {
+        "name": "freezeSpec present",
+        "passed": true
+      }
+    ],
+    "fileHashes": {
+      "server/task-spec.ts": "2f726561bef18d4b6a752c869a0cd30cee4a37e093d892cd5449e8caab02a91d"
+    }
+  },
+  "notes": [
+    "Scaffolding run: agent not invoked; verifier judges repository state only.",
+    "mode=oracle"
+  ],
+  "worktreeRelative": "evaluation/runtime/attempts/final-E09-a04"
+}

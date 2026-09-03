@@ -1,0 +1,65 @@
+{
+  "taskId": "E05",
+  "taskVersion": "1.0.0",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "attemptId": "final-E05-a08",
+  "mode": "broken",
+  "cacheStratum": "hot",
+  "status": "complete",
+  "success": false,
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "baselineHash": "72ca467acd3cb9dc903cefe8f3b0319cba01fccfe24270705022bf90e0079d5b",
+  "finalDiffHash": "72ca467acd3cb9dc903cefe8f3b0319cba01fccfe24270705022bf90e0079d5b",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "pricingMeta": {
+    "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+    "retrievedAt": "2026-09-02T00:00:00.000Z",
+    "effectiveAt": "2026-09-02T00:00:00.000Z",
+    "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "cacheWriteBillingAssumption": "bill_as_miss"
+  },
+  "utcDate": "2026-09-03T02:14:19.282Z",
+  "timezone": "Asia/Shanghai",
+  "providerCostUsd": 0.55,
+  "normalizedPeakCostUsd": 0.55,
+  "wallClockMs": 197,
+  "timeToFirstUsefulMs": null,
+  "turns": 4,
+  "toolCalls": 3,
+  "toolErrors": 2,
+  "failureClassification": "harness",
+  "failureConfidence": 0.8,
+  "evidenceRefs": [
+    "verifier:E05",
+    "attempt:final-E05-a08"
+  ],
+  "interruptions": [],
+  "verifier": {
+    "status": "fail",
+    "exitCode": 1,
+    "checks": [
+      {
+        "name": "evidence-store.ts exists",
+        "passed": false
+      },
+      {
+        "name": "tool-replay.ts exists",
+        "passed": true
+      },
+      {
+        "name": "UI_FOLD_THRESHOLD",
+        "passed": false
+      }
+    ],
+    "fileHashes": {
+      "server/tool-replay.ts": "60bef0852b3df6baeb44e50b39fd9d48ab51ade955cc6f19fb56422efeedef1a"
+    }
+  },
+  "notes": [
+    "Scaffolding run: agent not invoked; verifier judges repository state only.",
+    "mode=broken",
+    "broken mode deleted server/evidence-store.ts"
+  ],
+  "worktreeRelative": "evaluation/runtime/attempts/final-E05-a08"
+}

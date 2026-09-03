@@ -1,0 +1,64 @@
+{
+  "taskId": "E03",
+  "taskVersion": "1.0.0",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "attemptId": "final-E03-a03",
+  "mode": "oracle",
+  "cacheStratum": "cold",
+  "status": "complete",
+  "success": true,
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "baselineHash": "300099a81f1817b4f1fb2da8162de52b6d4ffceb31fccb42180d78ea4b5f9d22",
+  "finalDiffHash": "300099a81f1817b4f1fb2da8162de52b6d4ffceb31fccb42180d78ea4b5f9d22",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "pricingMeta": {
+    "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+    "retrievedAt": "2026-09-02T00:00:00.000Z",
+    "effectiveAt": "2026-09-02T00:00:00.000Z",
+    "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "cacheWriteBillingAssumption": "bill_as_miss"
+  },
+  "utcDate": "2026-09-03T02:14:12.755Z",
+  "timezone": "Asia/Shanghai",
+  "providerCostUsd": 0.18,
+  "normalizedPeakCostUsd": 0.18,
+  "wallClockMs": 186,
+  "timeToFirstUsefulMs": 200,
+  "turns": 2,
+  "toolCalls": 1,
+  "toolErrors": 0,
+  "failureClassification": null,
+  "failureConfidence": null,
+  "evidenceRefs": [
+    "verifier:E03:pass"
+  ],
+  "interruptions": [],
+  "verifier": {
+    "status": "pass",
+    "exitCode": 0,
+    "checks": [
+      {
+        "name": "context-ledger.ts exists",
+        "passed": true
+      },
+      {
+        "name": "CALL_CONTEXT_RULE_VERSION",
+        "passed": true
+      },
+      {
+        "name": "coverage gate",
+        "passed": true,
+        "detail": "expects COVERAGE_GATE or 0.95 coverage gate"
+      }
+    ],
+    "fileHashes": {
+      "server/context-ledger.ts": "9330f24a23ced947dece0694a0fb557015adbfd3c0650383372557059097efa7"
+    }
+  },
+  "notes": [
+    "Scaffolding run: agent not invoked; verifier judges repository state only.",
+    "mode=oracle"
+  ],
+  "worktreeRelative": "evaluation/runtime/attempts/final-E03-a03"
+}

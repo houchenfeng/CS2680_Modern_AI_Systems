@@ -1,0 +1,67 @@
+{
+  "taskId": "E01",
+  "taskVersion": "1.0.0",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "attemptId": "final-E01-a01",
+  "mode": "oracle",
+  "cacheStratum": "cold",
+  "status": "complete",
+  "success": true,
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "baselineHash": "3571aad62bb1ac5cd3ab03cb2e112fe3f512c37340a3a087d80133c5c265eece",
+  "finalDiffHash": "3571aad62bb1ac5cd3ab03cb2e112fe3f512c37340a3a087d80133c5c265eece",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "pricingMeta": {
+    "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+    "retrievedAt": "2026-09-02T00:00:00.000Z",
+    "effectiveAt": "2026-09-02T00:00:00.000Z",
+    "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "cacheWriteBillingAssumption": "bill_as_miss"
+  },
+  "utcDate": "2026-09-03T02:14:07.731Z",
+  "timezone": "Asia/Shanghai",
+  "providerCostUsd": 0.18,
+  "normalizedPeakCostUsd": 0.18,
+  "wallClockMs": 249,
+  "timeToFirstUsefulMs": 200,
+  "turns": 2,
+  "toolCalls": 1,
+  "toolErrors": 0,
+  "failureClassification": null,
+  "failureConfidence": null,
+  "evidenceRefs": [
+    "verifier:E01:pass"
+  ],
+  "interruptions": [],
+  "verifier": {
+    "status": "pass",
+    "exitCode": 0,
+    "checks": [
+      {
+        "name": "event-normalizer.test.ts exists",
+        "passed": true,
+        "detail": "present"
+      },
+      {
+        "name": "same message ID with three fragments",
+        "passed": true,
+        "detail": "fixture phrase required in event-normalizer.test.ts"
+      },
+      {
+        "name": "events.ts has callUsage",
+        "passed": true,
+        "detail": "callUsage symbol present"
+      }
+    ],
+    "fileHashes": {
+      "server/event-normalizer.test.ts": "ecff532a9ede05715ce49def1e89cc5496f9f1ccd0c8d9e451a42ad1f6f41742",
+      "server/events.ts": "642a810fc670be69e511d4232c3a3a52469b4f2b26d5fcaabcc672d278f4ef8b"
+    }
+  },
+  "notes": [
+    "Scaffolding run: agent not invoked; verifier judges repository state only.",
+    "mode=oracle"
+  ],
+  "worktreeRelative": "evaluation/runtime/attempts/final-E01-a01"
+}

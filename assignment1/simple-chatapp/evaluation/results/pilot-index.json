@@ -1,0 +1,281 @@
+{
+  "phase": "pilot",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "baselineCommit": "EVAL_BASELINE",
+  "total": 30,
+  "successes": 21,
+  "failures": 9,
+  "harnessErrors": 0,
+  "results": [
+    {
+      "attemptId": "pilot-E01-a01",
+      "taskId": "E01",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E01-a02",
+      "taskId": "E01",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E01-a03",
+      "taskId": "E01",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "inconclusive",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E02-a01",
+      "taskId": "E02",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E02-a02",
+      "taskId": "E02",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E02-a03",
+      "taskId": "E02",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "tool",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E03-a01",
+      "taskId": "E03",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E03-a02",
+      "taskId": "E03",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E03-a03",
+      "taskId": "E03",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "harness",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E04-a01",
+      "taskId": "E04",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E04-a02",
+      "taskId": "E04",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E04-a03",
+      "taskId": "E04",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "specification",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E05-a01",
+      "taskId": "E05",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E05-a02",
+      "taskId": "E05",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E05-a03",
+      "taskId": "E05",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "harness",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E06-a01",
+      "taskId": "E06",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E06-a02",
+      "taskId": "E06",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E06-a03",
+      "taskId": "E06",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "inconclusive",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E07-a01",
+      "taskId": "E07",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E07-a02",
+      "taskId": "E07",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E07-a03",
+      "taskId": "E07",
+      "success": true,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E08-a01",
+      "taskId": "E08",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E08-a02",
+      "taskId": "E08",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E08-a03",
+      "taskId": "E08",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "harness",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E09-a01",
+      "taskId": "E09",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E09-a02",
+      "taskId": "E09",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E09-a03",
+      "taskId": "E09",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "specification",
+      "providerCostUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E10-a01",
+      "taskId": "E10",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E10-a02",
+      "taskId": "E10",
+      "success": true,
+      "status": "complete",
+      "mode": "oracle",
+      "failureClassification": null,
+      "providerCostUsd": 0.18
+    },
+    {
+      "attemptId": "pilot-E10-a03",
+      "taskId": "E10",
+      "success": false,
+      "status": "complete",
+      "mode": "broken",
+      "failureClassification": "inconclusive",
+      "providerCostUsd": 0.55
+    }
+  ]
+}

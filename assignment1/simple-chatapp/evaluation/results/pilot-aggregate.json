@@ -1,0 +1,330 @@
+{
+  "phase": "pilot",
+  "overall": {
+    "attempts": 30,
+    "successes": 20,
+    "successRate": 0.6666666666666666,
+    "bernoulliVariance": 0.22222222222222224,
+    "providerCostPerCompletion": 0.4549999999999999,
+    "providerCostPerCompletionRounded": 0.45,
+    "peakCostPerCompletion": 0.4549999999999999,
+    "peakCostPerCompletionRounded": 0.45,
+    "failedCostShare": 0.6043956043956045,
+    "wall": {
+      "mean": 198.46666666666667,
+      "sampleStddev": 63.823967681230165,
+      "median": 176,
+      "min": 130,
+      "max": 353,
+      "iqr": 104.75
+    },
+    "ttfu": {
+      "mean": 160,
+      "sampleStddev": 41.03913408340616,
+      "median": 160,
+      "min": 120,
+      "max": 200,
+      "iqr": 80
+    }
+  },
+  "byTask": {
+    "E01": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 206,
+        "sampleStddev": 54.80875842417888,
+        "median": 186,
+        "min": 164,
+        "max": 268,
+        "iqr": 52
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "inconclusive": 1
+      }
+    },
+    "E02": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 150,
+        "sampleStddev": 28.687976575562104,
+        "median": 136,
+        "min": 131,
+        "max": 183,
+        "iqr": 26
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "tool": 1
+      }
+    },
+    "E03": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 180,
+        "sampleStddev": 83.16249154516716,
+        "median": 134,
+        "min": 130,
+        "max": 276,
+        "iqr": 73
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "harness": 1
+      }
+    },
+    "E04": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 207.33333333333334,
+        "sampleStddev": 85.62904491662472,
+        "median": 177,
+        "min": 141,
+        "max": 304,
+        "iqr": 81.5
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "specification": 1
+      }
+    },
+    "E05": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 200.66666666666666,
+        "sampleStddev": 71.84242015225638,
+        "median": 188,
+        "min": 136,
+        "max": 278,
+        "iqr": 71
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "harness": 1
+      }
+    },
+    "E06": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 213.66666666666666,
+        "sampleStddev": 77.03462424996525,
+        "median": 196,
+        "min": 147,
+        "max": 298,
+        "iqr": 75.5
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "inconclusive": 1
+      }
+    },
+    "E07": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 198.33333333333334,
+        "sampleStddev": 64.06507108661735,
+        "median": 174,
+        "min": 150,
+        "max": 271,
+        "iqr": 60.5
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "tool": 1
+      }
+    },
+    "E08": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 174.66666666666666,
+        "sampleStddev": 18.903262505010435,
+        "median": 168,
+        "min": 160,
+        "max": 196,
+        "iqr": 18
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "harness": 1
+      }
+    },
+    "E09": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 271.3333333333333,
+        "sampleStddev": 102.72455078185222,
+        "median": 305,
+        "min": 156,
+        "max": 353,
+        "iqr": 98.5
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "specification": 1
+      }
+    },
+    "E10": {
+      "attempts": 3,
+      "successes": 2,
+      "successRate": 0.6666666666666666,
+      "costPerCompletion": 0.455,
+      "costPerCompletionRounded": 0.46,
+      "wall": {
+        "mean": 182.66666666666666,
+        "sampleStddev": 33.17127271199182,
+        "median": 175,
+        "min": 154,
+        "max": 219,
+        "iqr": 32.5
+      },
+      "ttfu": {
+        "mean": 160,
+        "sampleStddev": 56.568542494923804,
+        "median": 160,
+        "min": 120,
+        "max": 200,
+        "iqr": 40
+      },
+      "failureClasses": {
+        "inconclusive": 1
+      }
+    }
+  },
+  "byCache": {
+    "cold": {
+      "attempts": 20,
+      "successes": 10,
+      "successRate": 0.5
+    },
+    "hot": {
+      "attempts": 10,
+      "successes": 10,
+      "successRate": 1
+    }
+  },
+  "failureDistribution": {
+    "inconclusive": 3,
+    "tool": 2,
+    "harness": 3,
+    "specification": 2
+  },
+  "caseStudies": [
+    {
+      "attemptId": "pilot-E01-a03",
+      "taskId": "E01",
+      "classification": "inconclusive",
+      "costUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E02-a03",
+      "taskId": "E02",
+      "classification": "tool",
+      "costUsd": 0.55
+    },
+    {
+      "attemptId": "pilot-E03-a03",
+      "taskId": "E03",
+      "classification": "harness",
+      "costUsd": 0.55
+    }
+  ]
+}

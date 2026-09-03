@@ -1,0 +1,65 @@
+{
+  "taskId": "E10",
+  "taskVersion": "1.0.0",
+  "manifestHash": "54d9b3a5ea38956e5d1d06e27c3f369fccb8d8acb03b8195a5882c41ddc9c839",
+  "scorerVersion": "eval-scorer-1.0.0",
+  "attemptId": "final-E10-a07",
+  "mode": "oracle",
+  "cacheStratum": "cold",
+  "status": "complete",
+  "success": true,
+  "baselineCommit": "405c3d1d0a9e207eeed35a25d52021c16020ef57",
+  "baselineHash": "e7b3ef00167ea5aba0237dc2a0c88687007b5b0679011ca1e7740d2750205dd7",
+  "finalDiffHash": "e7b3ef00167ea5aba0237dc2a0c88687007b5b0679011ca1e7740d2750205dd7",
+  "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+  "pricingMeta": {
+    "pricingVersion": "deepseek-v4-pro-peak-2026-09-02",
+    "retrievedAt": "2026-09-02T00:00:00.000Z",
+    "effectiveAt": "2026-09-02T00:00:00.000Z",
+    "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing/",
+    "cacheWriteBillingAssumption": "bill_as_miss"
+  },
+  "utcDate": "2026-09-03T02:14:32.675Z",
+  "timezone": "Asia/Shanghai",
+  "providerCostUsd": 0.18,
+  "normalizedPeakCostUsd": 0.18,
+  "wallClockMs": 283,
+  "timeToFirstUsefulMs": 200,
+  "turns": 2,
+  "toolCalls": 1,
+  "toolErrors": 0,
+  "failureClassification": null,
+  "failureConfidence": null,
+  "evidenceRefs": [
+    "verifier:E10:pass"
+  ],
+  "interruptions": [],
+  "verifier": {
+    "status": "pass",
+    "exitCode": 0,
+    "checks": [
+      {
+        "name": "failure-diagnosis.ts exists",
+        "passed": true
+      },
+      {
+        "name": "FailureDiagnosisPanel.tsx exists",
+        "passed": true
+      },
+      {
+        "name": "cost fixture conceptually present",
+        "passed": true,
+        "detail": "metrics costPerCompletedTask or fixture rates"
+      }
+    ],
+    "fileHashes": {
+      "server/failure-diagnosis.ts": "0e449241dc0eb8d4b9ba3e55a9aa4b697f7208b961cde75b46dd949ba8df1b99",
+      "client/components/FailureDiagnosisPanel.tsx": "beeb2044a52af2a4f1602ec6741012324e3e9b8047297a14b97cf22bc706cafc"
+    }
+  },
+  "notes": [
+    "Scaffolding run: agent not invoked; verifier judges repository state only.",
+    "mode=oracle"
+  ],
+  "worktreeRelative": "evaluation/runtime/attempts/final-E10-a07"
+}
