@@ -2,7 +2,8 @@ const SENSITIVE_KEY =
   /^(authorization|x-api-key|anthropic_auth_token|anthropic_api_key|api[_-]?key|token)$/i;
 const SECRET_VALUE =
   /(?:sk-[A-Za-z0-9._-]{12,}|Bearer\s+[A-Za-z0-9._~+/-]{12,})/gi;
-const MAX_STRING_LENGTH = 64_000;
+/** Soft cap for accidental megabyte dumps; UI still folds at 64KiB via evidence-store. */
+const MAX_STRING_LENGTH = 16 * 1024 * 1024;
 
 export function redact(value: unknown): unknown {
   if (typeof value === "string") {

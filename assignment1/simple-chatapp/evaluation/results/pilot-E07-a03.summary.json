@@ -59,5 +59,11 @@
     "mode=broken",
     "broken mode deleted server/session.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/pilot-E07-a03"
+  "worktreeRelative": "evaluation/runtime/attempts/pilot-E07-a03",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

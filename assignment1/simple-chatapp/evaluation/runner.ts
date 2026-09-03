@@ -330,6 +330,15 @@ export function toRedactedSummary(record: AttemptRecord): Record<string, unknown
     turns: record.turns,
     toolCalls: record.toolCalls,
     toolErrors: record.toolErrors,
+    coverageResidual: record.coverageResidual,
+    coverage:
+      record.coverageResidual &&
+      typeof record.coverageResidual === "object" &&
+      record.coverageResidual !== null &&
+      "coverage" in record.coverageResidual
+        ? (record.coverageResidual as { coverage?: number | null }).coverage ??
+          null
+        : null,
     failureClassification: record.failureClassification,
     failureConfidence: record.failureConfidence,
     evidenceRefs: record.evidenceRefs,

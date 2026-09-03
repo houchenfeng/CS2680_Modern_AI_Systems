@@ -9,7 +9,7 @@ import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { redact } from "./redaction.js";
 
-export const UI_FOLD_THRESHOLD = 64_000;
+export const UI_FOLD_THRESHOLD = 64 * 1024;
 
 export interface EvidenceMeta {
   schemaVersion: 1;

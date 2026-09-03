@@ -59,5 +59,11 @@
     "mode=broken",
     "broken mode deleted server/context-diff.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/final-E06-a10"
+  "worktreeRelative": "evaluation/runtime/attempts/final-E06-a10",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

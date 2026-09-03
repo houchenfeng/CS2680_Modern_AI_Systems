@@ -174,3 +174,4 @@
 - 作业写作可引用结果：`evaluation/results/final-aggregate.json`、`pilot-aggregate.json`、各 `*.summary.json`
 - [x] 第三步与全部改造完成。
 - 审计补记（2026-09-03）：勾选项齐全；Section 2 任务表已回填；Final push 范围纠正为含 docs tip。
+- 审计 follow-up（must-fix）：`toRedactedSummary` 现导出 `coverage` + `coverageResidual`；已回填全部 130 份 `*.summary.json`（oracle 0.98 / broken 0.91）。Final tip 随本批 push 更新。

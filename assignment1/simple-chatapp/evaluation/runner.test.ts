@@ -11,7 +11,13 @@ import {
   costFixtureRounded,
 } from "./metrics.js";
 import { runVerifier } from "./verifiers/index.js";
-import { RESULTS_DIR, RUNTIME_DIR, runAttempt } from "./runner.js";
+import {
+  RESULTS_DIR,
+  RUNTIME_DIR,
+  runAttempt,
+  toRedactedSummary,
+  type AttemptRecord,
+} from "./runner.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = join(__dirname, "..");
@@ -34,6 +40,47 @@ test("cost formula fixture rounds to $0.42/completion", () => {
   assert.ok(exact !== undefined);
   assert.equal(Number(exact!.toFixed(4)), 0.4157);
   assert.equal(costFixtureRounded(), 0.42);
+});
+
+test("toRedactedSummary exports coverage and coverageResidual", () => {
+  const record = {
+    taskId: "E01",
+    taskVersion: "1.0.0",
+    manifestHash: "abc",
+    scorerVersion: "eval-scorer-1.0.0",
+    attemptId: "final-E01-a01",
+    mode: "oracle",
+    cacheStratum: "cold",
+    status: "complete",
+    success: true,
+    baselineCommit: "405c3d1",
+    baselineHash: "h1",
+    finalDiffHash: "h1",
+    pricingVersion: "deepseek-v4-pro-peak-2026-09-02",
+    utcDate: "2026-09-03T00:00:00.000Z",
+    timezone: "Asia/Shanghai",
+    providerCostUsd: 0.18,
+    normalizedPeakCostUsd: 0.18,
+    wallClockMs: 100,
+    timeToFirstUsefulMs: 50,
+    turns: 2,
+    toolCalls: 1,
+    toolErrors: 0,
+    coverageResidual: { coverage: 0.98, residual: 20, authoritative: true },
+    failureClassification: null,
+    failureConfidence: null,
+    evidenceRefs: ["verifier:E01:pass"],
+    interruptions: [],
+    verifierResult: null,
+    notes: [],
+  } as unknown as AttemptRecord;
+  const summary = toRedactedSummary(record);
+  assert.equal(summary.coverage, 0.98);
+  assert.deepEqual(summary.coverageResidual, {
+    coverage: 0.98,
+    residual: 20,
+    authoritative: true,
+  });
 });
 
 test("verifier E04 passes on current app cwd", async () => {

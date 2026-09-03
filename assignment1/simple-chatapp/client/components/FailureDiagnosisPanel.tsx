@@ -33,7 +33,11 @@ interface Diagnosis {
     conclusion: string;
   };
   classification:
-    "tool" | "harness" | "specification" | "model" | "inconclusive";
+    | "tool"
+    | "harness"
+    | "specification"
+    | "model"
+    | "inconclusive";
   confidence: "high" | "medium" | "low";
   evidenceRefs: string[];
   revision?: number;
@@ -46,6 +50,13 @@ function statusColor(status: CheckStatus) {
   if (status === "fail") return "text-red-700";
   if (status === "not_applicable") return "text-slate-500";
   return "text-amber-700";
+}
+
+function stepFailed(draft: Diagnosis, index: number): boolean {
+  if (index === 0) return draft.toolCheck.status === "fail";
+  if (index === 1) return draft.contextCheck.status === "fail";
+  if (index === 2) return draft.specificationCheck.status === "fail";
+  return draft.modelCheck.status === "fail";
 }
 
 export function FailureDiagnosisPanel({
@@ -61,7 +72,10 @@ export function FailureDiagnosisPanel({
   const [selectedKey, setSelectedKey] = useState("tool");
   const [draft, setDraft] = useState<Diagnosis | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
+  /** Furthest step the user may open; advances only via Next. */
+  const [maxReached, setMaxReached] = useState(0);
   const [evidenceInput, setEvidenceInput] = useState("");
+  const [reviseNote, setReviseNote] = useState("");
   const [error, setError] = useState("");
   const [savedId, setSavedId] = useState("");
 
@@ -74,32 +88,30 @@ export function FailureDiagnosisPanel({
         setDraft(payload.tool);
         setSelectedKey("tool");
         setStepIndex(0);
+        setMaxReached(0);
       })
       .catch((caught) => setError(caught.message));
   }, [active]);
 
-  const lockedSteps = useMemo(() => {
-    if (!draft)
-      return { tool: false, harness: true, specification: true, model: true };
-    return {
-      tool: false,
-      harness: draft.toolCheck.status === "fail",
-      specification:
-        draft.toolCheck.status === "fail" ||
-        draft.contextCheck.status === "fail",
-      model:
-        draft.toolCheck.status !== "pass" ||
-        draft.contextCheck.status !== "pass" ||
-        draft.specificationCheck.status !== "pass",
-    };
+  const failLockIndex = useMemo(() => {
+    if (!draft) return 3;
+    for (let index = 0; index < STEPS.length; index += 1) {
+      if (stepFailed(draft, index)) return index;
+    }
+    return STEPS.length - 1;
   }, [draft]);
+
+  const canOpenStep = (index: number) =>
+    index <= maxReached && index <= failLockIndex;
 
   const loadFixture = (key: string) => {
     if (!fixtures) return;
     setSelectedKey(key);
     setDraft(fixtures[key]);
     setStepIndex(0);
+    setMaxReached(0);
     setSavedId("");
+    setReviseNote("");
     setError("");
   };
 
@@ -115,6 +127,18 @@ export function FailureDiagnosisPanel({
       },
     });
     setEvidenceInput("");
+  };
+
+  const goNext = () => {
+    if (!draft) return;
+    if (stepFailed(draft, stepIndex)) return;
+    const next = Math.min(stepIndex + 1, STEPS.length - 1);
+    setStepIndex(next);
+    setMaxReached((prev) => Math.max(prev, next));
+  };
+
+  const goPrev = () => {
+    setStepIndex((prev) => Math.max(0, prev - 1));
   };
 
   const saveDiagnosis = async () => {
@@ -143,6 +167,42 @@ export function FailureDiagnosisPanel({
     setDraft(saved);
   };
 
+  const reviseSaved = async () => {
+    if (!draft || !savedId) return;
+    if (!draft.evidenceRefs.length) {
+      setError("修订同样需要 evidenceRef。");
+      return;
+    }
+    const taskId = encodeURIComponent(draft.taskId);
+    const response = await fetch(
+      `/api/failure-diagnoses/${taskId}/${encodeURIComponent(savedId)}/revise`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classification: draft.classification,
+          confidence: draft.confidence,
+          toolCheck: draft.toolCheck,
+          contextCheck: draft.contextCheck,
+          specificationCheck: draft.specificationCheck,
+          modelCheck: draft.modelCheck,
+          addedEvidenceRefs: draft.evidenceRefs,
+          note: reviseNote || "manual revision from diagnosis wizard",
+        }),
+      },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(
+        body.error?.message || `Revise failed (${response.status})`,
+      );
+    }
+    const revision = (await response.json()) as Diagnosis;
+    setDraft(revision);
+    setSavedId(revision.diagnosisId);
+    setReviseNote("");
+  };
+
   if (!active) return null;
 
   return (
@@ -151,8 +211,9 @@ export function FailureDiagnosisPanel({
         <header className="rounded-lg border border-slate-200 bg-white p-4">
           <h1 className="text-lg font-semibold">Failure Diagnosis Wizard</h1>
           <p className="mt-1 text-sm text-slate-600">
-            固定顺序：Tool → Harness/Context → Specification → Model。前一步
-            fail 后后续为 not_reached；无 evidence 只能 inconclusive。
+            固定顺序：Tool → Harness/Context → Specification →
+            Model。须用 Next 逐步推进；前一步 fail 后后续不可进入；无 evidence
+            只能 inconclusive。
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {fixtures
@@ -182,7 +243,7 @@ export function FailureDiagnosisPanel({
                   <button
                     key={step}
                     type="button"
-                    disabled={index > 0 && lockedSteps[STEPS[index]]}
+                    disabled={!canOpenStep(index)}
                     onClick={() => setStepIndex(index)}
                     className={`rounded px-3 py-1.5 text-sm capitalize ${
                       stepIndex === index
@@ -193,6 +254,28 @@ export function FailureDiagnosisPanel({
                     {index + 1}. {step}
                   </button>
                 ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  disabled={stepIndex === 0}
+                  className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={
+                    stepIndex >= STEPS.length - 1 ||
+                    stepFailed(draft, stepIndex) ||
+                    stepIndex >= failLockIndex
+                  }
+                  className="rounded border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+                >
+                  Next
+                </button>
               </div>
               <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                 <div>
@@ -211,6 +294,12 @@ export function FailureDiagnosisPanel({
                   <dt className="text-xs text-slate-500">Confidence</dt>
                   <dd>{draft.confidence}</dd>
                 </div>
+                {typeof draft.revision === "number" ? (
+                  <div>
+                    <dt className="text-xs text-slate-500">Revision</dt>
+                    <dd>{draft.revision}</dd>
+                  </div>
+                ) : null}
               </dl>
             </section>
 
@@ -284,6 +373,30 @@ export function FailureDiagnosisPanel({
                   Persist diagnosis
                 </button>
               </div>
+              {savedId ? (
+                <div className="mt-3 flex flex-wrap items-end gap-2 rounded border border-amber-200 bg-amber-50 p-3">
+                  <label className="text-xs text-slate-600">
+                    Revise note (append-only revision)
+                    <input
+                      value={reviseNote}
+                      onChange={(event) => setReviseNote(event.target.value)}
+                      className="mt-1 block w-72 rounded border border-slate-300 px-2 py-1 text-sm"
+                      placeholder="why classification changed"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void reviseSaved().catch((caught) =>
+                        setError(caught.message),
+                      )
+                    }
+                    className="rounded border border-amber-700 px-3 py-1.5 text-amber-900"
+                  >
+                    Revise diagnosis
+                  </button>
+                </div>
+              ) : null}
               <p className="mt-2 text-xs text-slate-500">
                 Evidence refs: {draft.evidenceRefs.join(", ") || "(none)"}
               </p>

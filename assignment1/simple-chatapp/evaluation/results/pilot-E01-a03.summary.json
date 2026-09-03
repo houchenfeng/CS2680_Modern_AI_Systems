@@ -64,5 +64,11 @@
     "mode=broken",
     "broken mode deleted server/event-normalizer.test.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/pilot-E01-a03"
+  "worktreeRelative": "evaluation/runtime/attempts/pilot-E01-a03",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

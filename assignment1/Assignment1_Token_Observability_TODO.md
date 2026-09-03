@@ -249,3 +249,4 @@ normalizedPeakCostUsd =
 - 最终 push：`成功 2026-09-03；首次 TLS handshake 失败后重试成功；origin/main a601e12..0a9d4de`（docs tip `0a9d4de`）
 - [x] 第一步完成，可以进入失败证据与诊断。
 - 审计补记（2026-09-03）：复查发现 firstVisible/firstUseful 仅有类型与 unit timing、未从 SSE 打点；Claude Code 版本字段曾写“待确认”；已补齐代理打点、Calls UI、init 字段说明，并追加 TOKEN_PROVENANCE_REPORT §10。
+- 审计 follow-up：Calls 增加 `passesGate===false` 醒目警告与 evidence 列；coverage gate UI 对齐完成标准。

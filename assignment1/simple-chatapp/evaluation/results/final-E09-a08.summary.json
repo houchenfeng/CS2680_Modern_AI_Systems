@@ -55,5 +55,11 @@
     "mode=broken",
     "broken mode deleted server/task-spec.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/final-E09-a08"
+  "worktreeRelative": "evaluation/runtime/attempts/final-E09-a08",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

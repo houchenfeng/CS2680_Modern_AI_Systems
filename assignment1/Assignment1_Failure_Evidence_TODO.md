@@ -134,3 +134,4 @@
 - 最终 push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] 第二步完成，可以进入十任务重复评测。
 - 审计补记（2026-09-03）：复查三份 TODO 时确认 F1–F5 合并提交 SHA 已回填；Diagnosis UI 强制 Tool→Harness→Specification→Model；无未勾选项。
+- 审计 follow-up：Diagnosis 向导改为 Prev/Next 强制步进（不可跳步）；增加 Revise（`POST .../revise`）；`UI_FOLD_THRESHOLD=64KiB`；redact 不再在 64KB 截断完整 evidence（UI fold 负责折叠）。`data/` 已在 `.gitignore`。

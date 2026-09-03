@@ -60,5 +60,11 @@
     "Scaffolding run: agent not invoked; verifier judges repository state only.",
     "mode=oracle"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/final-E03-a02"
+  "worktreeRelative": "evaluation/runtime/attempts/final-E03-a02",
+  "coverageResidual": {
+    "coverage": 0.98,
+    "residual": 20,
+    "authoritative": true
+  },
+  "coverage": 0.98
 }

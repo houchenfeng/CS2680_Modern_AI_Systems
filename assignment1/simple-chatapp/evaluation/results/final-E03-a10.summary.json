@@ -60,5 +60,11 @@
     "mode=broken",
     "broken mode deleted server/context-ledger.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/final-E03-a10"
+  "worktreeRelative": "evaluation/runtime/attempts/final-E03-a10",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

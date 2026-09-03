@@ -60,5 +60,11 @@
     "mode=broken",
     "broken mode deleted server/event-normalizer.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/final-E02-a08"
+  "worktreeRelative": "evaluation/runtime/attempts/final-E02-a08",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

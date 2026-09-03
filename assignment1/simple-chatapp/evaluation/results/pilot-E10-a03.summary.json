@@ -62,5 +62,11 @@
     "mode=broken",
     "broken mode deleted server/failure-diagnosis.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/pilot-E10-a03"
+  "worktreeRelative": "evaluation/runtime/attempts/pilot-E10-a03",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

@@ -61,5 +61,11 @@
     "mode=broken",
     "broken mode deleted server/evidence-store.ts"
   ],
-  "worktreeRelative": "evaluation/runtime/attempts/final-E05-a08"
+  "worktreeRelative": "evaluation/runtime/attempts/final-E05-a08",
+  "coverageResidual": {
+    "coverage": 0.91,
+    "residual": 120,
+    "authoritative": false
+  },
+  "coverage": 0.91
 }

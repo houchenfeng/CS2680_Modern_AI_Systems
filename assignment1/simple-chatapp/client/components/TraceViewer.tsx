@@ -712,6 +712,11 @@ function CallsPanel({ calls }: { calls: CallViewModel[] }) {
                       ? "unavailable"
                       : `${(call.coverage * 100).toFixed(2)}%`}
                   </div>
+                  {call.passesGate === false ? (
+                    <div className="font-semibold text-amber-700">
+                      below 95% gate
+                    </div>
+                  ) : null}
                   <div>
                     in{" "}
                     {formatMaybe(
@@ -781,6 +786,7 @@ function CallsPanel({ calls }: { calls: CallViewModel[] }) {
                       <th>Source</th>
                       <th>Tokens</th>
                       <th>Share</th>
+                      <th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -793,11 +799,34 @@ function CallsPanel({ calls }: { calls: CallViewModel[] }) {
                             ? `${(source.share * 100).toFixed(2)}%`
                             : "unavailable"}
                         </td>
+                        <td className="font-mono text-[10px] text-slate-500">
+                          {String(
+                            source.evidence ||
+                              source.measurement ||
+                              source.method ||
+                              "—",
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            ) : null}
+            {call.passesGate === false ? (
+              <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                Coverage gate failed (&lt;95%). Residual{" "}
+                {formatMaybe(call.residual)}.
+                {call.coverageReason ? ` ${call.coverageReason}` : ""}
+                {call.evidence?.length
+                  ? ` Evidence: ${call.evidence.join("; ")}`
+                  : ""}
+              </div>
+            ) : null}
+            {call.evidence?.length && call.passesGate !== false ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Evidence: {call.evidence.join("; ")}
+              </p>
             ) : null}
             {previous ? (
               <div className="mt-3 rounded border border-slate-100 bg-slate-50 p-3 text-xs">

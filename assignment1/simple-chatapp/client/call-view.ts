@@ -18,6 +18,8 @@ export interface CallViewModel {
   coverage?: number | null;
   residual?: number | null;
   coverageReason?: string;
+  passesGate?: boolean | null;
+  evidence?: string[];
   sources?: Array<Record<string, unknown>>;
   fragments: AgentEvent[];
   observation?: AgentEvent;
@@ -125,6 +127,8 @@ export function buildCallViewModels(events: AgentEvent[]): CallViewModel[] {
                 coverage?: number | null;
                 residual?: number | null;
                 reason?: string;
+                passesGate?: boolean | null;
+                requestHash?: string;
               };
               sources?: Array<Record<string, unknown>>;
             }
@@ -132,6 +136,17 @@ export function buildCallViewModels(events: AgentEvent[]): CallViewModel[] {
         model.coverage = ledger?.coverage?.coverage ?? null;
         model.residual = ledger?.coverage?.residual ?? null;
         model.coverageReason = ledger?.coverage?.reason;
+        model.passesGate = ledger?.coverage?.passesGate ?? null;
+        const evidence: string[] = [];
+        if (model.requestHash) evidence.push(`requestHash:${model.requestHash}`);
+        if (ledger?.coverage?.requestHash) {
+          evidence.push(`coverageHash:${ledger.coverage.requestHash}`);
+        }
+        if (model.providerRequestId) {
+          evidence.push(`provider:${model.providerRequestId}`);
+        }
+        if (model.callId) evidence.push(`callId:${model.callId}`);
+        model.evidence = evidence;
         model.sources = ledger?.sources;
       }
       continue;
