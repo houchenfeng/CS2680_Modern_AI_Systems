@@ -245,6 +245,7 @@ normalizedPeakCostUsd =
 - Cache 与价格结论：`cache overlay 与内容来源分离；cache-write 按 miss；normalizedPeakCostUsd 与 provider cost 并存`
 - 耗时结论：`proxy 记录 queued/sent/TTFB/firstVisible/firstUseful/completed；并行工具用关键路径；Calls UI 展示 TTFV/TTFU`
 - 剩余限制：`不落盘大体积真实 trace；TOKEN_PROVENANCE_REPORT 历史数字未改，仅追加实现记录；live Claude Code 版本依赖 init 事件`
-- 最终 commit：`待本批 timing 补齐后回填`
-- 最终 push：`待填写`
-- [ ] 第一步完成，可以进入失败证据与诊断。
+- 最终 commit：`61b33f4d529b526ae2345dbacddabd551ba3e589`（SSE TTFV/TTFU 补齐；此前功能至 `aab1cc6` / UI `616d107`）
+- 最终 push：`待 push 回填`
+- [x] 第一步完成，可以进入失败证据与诊断。
+- 审计补记（2026-09-03）：复查发现 firstVisible/firstUseful 仅有类型与 unit timing、未从 SSE 打点；Claude Code 版本字段曾写“待确认”；已补齐代理打点、Calls UI、init 字段说明，并追加 TOKEN_PROVENANCE_REPORT §10。

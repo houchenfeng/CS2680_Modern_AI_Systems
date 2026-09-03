@@ -43,7 +43,22 @@
 
 ## 2. 冻结的十任务评测集
 
-已写入 `evaluation/tasks-v1.json`（E01–E10 完整 prompt/criteria/verifierId）。
+已写入 `evaluation/tasks-v1.json`（manifest hash `54d9b3a5…`；每任务含 prompt、acceptanceCriteria、firstUsefulPredicate、verifierId、allowedPaths/Tools、timeout/maxTurns、pricingVersion）。
+
+| ID | Title | Verifier |
+|---|---|---|
+| E01 | Assistant fragment 去重与调用关联 | `e01.ts` |
+| E02 | Compaction、Hook 与未知 SDK block | `e02.ts` |
+| E03 | 逐调用 Context Ledger 与 95% gate | `e03.ts` |
+| E04 | 版本化 DeepSeek Peak Pricing | `e04.ts` |
+| E05 | 完整 Tool Error Artifact 与安全 Replay | `e05.ts` |
+| E06 | Designed vs Sent Context Diff | `e06.ts` |
+| E07 | Resume 多轮上下文完整性 | `e07.ts` |
+| E08 | Permission/Stop/Timeout 失败证据链 | `e08.ts` |
+| E09 | 冻结 Task Spec 与 Repository Verifier | `e09.ts` |
+| E10 | 四步失败诊断与统计面板 | `e10.ts` |
+
+- [x] 十任务标题、criteria、predicate、verifier 已在 manifest 冻结并可复现 hash。
 
 ## 3. 阶段 E1 — Manifest 与 Verifier 冻结
 
@@ -152,9 +167,10 @@
 
 ### 最终记录
 
-- Final commit：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`（结果与 E07/tsconfig）；文档回填：`00a2ce4`
-- Final push：`成功 12f7ac8..00a2ce4`
+- Final commit：`361b5a39ed80c0772cc2c80be9beb080b28a7a7c`（结果与 E07/tsconfig）；文档 tip：`a601e128ec255b2bae334bde2d52144ae21befa5`
+- Final push：`成功 12f7ac8..a601e12`
 - 远端 branch：`main`
-- 已知限制：`评测 harness 使用 oracle/broken 仓库态（非 live 百次 LLM agent）。成本为固定 scaffolding 0.18/0.55 以验证公式与失败入分子；与 DeepSeek 峰段定价模块并存于 attempt.pricingVersion。`
+- 已知限制：`评测 harness 使用 oracle/broken 仓库态（非 live 百次 LLM agent）。成本为固定 scaffolding 0.18/0.55 以验证公式与失败入分子；与 DeepSeek 峰段定价模块并存于 attempt.pricingVersion。审计补记：三份 TODO 复查后补齐任务表与 push 范围；非要求改跑 live×100。`
 - 作业写作可引用结果：`evaluation/results/final-aggregate.json`、`pilot-aggregate.json`、各 `*.summary.json`
 - [x] 第三步与全部改造完成。
+- 审计补记（2026-09-03）：勾选项齐全；Section 2 任务表已回填；Final push 范围纠正为含 docs tip。

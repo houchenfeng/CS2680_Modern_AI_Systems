@@ -65,8 +65,8 @@
 - 修改文件：`server/evidence-store.ts`, `evidence-store.test.ts`, `failure-fields.ts`, `.gitignore`, `session.ts`
 - 证据样例 IDs：`ev-{sha256[:16]}`；index.jsonl 按 run 追加
 - 脱敏检查：嵌套 key/Bearer 单测通过；evidence/ gitignore
-- Commit SHA：`见本文件最终 commit（Failure 合并提交）`
-- Push：`见最终 push`
+- Commit SHA：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
+- Push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] F1 已测试、commit 并成功 push。
 
 ## 3. 阶段 F2 — Tool Ground Truth 与 Agent 外重放
@@ -79,8 +79,8 @@
 - 成功 replay：Read match 单测
 - 失败 replay：replay_failed → inconclusive
 - Tool failure case：fixture `tool` diagnosis
-- Commit SHA：`见最终`
-- Push：`见最终`
+- Commit SHA：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
+- Push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] F2 已测试、commit 并成功 push。
 
 ## 4. 阶段 F3 — Context Integrity：Designed vs Sent
@@ -93,8 +93,8 @@
 - 一致 case：五轮 identical → pass
 - Harness failure case：fixture `harness`
 - Resume/compaction 结果：单测通过
-- Commit SHA：`见最终`
-- Push：`见最终`
+- Commit SHA：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
+- Push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] F3 已测试、commit 并成功 push。
 
 ## 5. 阶段 F4 — Specification Snapshot 与诊断
@@ -105,8 +105,8 @@
 
 - Spec fixture/version：`failure-verifier-1.0.0`
 - Specification failure case：fixture `specification`
-- Commit SHA：`见最终`
-- Push：`见最终`
+- Commit SHA：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
+- Push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] F4 已测试、commit 并成功 push。
 
 ## 6. 阶段 F5 — Model Failure 与诊断向导
@@ -117,9 +117,9 @@
 
 - 四条 diagnosis IDs：`FAILURE_FIXTURES` tool/harness/specification/model
 - Read loop 最终分类：`harness`
-- UI/自动测试：Diagnosis 页 + 91 tests
-- Commit SHA：`见最终`
-- Push：`见最终`
+- UI/自动测试：Diagnosis 页 + 91 tests（后续 Token/Eval 增测后全仓 >100）
+- Commit SHA：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
+- Push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] F5 已测试、commit 并成功 push。
 
 ## 7. 第二步最终记录
@@ -129,7 +129,8 @@
 - Context diff 结果：`9 DiffKind + pass`
 - 四类失败各案例：`FAILURE_FIXTURES`
 - Evidence 完整率：`大输出落盘 + UI fold；runtime gitignore`
-- 已知限制：`live SSE firstVisible 精细打点仍依赖代理；大体积 evidence 不入库`
+- 已知限制：`大体积 evidence 不入库；live 诊断依赖真实失败 run + evidenceRefs`
 - 最终 commit：`405c3d1d0a9e207eeed35a25d52021c16020ef57`
 - 最终 push：`成功 2026-09-03；origin/main 6dfb02b..405c3d1`
 - [x] 第二步完成，可以进入十任务重复评测。
+- 审计补记（2026-09-03）：复查三份 TODO 时确认 F1–F5 合并提交 SHA 已回填；Diagnosis UI 强制 Tool→Harness→Specification→Model；无未勾选项。
