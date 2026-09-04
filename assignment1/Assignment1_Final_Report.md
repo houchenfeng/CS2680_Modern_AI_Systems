@@ -7,7 +7,7 @@
 > **Repository / 仓库：** `G:/CS2680_Modern_AI_Systems`（branch `main`）  
 > **App root / 应用根目录：** `assignment1/simple-chatapp/`  
 > **Report date / 报告日期：** 2026-09-04  
-> **Tip commit at writing / 成文时 tip：** `5c2b04e9f71ad8ea41b9c1f5bc1e6b4973621097`（本文件入库后 tip 将更新）
+> **Tip commit / 本报告入库 commit：** `43e4b9b4130894b05ad1177a3a5eeceb18e59d08`
 
 ---
 
