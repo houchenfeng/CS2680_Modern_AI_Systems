@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第2讲 Agent Use I: Claude Code 的工作原理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A0A0A;--paper:#FAFAFA;--yellow:#FFE600;--blue:#0047FF;--pink:#FF006E;
+  --mint:#00F5A0;--orange:#FF6B00;
+  --disp:'Archivo Black','Arial Black','Microsoft YaHei',system-ui,sans-serif;
+  --body:'Space Grotesk','Microsoft YaHei',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Courier New',monospace;
+  --sh:6px 6px 0 var(--ink);--sh-sm:4px 4px 0 var(--ink);--brd:3px solid var(--ink);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#101010;font-family:var(--body)}
+body{background:radial-gradient(circle at 18% 12%,#2a2a2a 0,transparent 45%),radial-gradient(circle at 82% 88%,#232323 0,transparent 45%),#101010}
+#viewport{position:fixed;inset:0}
+#stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;transform:translate(-50%,-50%) scale(1);transform-origin:center center}
+.slide{position:absolute;inset:0;width:1280px;height:720px;display:none;flex-direction:column;padding:40px 54px 46px;background-color:var(--paper);background-image:radial-gradient(rgba(10,10,10,.14) 1.3px,transparent 1.3px);background-size:22px 22px;color:var(--ink);overflow:hidden}
+.slide.active{display:flex;animation:slideEnter .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnter{0%{opacity:0;transform:translateX(70px) scale(.985) rotate(.4deg)}100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}}
+.slide.active.from-left{animation:slideEnterL .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnterL{0%{opacity:0;transform:translateX(-70px) scale(.985) rotate(-.4deg)}100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}}
+.slide.active .rise{animation:rise .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .pop{animation:pop .45s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .slide-r{animation:slideR .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .shake{animation:shake .6s both;animation-delay:calc(var(--i,0)*.07s + .15s)}
+@keyframes rise{0%{opacity:0;transform:translateY(26px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{opacity:0;transform:scale(.82) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes slideR{0%{opacity:0;transform:translateX(-40px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-5px) rotate(-1.5deg)}40%{transform:translateX(5px) rotate(1.5deg)}60%{transform:translateX(-4px) rotate(-1deg)}80%{transform:translateX(4px) rotate(1deg)}}
+.slide.active .title-anim{animation:rise .5s .05s both}
+.slide.active .sub-anim{animation:rise .5s .12s both}
+.slide.active .tag-anim{animation:pop .4s both}
+.slide.active .float{animation:float 3.2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(var(--r,-4deg))}50%{transform:translateY(-11px) rotate(var(--r,-4deg))}}
+.cover{background:var(--yellow)!important;background-image:radial-gradient(rgba(10,10,10,.18) 1.5px,transparent 1.5px)!important;background-size:24px 24px!important;justify-content:center;align-items:center;text-align:center}
+.cover .brand{font-family:var(--disp);font-size:22px;background:var(--ink);color:var(--yellow);display:inline-block;padding:8px 18px;border:4px solid var(--ink);transform:rotate(-2deg);box-shadow:var(--sh)}
+.cover h1{font-family:var(--disp);font-size:72px;line-height:1.02;margin:22px 0 10px;letter-spacing:-2px}
+.cover .lead{font-size:24px;font-weight:700;max-width:800px;line-height:1.4}
+.sticker{position:absolute;font-family:var(--disp);border:4px solid var(--ink);box-shadow:var(--sh-sm);padding:8px 14px;font-size:17px;z-index:3}
+.section-div{background:var(--ink)!important;background-image:radial-gradient(rgba(255,255,255,.08) 1.5px,transparent 1.5px)!important;background-size:24px 24px!important;justify-content:center;align-items:center;text-align:center;color:var(--paper)}
+.section-div h1{font-family:var(--disp);font-size:64px;color:var(--yellow);margin-bottom:16px;letter-spacing:-1px}
+.section-div .sub{font-size:22px;color:#ccc;font-weight:500}
+h2{font-family:var(--disp);font-size:42px;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px}
+h3{font-family:var(--disp);font-size:20px;margin-bottom:8px;letter-spacing:-.3px}
+p,li{font-size:17px;line-height:1.55}
+ul,ol{padding-left:24px;margin:8px 0}
+li{margin-bottom:5px}
+.subtitle{font-size:20px;font-weight:500;color:#3a3a3a;margin-top:8px}
+.highlight{color:var(--blue);font-weight:700}
+.small{font-size:14px;color:#6b6b6b;font-weight:500}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--disp);font-size:15px;letter-spacing:.5px;padding:6px 14px;border:3px solid var(--ink);transform:rotate(-1.2deg);box-shadow:var(--sh-sm)}
+.kicker.y{background:var(--ink);color:var(--yellow)}.kicker.b{background:var(--blue);color:#fff}.kicker.p{background:var(--pink);color:#fff}.kicker.g{background:var(--mint);color:var(--ink)}.kicker.o{background:var(--orange);color:#fff}
+.card{background:#fff;border:4px solid var(--ink);box-shadow:var(--sh);padding:16px 18px}
+.card.yellow{background:var(--yellow)}.card.blue{background:var(--blue);color:#fff}.card.blue h3,.card.blue p,.card.blue li{color:#fff}.card.pink{background:var(--pink);color:#fff}.card.pink h3,.card.pink p,.card.pink li{color:#fff}.card.mint{background:var(--mint)}.card.orange{background:var(--orange);color:#fff}.card.orange h3,.card.orange p,.card.orange li{color:#fff}.card.dark{background:var(--ink);color:var(--paper)}.card.dark h3,.card.dark p,.card.dark li{color:var(--paper)}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.nb-list{list-style:none;padding:0}.nb-list li{padding:7px 12px;border-left:4px solid var(--ink);margin-bottom:4px;background:var(--paper);font-size:16px}
+.card.blue .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}.card.pink .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}.card.mint .nb-list li{background:rgba(0,0,0,.06);border-left-color:var(--ink)}
+.nb-code{background:#1b1b1b;color:var(--mint);border:4px solid var(--ink);box-shadow:var(--sh);padding:16px 18px;font-family:var(--mono);font-size:15px;line-height:1.55;white-space:pre-wrap;word-break:break-word;margin:12px 0}
+table{width:100%;border-collapse:collapse;margin:12px 0;border:4px solid var(--ink);box-shadow:var(--sh)}
+th{background:var(--ink);color:var(--paper);font-family:var(--body);font-weight:700;font-size:15px;padding:12px 16px;text-align:left;border:2px solid var(--ink)}
+td{padding:10px 16px;border:2px solid var(--ink);font-size:15px;background:var(--paper)}
+tr:nth-child(even) td{background:#f0f0f0}
+code{background:var(--ink);color:var(--mint);padding:2px 7px;font-family:var(--mono);font-size:.88em;border:2px solid var(--ink)}
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.flow-item{background:var(--ink);color:var(--paper);border:3px solid var(--ink);padding:10px 16px;font-weight:700;font-size:15px;box-shadow:var(--sh-sm)}
+.fi-y{background:var(--yellow);color:var(--ink)}.fi-b{background:var(--blue);color:#fff}.fi-p{background:var(--pink);color:#fff}.fi-g{background:var(--mint);color:var(--ink)}.fi-o{background:var(--orange);color:#fff}
+.flow-arrow{font-size:1.5em;font-weight:700;color:var(--ink)}
+.layer-stack{display:flex;flex-direction:column;gap:4px;margin:12px 0}
+.layer{padding:12px 18px;font-weight:700;font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm)}
+.banner{border:4px solid var(--ink);box-shadow:var(--sh);padding:14px 20px;font-weight:700;font-size:16px;text-align:center;margin:12px 0}
+.ban-y{background:var(--yellow)}.ban-b{background:var(--blue);color:#fff}.ban-p{background:var(--pink);color:#fff}.ban-g{background:var(--mint)}.ban-o{background:var(--orange);color:#fff}.ban-d{background:var(--ink);color:var(--paper)}
+.badge{display:inline-block;background:var(--ink);color:var(--paper);padding:3px 12px;font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.05em;margin-right:6px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+.compare-col h3{font-family:var(--disp);font-size:18px;padding:8px 14px;border:3px solid var(--ink);box-shadow:var(--sh-sm);margin-bottom:10px}
+.compare-col h3.green{background:var(--mint)}.compare-col h3.red{background:var(--pink);color:#fff}
+.step-list{counter-reset:step;list-style:none;padding:0}
+.step-list li{counter-increment:step;display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border:3px solid var(--ink);box-shadow:var(--sh-sm);margin-bottom:7px;background:var(--paper);font-size:16px}
+.step-list li::before{content:counter(step);font-family:var(--disp);font-size:17px;background:var(--ink);color:var(--paper);width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-list li:nth-child(1)::before{background:var(--yellow);color:var(--ink)}.step-list li:nth-child(2)::before{background:var(--blue)}.step-list li:nth-child(3)::before{background:var(--pink)}.step-list li:nth-child(4)::before{background:var(--mint);color:var(--ink)}.step-list li:nth-child(5)::before{background:var(--orange)}
+.top-card{border:3px solid var(--ink);box-shadow:var(--sh);padding:14px 16px;background:var(--paper)}
+.top-card .card-label{font-family:var(--disp);font-weight:700;font-size:15px;margin-bottom:7px;padding:3px 10px;display:inline-block;border:2px solid var(--ink)}
+.cl-y{background:var(--yellow)}.cl-b{background:var(--blue);color:#fff}.cl-p{background:var(--pink);color:#fff}.cl-g{background:var(--mint)}.cl-o{background:var(--orange);color:#fff}
+.arrow{font-size:2.2em;text-align:center;font-weight:700;margin:6px 0}
+#bar-bg{position:fixed;left:0;bottom:0;width:100%;height:7px;background:#000;z-index:51}
+#bar{height:100%;width:0;background:linear-gradient(90deg,var(--yellow),var(--pink),var(--blue));transition:width .3s}
+#ctrls{position:fixed;right:16px;bottom:16px;display:flex;gap:8px;align-items:center;z-index:52;pointer-events:auto}
+#ctrls button{font-family:var(--disp);font-size:15px;width:44px;height:44px;background:var(--paper);border:3px solid var(--ink);box-shadow:var(--sh-sm);cursor:pointer;color:var(--ink)}
+#ctrls button:hover{background:var(--yellow)}
+#ctrls button:active{transform:translate(2px,2px);box-shadow:none}
+#counter{position:fixed;left:16px;bottom:14px;z-index:52;font-family:var(--disp);font-size:16px;background:var(--ink);color:var(--yellow);padding:6px 12px;border:3px solid var(--yellow)}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:52;font-family:var(--mono);font-size:12.5px;color:#bbb;background:rgba(0,0,0,.55);padding:5px 12px;border-radius:2px;opacity:0;transition:opacity .4s;pointer-events:none}
+#ovl{position:fixed;inset:0;z-index:60;background:rgba(10,10,10,.94);display:none;overflow:auto;padding:34px 40px}
+#ovl.on{display:block}
+#ovl h2{font-family:var(--disp);color:var(--yellow);font-size:26px;margin-bottom:6px}
+#ovl .ov-sec{color:var(--pink);font-family:var(--disp);font-size:15px;margin:18px 0 8px;letter-spacing:.5px}
+#ovl .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+#ovl .ov-item{background:#1c1c1c;border:2px solid #444;color:#eee;font-size:13.5px;padding:9px 11px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+#ovl .ov-item:hover{background:var(--yellow);color:var(--ink);border-color:var(--yellow)}
+#ovl .ov-item b{font-family:var(--mono);font-size:12px;opacity:.7}
+#ovl .close{position:fixed;top:20px;right:26px;font-family:var(--disp);font-size:16px;background:var(--pink);border:3px solid #fff;color:var(--ink);padding:6px 14px;cursor:pointer}
+.agent-diagram{display:flex;align-items:center;justify-content:center;gap:30px;margin:20px 0}
+.agent-box{border:4px dashed var(--pink);border-radius:12px;padding:20px 24px;background:rgba(255,0,110,.06);text-align:center;min-width:200px}
+.agent-box .icon{font-size:36px;margin-bottom:6px}
+.agent-box .label{font-family:var(--disp);font-size:16px}
+.env-circle{width:120px;height:120px;border-radius:50%;border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-size:16px;background:var(--paper);box-shadow:var(--sh)}
+.agent-arrow{font-size:28px;font-weight:700;color:var(--pink)}
+.cycle{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:700px;margin:20px auto}
+.cycle-item{border:4px solid var(--ink);box-shadow:var(--sh);padding:18px 20px;text-align:center;font-family:var(--disp);font-size:18px}
+.cycle-item.c1{background:var(--yellow)}.cycle-item.c2{background:var(--blue);color:#fff}.cycle-item.c3{background:var(--mint)}.cycle-item.c4{background:var(--pink);color:#fff}
+.mem-types{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:16px 0}
+.mem-type{border:4px solid var(--ink);box-shadow:var(--sh);padding:20px}
+.mem-type h3{font-family:var(--disp);font-size:22px;margin-bottom:8px}
+.mem-type p{font-size:17px;line-height:1.5}
+.quad{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.quad-item{border:3px solid var(--ink);box-shadow:var(--sh-sm);padding:14px 16px}
+.quad-item h3{font-family:var(--disp);font-size:17px;margin-bottom:4px}
+.quad-item p{font-size:15px;line-height:1.4}
+.q-teal{background:#e0f7f5;border-left:5px solid #00bfa5}.q-amber{background:#fff8e1;border-left:5px solid #ffa000}.q-blue{background:#e3f2fd;border-left:5px solid #1565c0}.q-pink{background:#fce4ec;border-left:5px solid #e91e63}
+.md-level{display:flex;align-items:center;gap:14px;padding:14px 18px;border:3px solid var(--ink);box-shadow:var(--sh-sm);margin-bottom:8px;font-size:16px}
+.md-level .num{font-family:var(--disp);font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:3px solid var(--ink);flex-shrink:0}
+.md-level .num.n1{background:var(--pink);color:#fff}.md-level .num.n2{background:var(--blue);color:#fff}.md-level .num.n3{background:var(--mint)}.md-level .num.n4{background:var(--yellow)}
+.md-level .info{flex:1}.md-level .info b{font-family:var(--disp);font-size:17px}.md-level .info span{font-family:var(--mono);font-size:14px;color:#555}
+.tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.tool-item{border:3px solid var(--ink);box-shadow:var(--sh-sm);padding:12px 14px;text-align:center}
+.tool-item .t-icon{font-size:28px;margin-bottom:4px}.tool-item .t-name{font-family:var(--disp);font-size:14px}.tool-item .t-desc{font-size:13px;color:#555;margin-top:2px}
+.mech-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}
+.mech-card{border:4px solid var(--ink);box-shadow:var(--sh);padding:18px 20px}
+.mech-card .m-tag{font-family:var(--disp);font-size:14px;padding:3px 10px;display:inline-block;margin-bottom:8px;border:2px solid var(--ink)}
+.mech-card h3{font-family:var(--disp);font-size:20px;margin-bottom:6px}.mechan-card p{font-size:15px;line-height:1.45}
+.tree{font-family:var(--mono);font-size:15px;line-height:1.7;background:#f5f5f5;border:3px solid var(--ink);padding:16px 20px;margin:10px 0}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+<!-- 1 COVER -->
+<div class="slide cover" data-section="开场" data-title="封面">
+  <div class="brand rise" style="--i:0">Harvard MaDSys · Modern AI Systems</div>
+  <h1 class="rise" style="--i:1">Agent From a<br>User's Perspective I</h1>
+  <p class="lead rise" style="--i:2">从用户视角理解智能体 · 第 2 讲</p>
+  <p class="subtitle rise" style="--i:3">Juncheng Yang · 哈佛大学 MaDSys 实验室</p>
+  <div class="sticker float" style="top:60px;right:80px;--r:-5deg;background:var(--pink);color:#fff;transform:rotate(5deg)">CS2680</div>
+  <div class="sticker float" style="bottom:80px;left:70px;--r:3deg;background:var(--blue);color:#fff;transform:rotate(-3deg)">Agent Use</div>
+</div>
+
+<!-- 2 SCHEDULE -->
+<div class="slide" data-section="开场" data-title="课程安排更新">
+  <div class="kicker b rise" style="--i:0">📅 课程安排</div>
+  <h2 class="rise" style="--i:1">Schedule Update</h2>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card yellow rise" style="--i:2"><h3>📆 时间调整</h3><p>本学期课程时间有更新，请查看最新课表确认你的时间段。</p></div>
+    <div class="card blue rise" style="--i:3"><h3>📋 重要日期</h3><ul class="nb-list"><li>作业提交截止时间</li><li>项目里程碑日期</li><li>期末考试安排</li></ul></div>
+  </div>
+  <div class="banner ban-y rise" style="--i:4">请务必查看课程网站获取最新信息！</div>
+</div>
+
+<!-- 3 LOGISTICS -->
+<div class="slide" data-section="开场" data-title="课程信息">
+  <div class="kicker g rise" style="--i:0">📌 课程信息</div>
+  <h2 class="rise" style="--i:1">Logistics</h2>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card rise" style="--i:2"><h3>🌐 课程网站</h3><p>course.agentic-system.org</p><p class="small">所有课件、作业、公告</p></div>
+    <div class="card rise" style="--i:3"><h3> 讨论区</h3><p>Ed Discussion / Slack</p><p class="small">提问、讨论、互助</p></div>
+    <div class="card rise" style="--i:4"><h3>📮 办公时间</h3><p>每周固定时段</p><p class="small">面对面答疑</p></div>
+  </div>
+  <div class="card mint rise" style="--i:5;margin-top:16px"><h3>🔑 本课目标</h3><p>理解 Claude Code 等智能体工具的内部工作原理，从用户视角掌握其核心机制。</p></div>
+</div>
+
+<!-- 4 PLAN -->
+<div class="slide" data-section="开场" data-title="今日计划">
+  <div class="kicker p rise" style="--i:0">📋 今日计划</div>
+  <h2 class="rise" style="--i:1">Plan for Today</h2>
+  <ol class="step-list" style="margin-top:16px">
+    <li class="rise" style="--i:2"><span><b>智能体循环</b> — 当你输入提示词后发生了什么？模型如何提议、执行器如何执行、结果如何折叠回上下文。</span></li>
+    <li class="rise" style="--i:3"><span><b>上下文与记忆</b> — 六层上下文、权限系统、上下文增长与压缩、检索索引、CLAUDE.md 与自动记忆。</span></li>
+    <li class="rise" style="--i:4"><span><b>扩展智能体</b> — 四种机制：技能（Skill）、MCP、钩子（Hook）、插件（Plugin），以及它们如何协同工作。</span></li>
+  </ol>
+  <div class="banner ban-p rise" style="--i:5">从"黑盒"到"白盒"：理解你正在使用的工具</div>
+</div>
+
+<!-- 5 WHAT HAPPENS -->
+<div class="slide" data-section="智能体循环" data-title="输入提示词后发生了什么">
+  <div class="kicker y rise" style="--i:0">🤔 核心问题</div>
+  <h2 class="rise" style="--i:1">当你在 Claude Code 中输入提示词时<br>会发生什么？</h2>
+  <div class="flow rise" style="--i:2;margin-top:20px">
+    <div class="flow-item fi-y">你输入提示词</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-b">上下文组装</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-p">模型推理</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-g">工具执行</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-o">结果返回</div>
+  </div>
+  <div class="card dark rise" style="--i:3;margin-top:20px"><h3>关键洞察</h3><p>智能体不是一次性回答，而是一个<b>循环</b>：模型提议行动 → 执行器执行 → 结果折叠回上下文 → 模型再次推理，直到任务完成。</p></div>
+</div>
+
+<!-- 6 AGENTIC LOOP -->
+<div class="slide" data-section="智能体循环" data-title="智能体循环三步">
+  <div class="kicker b rise" style="--i:0">🔄 智能体循环</div>
+  <h2 class="rise" style="--i:1">The Agentic Loop</h2>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card yellow rise" style="--i:2"><h3>① 模型提议</h3><p>LLM 分析上下文，决定下一步行动：调用工具、读取文件、执行命令，或直接回答。</p></div>
+    <div class="card blue rise" style="--i:3"><h3>② 执行器执行</h3><p>安全沙箱执行模型提议的操作：运行命令、读写文件、调用 API。结果被捕获。</p></div>
+    <div class="card pink rise" style="--i:4"><h3>③ 结果折叠</h3><p>执行结果作为新的上下文消息追加，模型基于新信息继续推理。循环重复直到任务完成。</p></div>
+  </div>
+  <div class="banner ban-y rise" style="--i:5">模型 ≠ 执行器。模型只"提议"，执行器负责"执行"。</div>
+</div>
+
+<!-- 7 CONTEXT BEFORE YOU TYPE -->
+<div class="slide" data-section="智能体循环" data-title="输入前的六层上下文">
+  <div class="kicker g rise" style="--i:0">📚 上下文</div>
+  <h2 class="rise" style="--i:1">Context Before You Type</h2>
+  <p class="subtitle rise" style="--i:2">在你输入任何内容之前，系统已经组装了多层上下文：</p>
+  <div class="layer-stack rise" style="--i:3">
+    <div class="layer" style="background:var(--pink);color:#fff">⑥ 自动记忆 — 跨会话的学习和偏好</div>
+    <div class="layer" style="background:var(--orange);color:#fff">⑤ CLAUDE.md — 项目/用户/组织级指令</div>
+    <div class="layer" style="background:var(--blue);color:#fff"> 系统提示词 — 模型行为规则</div>
+    <div class="layer" style="background:var(--mint)">③ 工具定义 — 可用工具的 JSON Schema</div>
+    <div class="layer" style="background:var(--yellow)"> 对话历史 — 之前的消息交换</div>
+    <div class="layer" style="background:#fff">① 你的提示词 — 当前输入</div>
+  </div>
+  <div class="banner ban-b rise" style="--i:4">每一层都消耗上下文窗口，需要精心管理</div>
+</div>
+
+<!-- 8 DOESN'T SEND REPO -->
+<div class="slide" data-section="智能体循环" data-title="不会发送整个仓库">
+  <div class="kicker o rise" style="--i:0">🔒 隐私</div>
+  <h2 class="rise" style="--i:1">不会发送你的整个仓库</h2>
+  <div class="compare-grid rise" style="--i:2">
+    <div class="compare-col"><h3 class="green">✅ 实际发送的</h3><ul class="nb-list"><li>系统提示词（固定模板）</li><li>工具定义（JSON Schema）</li><li>CLAUDE.md 指令文件</li><li>对话历史消息</li><li>模型请求读取的特定文件内容</li></ul></div>
+    <div class="compare-col"><h3 class="red">❌ 不会发送的</h3><ul class="nb-list"><li>整个代码仓库</li><li>未引用的源文件</li><li>二进制文件和依赖</li><li>.git 目录</li><li>本地环境变量和密钥</li></ul></div>
+  </div>
+  <div class="banner ban-g rise" style="--i:3">模型只看到它需要看到的内容，而非全部</div>
+</div>
+
+<!-- 9 MODEL PROPOSES / HARNESS EXECUTES -->
+<div class="slide" data-section="智能体循环" data-title="模型提议与执行器执行">
+  <div class="kicker p rise" style="--i:0">⚙️ 分离架构</div>
+  <h2 class="rise" style="--i:1">Model Proposes · Harness Executes</h2>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card blue rise" style="--i:2"><h3>🧠 模型（LLM）</h3><ul class="nb-list"><li>分析上下文和提示词</li><li>决定下一步行动</li><li>生成工具调用请求</li><li><b>不能直接执行任何操作</b></li><li>只输出"提议"</li></ul></div>
+    <div class="card yellow rise" style="--i:3"><h3>🔧 执行器（Harness）</h3><ul class="nb-list"><li>接收模型的提议</li><li>在安全沙箱中执行</li><li>检查权限和约束</li><li>捕获输出和错误</li><li>将结果返回给模型</li></ul></div>
+  </div>
+  <div class="banner ban-p rise" style="--i:4">这种分离是安全的关键：模型有想法，但没有手</div>
+</div>
+
+<!-- 10 ONE PROMPT MANY INFERENCES -->
+<div class="slide" data-section="智能体循环" data-title="一个提示词多次推理">
+  <div class="kicker b rise" style="--i:0">🔁 多次推理</div>
+  <h2 class="rise" style="--i:1">One Prompt, Many Inferences</h2>
+  <p class="subtitle rise" style="--i:2">一个用户提示词可能触发模型的多次推理调用：</p>
+  <div class="flow rise" style="--i:3;margin-top:16px">
+    <div class="flow-item fi-y">用户提示词</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-b">推理 #1：读取文件</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-p">推理 #2：分析代码</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-g">推理 #3：修改文件</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-o">推理 #4：运行测试</div>
+  </div>
+  <div class="card mint rise" style="--i:4;margin-top:16px"><h3>💡 关键理解</h3><p>每次推理都会消耗 token。复杂的任务可能需要 10+ 次模型调用。理解这一点有助于你写出更高效的提示词。</p></div>
+  <div class="banner ban-y rise" style="--i:5">好的提示词 = 减少不必要的推理轮次</div>
+</div>
+
+<!-- 11 PERMISSIONS -->
+<div class="slide" data-section="智能体循环" data-title="权限四个级别">
+  <div class="kicker g rise" style="--i:0">🔐 权限系统</div>
+  <h2 class="rise" style="--i:1">Permissions — 四个级别</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card rise" style="--i:2"><h3>🟢 自动允许</h3><p>安全操作自动执行，无需确认。如读取文件、搜索代码。</p></div>
+    <div class="card rise" style="--i:3"><h3>🟡 自动允许 + 通知</h3><p>操作会执行，但会在界面显示通知。如写入文件、创建目录。</p></div>
+    <div class="card rise" style="--i:4"><h3>🟠 每次询问</h3><p>每次执行前都需要用户确认。如运行 shell 命令、安装依赖。</p></div>
+    <div class="card rise" style="--i:5"><h3>🔴 始终拒绝</h3><p>操作被完全禁止。如删除文件、推送代码到远程仓库。</p></div>
+  </div>
+  <div class="banner ban-o rise" style="--i:6">你可以在设置中自定义每个工具的权限级别</div>
+</div>
+
+<!-- 12 CONTEXT GROWS / COMPACTED -->
+<div class="slide" data-section="智能体循环" data-title="上下文增长与压缩">
+  <div class="kicker y rise" style="--i:0">📈 上下文管理</div>
+  <h2 class="rise" style="--i:1">Context Grows · Then Compacted</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card yellow rise" style="--i:2"><h3>📈 上下文增长</h3><p>每次推理的结果都追加到对话历史中。随着任务进行，上下文不断增长：</p><ul class="nb-list"><li>文件内容被读取并加入</li><li>命令输出被追加</li><li>工具调用结果被记录</li></ul></div>
+    <div class="card blue rise" style="--i:3"><h3>️ 上下文压缩</h3><p>当接近窗口限制时，系统会压缩早期内容：</p><ul class="nb-list"><li>早期对话被摘要化</li><li>详细输出被截断</li><li>保留关键决策和结论</li></ul></div>
+  </div>
+  <div class="banner ban-b rise" style="--i:4">压缩会丢失细节 — 这就是为什么记忆系统很重要</div>
+</div>
+
+<!-- 13 SUMMARY AGENTIC LOOP -->
+<div class="slide" data-section="智能体循环" data-title="智能体循环总结">
+  <div class="kicker p rise" style="--i:0">🔄 总结</div>
+  <h2 class="rise" style="--i:1">Summary: The Agentic Loop</h2>
+  <div class="cycle rise" style="--i:2">
+    <div class="cycle-item c1">Prompt + Context<br>提示词 + 上下文</div>
+    <div class="cycle-item c2">Model Proposes<br>模型提议</div>
+    <div class="cycle-item c4">Result Folds<br>Into Context<br>结果折叠回上下文</div>
+    <div class="cycle-item c3">Harness Executes<br>执行器执行</div>
+  </div>
+  <div class="banner ban-p rise" style="--i:3">循环重复，直到任务完成</div>
+</div>
+
+<!-- 14 TOOLS AND MEMORY ENABLE AGENTIC -->
+<div class="slide" data-section="记忆系统" data-title="工具和记忆赋予智能体能力">
+  <div class="kicker b rise" style="--i:0">🤖 智能体架构</div>
+  <h2 class="rise" style="--i:1">Tools and Memory Enable<br>Agentic Capability</h2>
+  <div class="agent-diagram rise" style="--i:2">
+    <div class="agent-box">
+      <div class="icon">💾</div><div class="label">Memory<br>记忆</div>
+      <div style="margin-top:16px"><div class="icon">🧠</div><div class="label">LLM<br>推理与规划</div></div>
+      <div style="margin-top:12px;font-family:var(--disp);font-size:18px;color:var(--pink)">Agent 智能体</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:center">
+      <div><span class="agent-arrow">Tool / Action →</span><p class="small" style="text-align:center;margin-top:4px">工具 / 行动</p></div>
+      <div><span class="agent-arrow">← Observation</span><p class="small" style="text-align:center;margin-top:4px">观察结果</p></div>
+    </div>
+    <div class="env-circle"><br>Environment<br>环境</div>
+  </div>
+</div>
+
+<!-- 15 AGENT MEMORY -->
+<div class="slide" data-section="记忆系统" data-title="智能体记忆">
+  <div class="kicker g rise" style="--i:0">🧠 记忆</div>
+  <h2 class="rise" style="--i:1">Agent Memory</h2>
+  <div class="flow rise" style="--i:2;margin-top:40px;justify-content:center">
+    <div class="flow-item fi-b" style="padding:16px 24px;font-size:18px">State<br>(context + memory)<br>状态（上下文+记忆）</div>
+    <span class="flow-arrow" style="font-size:32px">⟷</span>
+    <div class="flow-item" style="padding:16px 24px;font-size:18px;background:var(--pink);color:#fff">LLM<br>(stateless)<br>无状态模型</div>
+    <span class="flow-arrow" style="font-size:32px">⟷</span>
+    <div class="flow-item fi-g" style="padding:16px 24px;font-size:18px">Tools<br>(act)<br>工具（行动）</div>
+  </div>
+  <div class="banner ban-y rise" style="--i:3;margin-top:30px">LLM 本身是无状态的 — 所有"记忆"都存在于状态（上下文）中</div>
+</div>
+
+<!-- 16 CONTEXT IS ONE TYPE OF MEMORY -->
+<div class="slide" data-section="记忆系统" data-title="上下文是一种记忆">
+  <div class="kicker o rise" style="--i:0">💡 关键概念</div>
+  <h2 class="rise" style="--i:1">Context Is One Type of Memory</h2>
+  <ul class="rise" style="--i:2;font-size:18px">
+    <li>智能体在会话之间是<b>无状态</b>的 — 每次会话从零开始</li>
+    <li>实际上，"记忆"只是在会话启动时加载的文件</li>
+  </ul>
+  <div class="banner ban-p rise" style="--i:3">每一次记忆创建，都是关于"什么将被永远重新读取"的决策。</div>
+  <div class="mem-types rise" style="--i:4">
+    <div class="mem-type" style="background:#e0f7f5"><h3>👁️ 上下文：工作记忆</h3><p>模型此刻能看到的内容 — 随会话结束而消失。</p></div>
+    <div class="mem-type" style="background:#fff8e1"><h3>📦 持久记忆</h3><p>在会话结束后幸存，下次启动时重新加载的内容。</p></div>
+  </div>
+</div>
+
+<!-- 17 WHY AGENTS NEED MEMORY -->
+<div class="slide" data-section="记忆系统" data-title="为什么智能体需要记忆">
+  <div class="kicker p rise" style="--i:0">❓ 为什么需要记忆</div>
+  <h2 class="rise" style="--i:1">Why Agents Need Memory</h2>
+  <div class="quad rise" style="--i:2">
+    <div class="quad-item q-teal"><h3>🔁 重复指令</h3><p>每次会话都要重新解释相同的设置</p></div>
+    <div class="quad-item q-amber"><h3>📉 丢失的决策/假设</h3><p>当窗口压缩时，"为什么"消失了</p></div>
+    <div class="quad-item q-blue"><h3>🔍 重复发现</h3><p>智能体重新读取相同文件来重新学习布局</p></div>
+    <div class="quad-item q-pink"><h3>⚠️ 不一致行为</h3><p>不同会话做出不同的选择</p></div>
+  </div>
+  <div class="banner ban-o rise" style="--i:3">记忆是指令变为惯例的方式。</div>
+</div>
+
+<!-- 18 TWO SYSTEMS INTRO -->
+<div class="slide" data-section="记忆系统" data-title="两个知识传递系统（简介）">
+  <div class="kicker y rise" style="--i:0">📚 知识传递</div>
+  <h2 class="rise" style="--i:1">Two Systems Carry Knowledge Forward</h2>
+  <p class="subtitle rise" style="--i:2">两者都在每次会话开始时加载到上下文中。</p>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card dark rise" style="--i:3;text-align:center;padding:30px"><h3 style="font-size:24px;color:var(--yellow)">CLAUDE.md 文件</h3><p style="color:#ccc;margin-top:8px">你编写的指令和规则</p></div>
+    <div class="card dark rise" style="--i:4;text-align:center;padding:30px"><h3 style="font-size:24px;color:var(--mint)">Auto Memory</h3><p style="color:#ccc;margin-top:8px">Claude 自动学习的笔记</p></div>
+  </div>
+</div>
+
+<!-- 19 TWO SYSTEMS TABLE -->
+<div class="slide" data-section="记忆系统" data-title="两个知识传递系统（对比）">
+  <div class="kicker b rise" style="--i:0">📊 对比</div>
+  <h2 class="rise" style="--i:1">Two Systems — Detailed Comparison</h2>
+  <table class="rise" style="--i:2">
+    <thead><tr><th></th><th>CLAUDE.md 文件</th><th>Auto Memory</th></tr></thead>
+    <tbody>
+      <tr><td><b>谁编写</b></td><td>你</td><td>Claude</td></tr>
+      <tr><td><b>包含内容</b></td><td>指令和规则</td><td>学习和模式</td></tr>
+      <tr><td><b>作用范围</b></td><td>项目 / 用户 / 组织</td><td>每个仓库，跨工作树共享</td></tr>
+      <tr><td><b>加载方式</b></td><td>每次会话</td><td>每次会话（前 200 行 / 25KB）</td></tr>
+      <tr><td><b>用途</b></td><td>标准、工作流、架构</td><td>你的偏好、修正、项目上下文</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 20 WHERE CLAUDE.MD LIVES -->
+<div class="slide" data-section="记忆系统" data-title="CLAUDE.md 的位置">
+  <div class="kicker g rise" style="--i:0">📁 文件位置</div>
+  <h2 class="rise" style="--i:1">Where CLAUDE.md Lives</h2>
+  <p class="subtitle rise" style="--i:2">文件按最宽范围先加载；最近的文件最后读取。</p>
+  <div class="rise" style="--i:3;margin-top:14px">
+    <div class="md-level"><div class="num n1">1</div><div class="info"><b>Managed Policy（管理策略）</b><br><span>.../ClaudeCode/CLAUDE.md · 组织范围，不可排除</span></div></div>
+    <div class="md-level"><div class="num n2">2</div><div class="info"><b>User Instructions（用户指令）</b><br><span>~/.claude/CLAUDE.md · 你的偏好，所有项目通用</span></div></div>
+    <div class="md-level"><div class="num n3">3</div><div class="info"><b>Project Instructions（项目指令）</b><br><span>./CLAUDE.md 或 ./.claude/CLAUDE.md · 通过源码控制团队共享</span></div></div>
+    <div class="md-level"><div class="num n4">4</div><div class="info"><b>Local Instructions（本地指令）</b><br><span>./CLAUDE.local.md · 个人使用，被 gitignore</span></div></div>
+  </div>
+</div>
+
+<!-- 21 WHAT BELONGS IN CLAUDE.MD -->
+<div class="slide" data-section="记忆系统" data-title="CLAUDE.md 应该包含什么">
+  <div class="kicker p rise" style="--i:0">️ 内容指南</div>
+  <h2 class="rise" style="--i:1">What Belongs in CLAUDE.md</h2>
+  <div class="compare-grid rise" style="--i:2">
+    <div class="compare-col"><h3 class="green">✅ 应该包含</h3><ul class="nb-list"><li><b>命令</b>：如何运行测试、构建、lint</li><li><b>硬约束</b>：永不提交到 main、永不编辑生成文件</li><li><b>事实</b>：模型无法廉价推断的信息：布局、所有权、注意事项</li></ul></div>
+    <div class="compare-col"><h3 class="red">❌ 不应包含</h3><ul class="nb-list"><li>模型已经知道的语言或框架知识</li><li>linter 或 formatter 已经执行的风格偏好</li><li>长散文、变更日志、任何秘密信息</li></ul></div>
+  </div>
+  <div class="grid g4 rise" style="--i:3">
+    <div class="card" style="padding:10px"><b>大小</b><br><span class="small">每文件 &lt;200 行</span></div>
+    <div class="card" style="padding:10px"><b>结构</b><br><span class="small">Markdown 标题和列表</span></div>
+    <div class="card" style="padding:10px"><b>具体性</b><br><span class="small">具体规则，非模糊描述</span></div>
+    <div class="card" style="padding:10px"><b>一致性</b><br><span class="small">无矛盾或过时规则</span></div>
+  </div>
+  <div class="banner ban-p rise" style="--i:4">上下文是租来的，记忆是拥有的 — 谨慎选择你拥有的内容。</div>
+</div>
+
+<!-- 22 SPLIT INTO RULES -->
+<div class="slide" data-section="记忆系统" data-title="拆分到 .claude/rules/">
+  <div class="kicker o rise" style="--i:0">📂 规则拆分</div>
+  <h2 class="rise" style="--i:1">Getting Too Long?<br>Split Into .claude/rules/</h2>
+  <p class="subtitle rise" style="--i:2">每个文件一个主题 — 每条规则只在相关时加载。</p>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card rise" style="--i:3"><h3>📄 每个文件一个主题</h3><p>每个规则文件覆盖单一关注点，保持简短和具体。</p></div>
+    <div class="card rise" style="--i:4"><h3>🏷️ 添加 paths: frontmatter</h3><p>仅在 Claude 接触匹配文件时加载（无 paths: 则每次会话都加载）。</p></div>
+    <div class="card yellow rise" style="--i:5"><h3>📁 示例</h3><div class="tree" style="margin:0;border:none;box-shadow:none;background:transparent;padding:0">.claude/rules/<br>├── testing.md<br>├── api-style.md<br>└── db-migrations.md</div></div>
+    <div class="card blue rise" style="--i:6"><h3>💡 要点</h3><ul class="nb-list"><li>范围化规则保持上下文窗口小</li><li>只有匹配工作的规则被加载</li><li>CLAUDE.md 保持简短；细节放在规则中</li></ul></div>
+  </div>
+</div>
+
+<!-- 23 AUTO MEMORY -->
+<div class="slide" data-section="记忆系统" data-title="自动记忆：Claude 的笔记">
+  <div class="kicker b rise" style="--i:0">🤖 自动记忆</div>
+  <h2 class="rise" style="--i:1">Auto Memory: Claude's Own Notes</h2>
+  <div class="grid g4 rise" style="--i:2">
+    <div class="card" style="padding:12px"><h3>user</h3><p class="small">你的角色、专业知识和工作偏好</p></div>
+    <div class="card" style="padding:12px"><h3>feedback</h3><p class="small">你给出的修正、你确认的方法</p></div>
+    <div class="card" style="padding:12px"><h3>project</h3><p class="small">正在进行的工作、代码中未记录的决策</p></div>
+    <div class="card" style="padding:12px"><h3>reference</h3><p class="small">存在于项目外部的信息</p></div>
+  </div>
+  <div class="grid g2 rise" style="--i:3;margin-top:14px">
+    <div class="card yellow" style="padding:14px"><h3>📁 文件结构</h3><div class="tree" style="margin:0;border:none;box-shadow:none;background:transparent;padding:0;font-size:14px">~/.claude/projects/&lt;project&gt;/memory/<br>├── MEMORY.md<br>├── user_role.md<br>├── feedback_testing.md<br>└── other-topic-files.md</div></div>
+    <div class="card blue" style="padding:14px"><h3>⚙️ 行为方式</h3><ul class="nb-list"><li>每个文件有 type 字段标记</li><li>MEMORY.md 是索引 — 前 200 行（25KB）每次会话加载</li><li>本地机器；工作树共享目录</li><li>默认开启；用 /memory 禁用</li></ul></div>
+  </div>
+</div>
+
+<!-- 24 RETRIEVAL USES AN INDEX -->
+<div class="slide" data-section="记忆系统" data-title="检索使用索引">
+  <div class="kicker g rise" style="--i:0">🔍 检索</div>
+  <h2 class="rise" style="--i:1">Retrieval Uses an Index</h2>
+  <p class="subtitle rise" style="--i:2">当上下文中的信息不够时，智能体通过索引检索更多内容：</p>
+  <ol class="step-list rise" style="--i:3">
+    <li><span><b>查询理解</b> — 分析你的问题，提取关键词和意图</span></li>
+    <li><span><b>索引查找</b> — 在代码索引中搜索匹配的文件和符号</span></li>
+    <li><span><b>相关性排序</b> — 对候选结果按相关性打分排序</span></li>
+    <li><span><b>内容加载</b> — 读取最相关的文件内容到上下文</span></li>
+    <li><span><b>推理继续</b> — 模型基于新加载的信息继续推理</span></li>
+  </ol>
+</div>
+
+<!-- 25 INSPECTING/CONTROLLING MEMORY -->
+<div class="slide" data-section="记忆系统" data-title="检查和控制记忆">
+  <div class="kicker y rise" style="--i:0">🛠️ 记忆命令</div>
+  <h2 class="rise" style="--i:1">Inspecting & Controlling Memory</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card dark rise" style="--i:2"><h3 style="color:var(--yellow)">📋 查看记忆</h3><div class="nb-code" style="margin:8px 0;font-size:14px">/memory          查看当前记忆
+/memory show     显示记忆内容
+/memory search   搜索记忆条目</div></div>
+    <div class="card dark rise" style="--i:3"><h3 style="color:var(--mint)">✏️ 控制记忆</h3><div class="nb-code" style="margin:8px 0;font-size:14px">/memory off      关闭自动记忆
+/memory on       开启自动记忆
+/memory clear    清除所有记忆
+/memory edit     编辑记忆条目</div></div>
+  </div>
+  <div class="banner ban-y rise" style="--i:4">你始终可以审查和修改 Claude 自动创建的记忆</div>
+</div>
+
+<!-- 26 COST OF REMEMBERING -->
+<div class="slide" data-section="记忆系统" data-title="记忆的代价">
+  <div class="kicker p rise" style="--i:0">💰 代价</div>
+  <h2 class="rise" style="--i:1">Cost of Remembering</h2>
+  <div class="quad rise" style="--i:2">
+    <div class="quad-item q-teal"><h3>✅ 低代价 / 高价值</h3><p>简短的项目约定、团队工作流规则</p></div>
+    <div class="quad-item q-amber"><h3>⚠️ 高代价 / 高价值</h3><p>详细的架构文档、复杂的项目历史</p></div>
+    <div class="quad-item q-blue"><h3>✅ 低代价 / 低价值</h3><p>通用的编程知识（模型已知道）</p></div>
+    <div class="quad-item q-pink"><h3>❌ 高代价 / 低价值</h3><p>过时的规则、矛盾的指导、冗长的散文</p></div>
+  </div>
+  <div class="banner ban-p rise" style="--i:3">每条记忆都有上下文成本 — 只保留高价值的内容</div>
+</div>
+
+<!-- 27 TOOLS AND MEMORY (REVISITED) -->
+<div class="slide" data-section="核心工具" data-title="工具和记忆（回顾）">
+  <div class="kicker b rise" style="--i:0">🔧 核心能力</div>
+  <h2 class="rise" style="--i:1">Tools + Memory = Agentic Power</h2>
+  <div class="agent-diagram rise" style="--i:2">
+    <div class="agent-box">
+      <div class="icon">💾</div><div class="label">Memory<br>记忆系统</div>
+      <div style="margin-top:12px"><div class="icon">🧠</div><div class="label">LLM<br>推理与规划</div></div>
+      <div style="margin-top:12px"><div class="icon">🔧</div><div class="label">Tools<br>工具集</div></div>
+      <div style="margin-top:12px;font-family:var(--disp);font-size:18px;color:var(--pink)">Agent</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;align-items:center">
+      <div><span class="agent-arrow">Action →</span></div>
+      <div><span class="agent-arrow">← Result</span></div>
+    </div>
+    <div class="env-circle">🌍<br>World<br>世界</div>
+  </div>
+  <div class="banner ban-b rise" style="--i:3">工具让智能体行动，记忆让智能体学习</div>
+</div>
+
+<!-- 28 CORE TOOLS -->
+<div class="slide" data-section="核心工具" data-title="六个核心工具">
+  <div class="kicker o rise" style="--i:0">🔧 核心工具</div>
+  <h2 class="rise" style="--i:1">Core Tools</h2>
+  <div class="tool-grid rise" style="--i:2">
+    <div class="tool-item"><div class="t-icon">📖</div><div class="t-name">Read</div><div class="t-desc">读取文件内容</div></div>
+    <div class="tool-item"><div class="t-icon">✏️</div><div class="t-name">Edit</div><div class="t-desc">精确字符串替换</div></div>
+    <div class="tool-item"><div class="t-icon">📝</div><div class="t-name">Write</div><div class="t-desc">写入新文件</div></div>
+    <div class="tool-item"><div class="t-icon">💻</div><div class="t-name">Bash</div><div class="t-desc">执行 shell 命令</div></div>
+    <div class="tool-item"><div class="t-icon">🔍</div><div class="t-name">Grep</div><div class="t-desc">搜索文件内容</div></div>
+    <div class="tool-item"><div class="t-icon">📂</div><div class="t-name">Glob</div><div class="t-desc">按模式查找文件</div></div>
+  </div>
+  <div class="banner ban-g rise" style="--i:3">这些工具构成了智能体与世界交互的基本能力</div>
+</div>
+
+<!-- 29 SECTION DIVIDER: EXTENDING AN AGENT -->
+<div class="slide section-div" data-section="扩展智能体" data-title="扩展智能体（分节）">
+  <h1 class="rise" style="--i:0">Extending an Agent</h1>
+  <p class="sub rise" style="--i:1">扩展智能体的能力边界</p>
+  <p class="sub rise" style="--i:2;color:var(--yellow);margin-top:20px">四种机制：Skill · MCP · Hook · Plugin</p>
+</div>
+
+<!-- 30 FOUR MECHANISMS -->
+<div class="slide" data-section="扩展智能体" data-title="四种扩展机制">
+  <div class="kicker y rise" style="--i:0"> 四种机制</div>
+  <h2 class="rise" style="--i:1">Four Mechanisms to Extend an Agent</h2>
+  <div class="mech-grid rise" style="--i:2">
+    <div class="mech-card" style="background:var(--yellow)"><div class="m-tag" style="background:var(--ink);color:var(--yellow)">SKILL</div><h3>技能</h3><p>可复用的过程模板。将复杂工作流封装为命名步骤，按需加载到上下文中。</p></div>
+    <div class="mech-card" style="background:var(--blue);color:#fff"><div class="m-tag" style="background:#fff;color:var(--blue)">MCP</div><h3>模型上下文协议</h3><p>外部能力层。通过标准协议连接外部服务，扩展智能体的工具集。</p></div>
+    <div class="mech-card" style="background:var(--mint)"><div class="m-tag" style="background:var(--ink);color:var(--mint)">HOOK</div><h3>钩子</h3><p>生命周期自动化。在特定事件（工具调用前后）自动执行脚本。</p></div>
+    <div class="mech-card" style="background:var(--pink);color:#fff"><div class="m-tag" style="background:#fff;color:var(--pink)">PLUGIN</div><h3>插件</h3><p>打包层。将 Skill + MCP + Hook 组合为可分发的独立单元。</p></div>
+  </div>
+</div>
+
+<!-- 31 EXTENSION POINTS IN AGENT LOOP -->
+<div class="slide" data-section="扩展智能体" data-title="智能体循环中的扩展点">
+  <div class="kicker b rise" style="--i:0">🔌 扩展点</div>
+  <h2 class="rise" style="--i:1">Extension Points in Agent Loop</h2>
+  <div class="layer-stack rise" style="--i:2">
+    <div class="layer" style="background:var(--yellow)"><span class="badge">SKILL</span> 在模型推理前注入过程模板到上下文</div>
+    <div class="layer" style="background:var(--blue);color:#fff"><span class="badge" style="background:#fff;color:var(--blue)">MCP</span> 在工具定义阶段注册外部工具</div>
+    <div class="layer" style="background:var(--mint)"><span class="badge">HOOK</span> 在工具调用前/后自动触发脚本</div>
+    <div class="layer" style="background:var(--pink);color:#fff"><span class="badge" style="background:#fff;color:var(--pink)">PLUGIN</span> 打包以上所有机制为一个单元</div>
+  </div>
+  <div class="banner ban-y rise" style="--i:3">每种机制在循环的不同位置介入</div>
+</div>
+
+<!-- 32 RELEASE WORKFLOW EXAMPLE -->
+<div class="slide" data-section="扩展智能体" data-title="发布工作流示例">
+  <div class="kicker g rise" style="--i:0">📦 示例</div>
+  <h2 class="rise" style="--i:1">Release Workflow Example</h2>
+  <p class="subtitle rise" style="--i:2">一个真实的发布流程如何组合多种机制：</p>
+  <ol class="step-list rise" style="--i:3">
+    <li><span><b>Hook（预检查）</b> — 发布前自动运行 lint 和测试，确保代码质量</span></li>
+    <li><span><b>Skill（流程模板）</b> — 加载 "release" 技能，包含版本号更新、changelog 生成等步骤</span></li>
+    <li><span><b>MCP（外部服务）</b> — 调用 GitHub API 创建 Release，调用 Slack API 发送通知</span></li>
+    <li><span><b>Plugin（打包）</b> — 以上所有打包为 "release-plugin"，团队共享</span></li>
+  </ol>
+</div>
+
+<!-- 33 SKILLS AS REUSABLE PROCEDURES -->
+<div class="slide" data-section="扩展智能体" data-title="技能作为可复用过程">
+  <div class="kicker p rise" style="--i:0">📋 技能</div>
+  <h2 class="rise" style="--i:1">Skills as Reusable Procedures</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card yellow rise" style="--i:2"><h3>什么是技能？</h3><ul class="nb-list"><li>命名化的工作流模板</li><li>包含步骤、约束和上下文</li><li>按需加载，不占用常驻上下文</li><li>可以被用户或插件定义</li></ul></div>
+    <div class="card blue rise" style="--i:3"><h3>技能 vs 提示词</h3><ul class="nb-list"><li>提示词：一次性的指令</li><li>技能：结构化的、可复用的过程</li><li>技能包含条件逻辑和步骤顺序</li><li>技能可以被版本控制和共享</li></ul></div>
+  </div>
+  <div class="banner ban-p rise" style="--i:4">技能将"知道怎么做"变为"可重复执行的标准流程"</div>
+</div>
+
+<!-- 34 SKILL STRUCTURE -->
+<div class="slide" data-section="扩展智能体" data-title="技能结构">
+  <div class="kicker o rise" style="--i:0">📐 结构</div>
+  <h2 class="rise" style="--i:1">Skill Structure</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card rise" style="--i:2"><h3>📄 技能文件</h3><div class="nb-code" style="font-size:13px">---
+name: code-review
+description: 代码审查流程
+---
+
+# 代码审查技能
+
+## 步骤
+1. 读取变更的文件
+2. 检查代码风格
+3. 验证测试覆盖
+4. 生成审查报告</div></div>
+    <div class="card rise" style="--i:3"><h3>🧱 组成部分</h3><ul class="nb-list"><li><b>Frontmatter</b>：元数据（名称、描述、触发条件）</li><li><b>Instructions</b>：详细的步骤说明</li><li><b>Constraints</b>：必须遵守的规则</li><li><b>Examples</b>：输入输出示例</li><li><b>Context</b>：需要的背景信息</li></ul></div>
+  </div>
+</div>
+
+<!-- 35 SKILL INVOCATION AND CONTEXT COST -->
+<div class="slide" data-section="扩展智能体" data-title="技能调用与上下文成本">
+  <div class="kicker b rise" style="--i:0">💰 成本</div>
+  <h2 class="rise" style="--i:1">Skill Invocation & Context Cost</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card mint rise" style="--i:2"><h3>✅ 优势</h3><ul class="nb-list"><li>按需加载，不常驻上下文</li><li>结构化指导减少推理轮次</li><li>可复用，一次编写多次使用</li><li>团队共享，保持一致性</li></ul></div>
+    <div class="card orange rise" style="--i:3"><h3>⚠️ 成本</h3><ul class="nb-list"><li>加载时消耗上下文窗口</li><li>复杂技能可能很长</li><li>过多技能增加管理负担</li><li>需要维护与更新</li></ul></div>
+  </div>
+  <div class="banner ban-b rise" style="--i:4">好的技能设计 = 最大价值 / 最小上下文占用</div>
+</div>
+
+<!-- 36 MCP AS EXTERNAL CAPABILITY LAYER -->
+<div class="slide" data-section="扩展智能体" data-title="MCP 作为外部能力层">
+  <div class="kicker g rise" style="--i:0">🔌 MCP</div>
+  <h2 class="rise" style="--i:1">MCP as External Capability Layer</h2>
+  <div class="flow rise" style="--i:2;margin-top:16px">
+    <div class="flow-item fi-b">Agent<br>智能体</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-p">MCP Protocol<br>MCP 协议</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-g">External Services<br>外部服务</div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card yellow rise" style="--i:3"><h3>🌐 数据库</h3><p>查询数据库、执行迁移、管理 schema</p></div>
+    <div class="card blue rise" style="--i:4"><h3>📡 API 服务</h3><p>调用 REST/GraphQL API、发送消息</p></div>
+    <div class="card pink rise" style="--i:5"><h3>🔧 开发工具</h3><p>连接 IDE、CI/CD、监控平台</p></div>
+  </div>
+  <div class="banner ban-g rise" style="--i:6">MCP 让智能体能够与任何外部系统交互</div>
+</div>
+
+<!-- 37 HOW MCP TOOL CALL WORKS -->
+<div class="slide" data-section="扩展智能体" data-title="MCP 工具调用如何工作">
+  <div class="kicker y rise" style="--i:0">⚙️ MCP 调用</div>
+  <h2 class="rise" style="--i:1">How MCP Tool Call Works</h2>
+  <ol class="step-list rise" style="--i:2">
+    <li><span><b>工具注册</b> — MCP 服务器启动时，向智能体注册可用工具及其 JSON Schema</span></li>
+    <li><span><b>模型决策</b> — 模型在推理中决定调用某个 MCP 工具，生成工具调用请求</span></li>
+    <li><span><b>协议传输</b> — 请求通过 MCP 协议（JSON-RPC）发送到 MCP 服务器</span></li>
+    <li><span><b>外部执行</b> — MCP 服务器在外部环境中执行操作（查询数据库、调用 API 等）</span></li>
+    <li><span><b>结果返回</b> — 结果通过协议返回，折叠回上下文，模型继续推理</span></li>
+  </ol>
+</div>
+
+<!-- 38 HOOKS AS LIFECYCLE AUTOMATION -->
+<div class="slide" data-section="扩展智能体" data-title="钩子作为生命周期自动化">
+  <div class="kicker p rise" style="--i:0">🪝 钩子</div>
+  <h2 class="rise" style="--i:1">Hooks as Lifecycle Automation</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card rise" style="--i:2"><h3>🔔 触发时机</h3><ul class="nb-list"><li><b>Pre-tool</b>：工具调用之前</li><li><b>Post-tool</b>：工具调用之后</li><li><b>Pre-turn</b>：每轮推理之前</li><li><b>Post-turn</b>：每轮推理之后</li></ul></div>
+    <div class="card yellow rise" style="--i:3"><h3>📝 典型用途</h3><ul class="nb-list"><li>自动运行 lint / 格式化</li><li>工具调用前的权限检查</li><li>执行后的通知发送</li><li>自动提交 / 创建 PR</li></ul></div>
+  </div>
+  <div class="nb-code rise" style="--i:4"># .claude/hooks/pre-tool-bash.sh
+if [[ "$TOOL" == "Bash" ]]; then
+  echo "⚠️ 即将执行: $COMMAND"
+fi</div>
+</div>
+
+<!-- 39 PLUGINS AS PACKAGING LAYER -->
+<div class="slide" data-section="扩展智能体" data-title="插件作为打包层">
+  <div class="kicker b rise" style="--i:0">📦 插件</div>
+  <h2 class="rise" style="--i:1">Plugins as Packaging Layer</h2>
+  <div class="card dark rise" style="--i:2;margin-top:14px"><h3 style="color:var(--yellow)">插件 = Skill + MCP + Hook 的组合打包</h3></div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card yellow rise" style="--i:3"><h3>📋 包含技能</h3><p>预定义的工作流模板</p></div>
+    <div class="card blue rise" style="--i:4"><h3>🔌 包含 MCP</h3><p>外部服务连接配置</p></div>
+    <div class="card mint rise" style="--i:5"><h3>🪝 包含钩子</h3><p>自动化脚本</p></div>
+  </div>
+  <div class="banner ban-b rise" style="--i:6">插件让团队可以一键安装完整的智能体增强方案</div>
+</div>
+
+<!-- 40 HOW FOUR MECHANISMS FIT TOGETHER -->
+<div class="slide" data-section="扩展智能体" data-title="四种机制如何协同">
+  <div class="kicker o rise" style="--i:0">🧩 协同</div>
+  <h2 class="rise" style="--i:1">How Four Mechanisms Fit Together</h2>
+  <div class="layer-stack rise" style="--i:2">
+    <div class="layer" style="background:var(--pink);color:#fff;font-size:17px"><span class="badge" style="background:#fff;color:var(--pink)">PLUGIN</span> 打包层 — 将以下所有组合为可分发单元</div>
+    <div class="layer" style="background:var(--yellow);font-size:17px"><span class="badge">SKILL</span> 过程层 — 定义"做什么"和"怎么做"</div>
+    <div class="layer" style="background:var(--blue);color:#fff;font-size:17px"><span class="badge" style="background:#fff;color:var(--blue)">MCP</span> 能力层 — 提供外部工具和服务</div>
+    <div class="layer" style="background:var(--mint);font-size:17px"><span class="badge">HOOK</span> 自动化层 — 在生命周期事件中触发</div>
+  </div>
+  <div class="banner ban-y rise" style="--i:3">从底层到顶层：Hook → MCP → Skill → Plugin</div>
+</div>
+
+<!-- 41 INSIDE .CLAUDE/ -->
+<div class="slide" data-section="扩展智能体" data-title=".claude/ 内部结构">
+  <div class="kicker g rise" style="--i:0">📁 目录结构</div>
+  <h2 class="rise" style="--i:1">Inside .claude/</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card rise" style="--i:2"><h3>📂 目录结构</h3><div class="tree" style="margin:0;border:none;box-shadow:none;background:transparent;padding:0;font-size:14px">.claude/
+├── CLAUDE.md          # 项目指令
+├── CLAUDE.local.md    # 本地指令
+├── rules/             # 范围化规则
+│   ├── testing.md
+│   └── api-style.md
+├── skills/            # 技能定义
+│   └── code-review.md
+├── hooks/             # 钩子脚本
+│   ├── pre-tool.sh
+│   └── post-turn.sh
+├── mcp/               # MCP 配置
+│   ── servers.json
+└── plugins/           # 插件
+    └── release-plugin/</div></div>
+    <div class="card blue rise" style="--i:3"><h3> 关键文件</h3><ul class="nb-list"><li><b>CLAUDE.md</b> — 核心指令文件</li><li><b>rules/</b> — 按需加载的规则</li><li><b>skills/</b> — 可复用过程模板</li><li><b>hooks/</b> — 生命周期自动化</li><li><b>mcp/</b> — 外部服务配置</li><li><b>plugins/</b> — 打包的扩展单元</li></ul></div>
+  </div>
+</div>
+
+<!-- 42 DESIGN EXERCISE -->
+<div class="slide" data-section="扩展智能体" data-title="设计练习">
+  <div class="kicker p rise" style="--i:0">✏️ 练习</div>
+  <h2 class="rise" style="--i:1">Design Exercise</h2>
+  <div class="card yellow rise" style="--i:2;margin-top:14px"><h3>🎯 任务</h3><p>为你的项目设计一个完整的智能体扩展方案：</p></div>
+  <ol class="step-list rise" style="--i:3">
+    <li><span><b>识别痛点</b> — 列出你在使用 Claude Code 时重复遇到的 3 个问题</span></li>
+    <li><span><b>选择机制</b> — 对每个问题，选择最合适的扩展机制（Skill / MCP / Hook / Plugin）</span></li>
+    <li><span><b>设计结构</b> — 画出 .claude/ 目录结构，包含你需要的文件</span></li>
+    <li><span><b>编写草案</b> — 为其中一个机制编写具体的实现草案</span></li>
+  </ol>
+  <div class="banner ban-p rise" style="--i:4">下节课我们将分享和讨论大家的设计方案</div>
+</div>
+
+<!-- 43 NEXT CLASS -->
+<div class="slide" data-section="扩展智能体" data-title="下节课预告">
+  <div class="kicker b rise" style="--i:0">📋 下节课</div>
+  <h2 class="rise" style="--i:1">Next Class</h2>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card dark rise" style="--i:2"><h3 style="color:var(--yellow)"> 内容预告</h3><ul class="nb-list" style="color:#ccc"><li>Agent From a User's Perspective II</li><li>高级智能体模式</li><li>多智能体协作</li><li>智能体评估与调试</li></ul></div>
+    <div class="card rise" style="--i:3"><h3> 课前准备</h3><ul class="nb-list"><li>完成设计练习</li><li>阅读 MCP 规范文档</li><li>尝试创建一个简单的 Skill</li><li>准备分享你的设计方案</li></ul></div>
+  </div>
+  <div class="banner ban-y rise" style="--i:4">从理解到实践：下节课我们将动手构建智能体扩展</div>
+</div>
+
+<!-- 44 OPTIONAL SLIDES DIVIDER -->
+<div class="slide section-div" data-section="可选幻灯片" data-title="可选内容（分节）">
+  <h1 class="rise" style="--i:0">Optional Slides</h1>
+  <p class="sub rise" style="--i:1">以下内容为补充材料，供深入参考</p>
+  <p class="sub rise" style="--i:2;color:var(--mint);margin-top:20px">MCP 深入 · 架构 · 安全 · 网关</p>
+</div>
+
+<!-- 45 MCP WHAT AND WHY -->
+<div class="slide" data-section="可选幻灯片" data-title="MCP 是什么以及为什么">
+  <div class="kicker y rise" style="--i:0"> MCP 基础</div>
+  <h2 class="rise" style="--i:1">MCP: What and Why</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card yellow rise" style="--i:2"><h3> 什么是 MCP？</h3><p><b>Model Context Protocol</b>（模型上下文协议）是一个开放标准，定义了 AI 模型与外部数据源和工具之间的通信方式。</p><p style="margin-top:8px">类比：USB 之于外设，MCP 之于 AI 工具。</p></div>
+    <div class="card blue rise" style="--i:3"><h3>❓ 为什么需要 MCP？</h3><ul class="nb-list"><li><b>标准化</b>：统一的工具连接协议</li><li><b>解耦</b>：模型与工具独立演进</li><li><b>生态</b>：一次集成，多模型复用</li><li><b>安全</b>：明确的权限和沙箱边界</li></ul></div>
+  </div>
+</div>
+
+<!-- 46 MCP ARCHITECTURE -->
+<div class="slide" data-section="可选幻灯片" data-title="MCP 架构">
+  <div class="kicker b rise" style="--i:0">🏗️ 架构</div>
+  <h2 class="rise" style="--i:1">MCP Architecture</h2>
+  <div class="flow rise" style="--i:2;margin-top:20px;justify-content:center">
+    <div class="flow-item fi-b" style="padding:14px 20px">Host<br>（Claude Code 等）</div>
+    <span class="flow-arrow">⟷</span>
+    <div class="flow-item fi-p" style="padding:14px 20px">MCP Client</div>
+    <span class="flow-arrow">⟷</span>
+    <div class="flow-item fi-g" style="padding:14px 20px">MCP Server</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-item fi-o" style="padding:14px 20px">External Service</div>
+  </div>
+  <div class="grid g3" style="margin-top:20px">
+    <div class="card rise" style="--i:3"><h3>Host 宿主</h3><p class="small">运行智能体的应用程序，如 Claude Code、IDE 插件</p></div>
+    <div class="card rise" style="--i:4"><h3>Client 客户端</h3><p class="small">在 Host 内运行，管理与 Server 的连接和协议通信</p></div>
+    <div class="card rise" style="--i:5"><h3>Server 服务端</h3><p class="small">暴露工具、资源和提示词模板，执行实际操作</p></div>
+  </div>
+</div>
+
+<!-- 47 MCP THREE CORE PRIMITIVES -->
+<div class="slide" data-section="可选幻灯片" data-title="MCP 三个核心原语">
+  <div class="kicker g rise" style="--i:0">🔑 核心原语</div>
+  <h2 class="rise" style="--i:1">MCP Three Core Primitives</h2>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card yellow rise" style="--i:2"><h3>🔧 Tools 工具</h3><p>模型可以调用的函数。每个工具有名称、描述和 JSON Schema 参数定义。</p><p style="margin-top:8px"><b>示例</b>：query_database、send_slack_message</p></div>
+    <div class="card blue rise" style="--i:3"><h3>📚 Resources 资源</h3><p>模型可以读取的数据源。类似文件路径，但可以是任何结构化数据。</p><p style="margin-top:8px"><b>示例</b>：database://users、config://app</p></div>
+    <div class="card pink rise" style="--i:4"><h3>💬 Prompts 提示词</h3><p>预定义的提示词模板。Server 可以提供可复用的提示词供模型使用。</p><p style="margin-top:8px"><b>示例</b>：code_review_prompt、debug_assistant</p></div>
+  </div>
+</div>
+
+<!-- 48 HOW THEY WORK TOGETHER -->
+<div class="slide" data-section="可选幻灯片" data-title="三个原语如何协同">
+  <div class="kicker p rise" style="--i:0">🔄 协同工作</div>
+  <h2 class="rise" style="--i:1">How They Work Together</h2>
+  <div class="flow rise" style="--i:2;margin-top:16px">
+    <div class="flow-item fi-y">Prompts<br>提示词模板</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-b">Resources<br>读取数据</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-p">Tools<br>执行操作</div><span class="flow-arrow">→</span>
+    <div class="flow-item fi-g">Result<br>返回结果</div>
+  </div>
+  <div class="card mint rise" style="--i:3;margin-top:16px">
+    <h3>📝 完整流程示例</h3>
+    <ol class="nb-list"><li>用户使用 <b>Prompt</b> 模板发起代码审查请求</li><li>MCP Server 通过 <b>Resource</b> 读取仓库配置和代码规范</li><li>模型决定调用 <b>Tool</b> 查询数据库获取变更历史</li><li>模型调用另一个 <b>Tool</b> 在 GitHub 上创建审查评论</li><li>结果通过协议返回，折叠回上下文</li></ol>
+  </div>
+</div>
+
+<!-- 49 MCP SECURITY -->
+<div class="slide" data-section="可选幻灯片" data-title="MCP 安全">
+  <div class="kicker o rise" style="--i:0">🔒 安全</div>
+  <h2 class="rise" style="--i:1">MCP Security</h2>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card rise" style="--i:2"><h3>️ 安全机制</h3><ul class="nb-list"><li><b>显式授权</b>：每个工具调用需要用户或策略授权</li><li><b>沙箱执行</b>：MCP Server 在隔离环境中运行</li><li><b>最小权限</b>：工具只暴露必要的操作</li><li><b>审计日志</b>：所有工具调用可追溯</li></ul></div>
+    <div class="card rise" style="--i:3"><h3>️ 注意事项</h3><ul class="nb-list"><li>只安装可信的 MCP Server</li><li>审查工具的权限范围</li><li>注意数据流向（哪些数据发送给外部服务）</li><li>定期更新 MCP Server 以修复安全漏洞</li></ul></div>
+  </div>
+  <div class="banner ban-o rise" style="--i:4">MCP 扩展了能力边界，但也扩展了攻击面 — 安全不可忽视</div>
+</div>
+
+<!-- 50 MCP GATEWAY -->
+<div class="slide" data-section="可选幻灯片" data-title="MCP Gateway">
+  <div class="kicker o rise" style="--i:0">🌐 网关</div>
+  <h2 class="rise" style="--i:1">MCP Gateway</h2>
+  <p class="sub-anim rise" style="--i:2">AI 客户端与 MCP Server 之间的控制层</p>
+  <div class="agent-diagram rise" style="--i:3;margin-top:16px">
+    <div class="diag-box cl-b" style="top:10px;left:50%;transform:translateX(-50%)">Claude Code / Agent</div>
+    <div class="arrow" style="top:60px;left:50%;transform:translateX(-50%)">↓</div>
+    <div class="diag-box cl-o" style="top:90px;left:50%;transform:translateX(-50%);font-weight:700">MCP Gateway</div>
+    <div class="arrow" style="top:140px;left:25%">↓</div>
+    <div class="arrow" style="top:140px;left:50%;transform:translateX(-50%)">↓</div>
+    <div class="arrow" style="top:140px;left:75%">↓</div>
+    <div class="diag-box cl-g" style="top:170px;left:15%">GitHub MCP</div>
+    <div class="diag-box cl-p" style="top:170px;left:50%;transform:translateX(-50%)">Jira MCP</div>
+    <div class="diag-box cl-y" style="top:170px;left:75%">Database MCP</div>
+  </div>
+  <div class="banner ban-o rise" style="--i:4">Gateway 统一管理多个 MCP Server 的连接、认证和策略</div>
+</div>
+
+<!-- 51 WHAT A GATEWAY DOES -->
+<div class="slide" data-section="可选幻灯片" data-title="Gateway 的功能">
+  <div class="kicker o rise" style="--i:0">⚙️ 功能</div>
+  <h2 class="rise" style="--i:1">What a Gateway Does</h2>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card rise" style="--i:2"><h3>📦 Aggregate</h3><p>聚合多个 MCP Server，统一暴露给客户端</p></div>
+    <div class="card rise" style="--i:3"><h3>🔀 Route</h3><p>根据工具名称或参数路由到正确的 Server</p></div>
+    <div class="card rise" style="--i:4"><h3>🛡️ Enforce Policy</h3><p>执行安全策略：权限控制、速率限制、审计</p></div>
+    <div class="card rise" style="--i:5"><h3>🔑 Broker Identity</h3><p>管理身份认证：OAuth、API Key、JWT</p></div>
+    <div class="card rise" style="--i:6"><h3>👁️ Observe</h3><p>监控和日志：调用追踪、性能指标、错误报告</p></div>
+    <div class="card rise" style="--i:7"><h3>📈 Scale</h3><p>负载均衡、缓存、连接池管理</p></div>
+  </div>
+  <div class="banner ban-o rise" style="--i:8">Gateway 是 MCP 生态的基础设施层</div>
+</div>
+
+<!-- 52 WHAT IS NEW -->
+<div class="slide" data-section="可选幻灯片" data-title="MCP 规范更新">
+  <div class="kicker o rise" style="--i:0">🆕 更新</div>
+  <h2 class="rise" style="--i:1">What is new?</h2>
+  <p class="sub-anim rise" style="--i:2">MCP Specification · 2026-07-28</p>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card rise" style="--i:3"><h3>🧩 Stateless Core</h3><ul class="nb-list"><li>协议核心是无状态的</li><li>每次请求独立</li><li>简化部署和扩展</li></ul></div>
+    <div class="card rise" style="--i:4"><h3>🔀 Routing</h3><ul class="nb-list"><li>支持多 Server 路由</li><li>Gateway 模式标准化</li><li>工具发现和聚合</li></ul></div>
+    <div class="card rise" style="--i:5"><h3>🔌 Extensions</h3><ul class="nb-list"><li>可选扩展机制</li><li>Ellicitation、Sampling</li><li>实验性功能</li></ul></div>
+  </div>
+  <div class="banner ban-o rise" style="--i:6">规范持续演进，Gateway 成为企业级部署的关键</div>
+</div>
+
+</div></div>
+
+<div id="bar-bg"><div id="bar"></div></div>
+<div id="counter">1 / 49</div>
+<div id="hint">← → 翻页 · 空格下一页 · F 全屏 · O 目录 · 点击右/左半屏翻页</div>
+<div id="ctrls">
+  <button id="btn-prev" title="上一页 (←)">◀</button>
+  <button id="btn-ovl" title="目录 (O)">☰</button>
+  <button id="btn-fs" title="全屏 (F)">⛶</button>
+  <button id="btn-next" title="下一页 (→)">▶</button>
+</div>
+<div id="ovl">
+  <button class="close" id="ovl-close">✕ 关闭 (O)</button>
+  <h2>幻灯片目录 · 点击跳转</h2>
+  <div id="ovl-body"></div>
+</div>
+<script>
+(function(){
+  var hint=document.getElementById('hint');var hintTimer;
+  function showHint(){hint.style.opacity='1';clearTimeout(hintTimer);hintTimer=setTimeout(function(){hint.style.opacity='0';},2500);}
+  document.addEventListener('mousemove',showHint);showHint();
+  var stage=document.getElementById('stage');var slides=[].slice.call(document.querySelectorAll('.slide'));var cur=0,dir=1;
+  function fit(){var s=Math.min(window.innerWidth/1280,window.innerHeight/720);stage.style.transform='translate(-50%,-50%) scale('+s+')';}
+  window.addEventListener('resize',fit);fit();
+  function show(n,fromDir){n=Math.max(0,Math.min(slides.length-1,n));dir=(n>=cur)?1:-1;if(fromDir!==undefined)dir=fromDir;slides.forEach(function(s,i){s.classList.remove('from-left');if(i===n){if(dir<0)s.classList.add('from-left');s.classList.add('active');}else s.classList.remove('active');});cur=n;document.getElementById('counter').textContent=(cur+1)+' / '+slides.length;document.getElementById('bar').style.width=((cur+1)/slides.length*100)+'%';}
+  function next(){show(cur+1,1);}function prev(){show(cur-1,-1);}
+  window.addEventListener('keydown',function(e){if(document.getElementById('ovl').classList.contains('on')){if(e.key==='o'||e.key==='O'||e.key==='Escape'){toggleOvl();}return;}switch(e.key){case 'ArrowRight':case 'ArrowDown':case ' ':case 'PageDown':e.preventDefault();next();break;case 'ArrowLeft':case 'ArrowUp':case 'PageUp':e.preventDefault();prev();break;case 'Home':e.preventDefault();show(0,-1);break;case 'End':e.preventDefault();show(slides.length-1,1);break;case 'f':case 'F':toggleFs();break;case 'o':case 'O':toggleOvl();break;}});
+  document.getElementById('viewport').addEventListener('click',function(e){if(e.target.closest('button,a,.no-nav'))return;var sel=window.getSelection();if(sel&&String(sel).length>0)return;var x=e.clientX/window.innerWidth;if(x<0.38)prev();else next();});
+  function toggleFs(){if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}else{document.exitFullscreen&&document.exitFullscreen();}}
+  document.getElementById('btn-fs').addEventListener('click',function(e){e.stopPropagation();toggleFs();});
+  document.getElementById('btn-next').addEventListener('click',function(e){e.stopPropagation();next();});
+  document.getElementById('btn-prev').addEventListener('click',function(e){e.stopPropagation();prev();});
+  document.getElementById('btn-ovl').addEventListener('click',function(e){e.stopPropagation();toggleOvl();});
+  var ovl=document.getElementById('ovl'),ovlBody=document.getElementById('ovl-body');
+  (function buildOvl(){var lastSec=null,grid=null;slides.forEach(function(s,i){var sec=s.getAttribute('data-section')||'',title=s.getAttribute('data-title')||('第 '+(i+1)+' 页');if(sec!==lastSec){var h=document.createElement('div');h.className='ov-sec';h.textContent=sec;ovlBody.appendChild(h);grid=document.createElement('div');grid.className='ov-grid';ovlBody.appendChild(grid);lastSec=sec;}var it=document.createElement('div');it.className='ov-item';it.innerHTML='<b>'+String(i+1).padStart(2,'0')+'</b><span></span>';it.querySelector('span').textContent=title;it.addEventListener('click',function(){show(i);toggleOvl();});grid.appendChild(it);});})();
+  function toggleOvl(){ovl.classList.toggle('on');}
+  document.getElementById('ovl-close').addEventListener('click',function(){toggleOvl();});
+  var tx=null;window.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  window.addEventListener('touchend',function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?next():prev();}tx=null;},{passive:true});
+})();
+</script>
+</body>
+</html>

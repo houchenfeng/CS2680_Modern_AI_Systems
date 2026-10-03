@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第6讲 Agent Design III: 记忆与可靠性</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A0A0A;
+  --paper:#FAFAFA;
+  --yellow:#FFE600;
+  --blue:#0047FF;
+  --pink:#FF006E;
+  --mint:#00F5A0;
+  --orange:#FF6B00;
+  --disp:'Archivo Black','Arial Black','Microsoft YaHei',system-ui,sans-serif;
+  --body:'Space Grotesk','Microsoft YaHei',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Courier New',monospace;
+  --sh:6px 6px 0 var(--ink);
+  --sh-sm:4px 4px 0 var(--ink);
+  --brd:3px solid var(--ink);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#101010;font-family:var(--body)}
+body{
+  background:
+    radial-gradient(circle at 18% 12%,#2a2a2a 0,transparent 45%),
+    radial-gradient(circle at 82% 88%,#232323 0,transparent 45%),
+    #101010;
+}
+#viewport{position:fixed;inset:0}
+#stage{
+  position:absolute;top:50%;left:50%;
+  width:1280px;height:720px;
+  transform:translate(-50%,-50%) scale(1);
+  transform-origin:center center;
+}
+.slide{
+  position:absolute;inset:0;width:1280px;height:720px;
+  display:none;flex-direction:column;
+  padding:40px 54px 46px;
+  background-color:var(--paper);
+  background-image:radial-gradient(rgba(10,10,10,.14) 1.3px,transparent 1.3px);
+  background-size:22px 22px;
+  color:var(--ink);
+  overflow:hidden;
+}
+.slide.active{display:flex;animation:slideEnter .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnter{
+  0%{opacity:0;transform:translateX(70px) scale(.985) rotate(.4deg)}
+  100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}
+}
+.slide.active.from-left{animation:slideEnterL .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnterL{
+  0%{opacity:0;transform:translateX(-70px) scale(.985) rotate(-.4deg)}
+  100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}
+}
+.slide.active .rise{animation:rise .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .pop{animation:pop .45s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .slide-r{animation:slideR .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .shake{animation:shake .6s both;animation-delay:calc(var(--i,0)*.07s + .15s)}
+@keyframes rise{0%{opacity:0;transform:translateY(26px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{opacity:0;transform:scale(.82) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes slideR{0%{opacity:0;transform:translateX(-40px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-5px) rotate(-1.5deg)}40%{transform:translateX(5px) rotate(1.5deg)}60%{transform:translateX(-4px) rotate(-1deg)}80%{transform:translateX(4px) rotate(1deg)}}
+.slide.active .title-anim{animation:rise .5s .05s both}
+.slide.active .sub-anim{animation:rise .5s .12s both}
+.slide.active .tag-anim{animation:pop .4s both}
+.slide.active .float{animation:float 3.2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(var(--r,-4deg))}50%{transform:translateY(-11px) rotate(var(--r,-4deg))}}
+.cover{
+  background:var(--mint)!important;
+  background-image:radial-gradient(rgba(255,255,255,.12) 1.5px,transparent 1.5px)!important;
+  background-size:24px 24px!important;
+  justify-content:center;align-items:center;text-align:center;
+}
+.cover .brand{
+  font-family:var(--disp);font-size:22px;
+  background:#fff;color:var(--ink);
+  display:inline-block;padding:8px 18px;
+  border:4px solid #fff;transform:rotate(-2deg);
+  box-shadow:var(--sh);
+}
+.cover h1{font-family:var(--disp);font-size:62px;line-height:1.05;margin:22px 0 10px;letter-spacing:-2px;color:#fff}
+.cover .lead{font-size:22px;font-weight:700;max-width:800px;line-height:1.4;color:rgba(0,0,0,.7)}
+.sticker{
+  position:absolute;font-family:var(--disp);border:4px solid #fff;
+  box-shadow:var(--sh-sm);padding:8px 14px;font-size:17px;z-index:3;
+}
+h2{font-family:var(--disp);font-size:42px;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px}
+h3{font-family:var(--disp);font-size:20px;margin-bottom:8px;letter-spacing:-.3px}
+p,li{font-size:17px;line-height:1.55}
+ul,ol{padding-left:24px;margin:8px 0}
+li{margin-bottom:5px}
+.subtitle{font-size:20px;font-weight:500;color:#3a3a3a;margin-top:8px}
+.highlight{color:var(--blue);font-weight:700}
+.small{font-size:14px;color:#6b6b6b;font-weight:500}
+.kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--disp);font-size:15px;letter-spacing:.5px;
+  padding:6px 14px;border:3px solid var(--ink);
+  transform:rotate(-1.2deg);box-shadow:var(--sh-sm);
+}
+.kicker.y{background:var(--ink);color:var(--yellow)}
+.kicker.b{background:var(--blue);color:#fff}
+.kicker.p{background:var(--pink);color:#fff}
+.kicker.g{background:var(--mint);color:var(--ink)}
+.kicker.o{background:var(--orange);color:#fff}
+.card{
+  background:#fff;border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:16px 18px;
+}
+.card.yellow{background:var(--yellow)}
+.card.blue{background:var(--blue);color:#fff}
+.card.blue h3,.card.blue p,.card.blue li{color:#fff}
+.card.pink{background:var(--pink);color:#fff}
+.card.pink h3,.card.pink p,.card.pink li{color:#fff}
+.card.mint{background:var(--mint)}
+.card.orange{background:var(--orange);color:#fff}
+.card.orange h3,.card.orange p,.card.orange li{color:#fff}
+.card.dark{background:var(--ink);color:var(--paper)}
+.card.dark h3,.card.dark p,.card.dark li{color:var(--paper)}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.nb-list{list-style:none;padding:0}
+.nb-list li{
+  padding:7px 12px;border-left:4px solid var(--ink);
+  margin-bottom:4px;background:var(--paper);font-size:16px;
+}
+.card.blue .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}
+.card.pink .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}
+.card.mint .nb-list li{background:rgba(0,0,0,.06);border-left-color:var(--ink)}
+.nb-code{
+  background:#1b1b1b;color:var(--mint);border:4px solid var(--ink);
+  box-shadow:var(--sh);padding:16px 18px;
+  font-family:var(--mono);font-size:15px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;margin:12px 0;
+}
+table{width:100%;border-collapse:collapse;margin:12px 0;border:4px solid var(--ink);box-shadow:var(--sh)}
+th{background:var(--ink);color:var(--paper);font-family:var(--body);font-weight:700;font-size:15px;padding:12px 16px;text-align:left;border:2px solid var(--ink)}
+td{padding:10px 16px;border:2px solid var(--ink);font-size:15px;background:var(--paper)}
+tr:nth-child(even) td{background:#f0f0f0}
+code{background:var(--ink);color:var(--mint);padding:2px 7px;font-family:var(--mono);font-size:.88em;border:2px solid var(--ink)}
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.flow-item{
+  background:var(--ink);color:var(--paper);border:3px solid var(--ink);
+  padding:10px 16px;font-weight:700;font-size:15px;box-shadow:var(--sh-sm);
+}
+.fi-y{background:var(--yellow);color:var(--ink)}
+.fi-b{background:var(--blue);color:#fff}
+.fi-p{background:var(--pink);color:#fff}
+.fi-g{background:var(--mint);color:var(--ink)}
+.fi-o{background:var(--orange);color:#fff}
+.flow-arrow{font-size:1.5em;font-weight:700;color:var(--ink)}
+.layer-stack{display:flex;flex-direction:column;gap:4px;margin:12px 0}
+.layer{
+  padding:12px 18px;font-weight:700;font-size:15px;
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+}
+.banner{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:14px 20px;font-weight:700;font-size:16px;text-align:center;margin:12px 0;
+}
+.ban-y{background:var(--yellow)}
+.ban-b{background:var(--blue);color:#fff}
+.ban-p{background:var(--pink);color:#fff}
+.ban-g{background:var(--mint)}
+.ban-o{background:var(--orange);color:#fff}
+.ban-d{background:var(--ink);color:var(--paper)}
+.badge{
+  display:inline-block;background:var(--ink);color:var(--paper);
+  padding:3px 12px;font-family:var(--disp);font-weight:700;
+  font-size:13px;letter-spacing:.05em;margin-right:6px;
+}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+.compare-col h3{
+  font-family:var(--disp);font-size:18px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);margin-bottom:10px;
+}
+.compare-col h3.green{background:var(--mint)}
+.compare-col h3.red{background:var(--pink);color:#fff}
+.step-list{counter-reset:step;list-style:none;padding:0}
+.step-list li{
+  counter-increment:step;display:flex;align-items:flex-start;gap:12px;
+  padding:10px 14px;border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  margin-bottom:7px;background:var(--paper);font-size:16px;
+}
+.step-list li::before{
+  content:counter(step);font-family:var(--disp);font-size:17px;
+  background:var(--ink);color:var(--paper);
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.step-list li:nth-child(1)::before{background:var(--yellow);color:var(--ink)}
+.step-list li:nth-child(2)::before{background:var(--blue)}
+.step-list li:nth-child(3)::before{background:var(--pink)}
+.step-list li:nth-child(4)::before{background:var(--mint);color:var(--ink)}
+.step-list li:nth-child(5)::before{background:var(--orange)}
+.step-list li:nth-child(6)::before{background:var(--ink)}
+.step-list li:nth-child(7)::before{background:var(--blue)}
+.top-card{border:3px solid var(--ink);box-shadow:var(--sh);padding:14px 16px;background:var(--paper)}
+.top-card .card-label{
+  font-family:var(--disp);font-weight:700;font-size:15px;
+  margin-bottom:7px;padding:3px 10px;display:inline-block;border:2px solid var(--ink);
+}
+.cl-y{background:var(--yellow)}
+.cl-b{background:var(--blue);color:#fff}
+.cl-p{background:var(--pink);color:#fff}
+.cl-g{background:var(--mint)}
+.cl-o{background:var(--orange);color:#fff}
+.arrow{font-size:2.2em;text-align:center;font-weight:700;margin:6px 0}
+.wf-row{display:flex;align-items:center;gap:0;margin:8px 0;flex-wrap:wrap}
+.wf-label{
+  font-family:var(--disp);font-size:14px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);flex-shrink:0;
+  min-width:90px;text-align:center;
+}
+.wf-label-o{background:var(--orange);color:#fff}
+.wf-label-p{background:var(--pink);color:#fff}
+.wf-label-d{background:var(--ink);color:#fff}
+.wf-label-g{background:var(--mint)}
+.wf-step{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:10px 16px;font-weight:700;font-size:15px;margin:0 4px;
+}
+.wf-step-o{background:var(--orange);color:#fff}
+.wf-step-p{background:var(--pink);color:#fff}
+.wf-step-b{background:var(--blue);color:#fff}
+.wf-step-g{background:var(--mint)}
+.wf-step-d{background:var(--ink);color:#fff}
+.wf-arrow{font-size:1.4em;font-weight:700;color:var(--ink);margin:0 4px}
+.diag-box{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:18px 22px;text-align:center;font-weight:700;font-size:17px;
+}
+.diag-box-blue{background:var(--blue);color:#fff}
+.diag-box-teal{background:var(--mint)}
+.diag-box-orange{background:var(--orange);color:#fff}
+.diag-box-pink{background:var(--pink);color:#fff}
+.diag-box-dark{background:var(--ink);color:var(--paper)}
+.diag-box-yellow{background:var(--yellow)}
+.diag-arrow{font-size:2.4em;font-weight:700;text-align:center}
+.seq-item{
+  padding:10px 16px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);margin:6px 0;
+  font-size:16px;font-weight:600;
+}
+.seq-blue{background:var(--blue);color:#fff}
+.seq-teal{background:var(--mint)}
+.seq-orange{background:var(--orange);color:#fff}
+.seq-gray{background:#E0E0E0}
+/* Info rows for comparison slides */
+.info-row{
+  display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:0;
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  margin-bottom:8px;font-size:15px;
+}
+.info-row .ir-label{
+  padding:12px 16px;font-weight:700;font-size:16px;
+  border-right:3px solid var(--ink);
+}
+.info-row .ir-mid{
+  padding:12px 16px;border-right:3px solid var(--ink);
+}
+.info-row .ir-right{padding:12px 16px}
+.ir-teal{background:var(--mint)}
+.ir-yellow{background:var(--yellow)}
+.ir-blue{background:var(--blue);color:#fff}
+.ir-blue .ir-mid,.ir-blue .ir-right{color:#fff}
+.ir-pink{background:var(--pink);color:#fff}
+.ir-pink .ir-mid,.ir-pink .ir-right{color:#fff}
+/* Two-column layout */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:10px 0}
+.two-col .col-card{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);padding:16px 18px;
+}
+.col-card h3{margin-bottom:10px}
+/* Chart bars */
+.chart-row{display:flex;align-items:flex-end;gap:12px;margin:14px 0}
+.chart-bar{
+  display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;
+}
+.chart-bar .bar{
+  width:100%;background:var(--ink);border:3px solid var(--ink);
+  transition:height .3s;
+}
+.chart-bar .bar-label{font-size:13px;font-weight:700}
+.chart-bar .bar-val{font-family:var(--disp);font-size:18px}
+/* Failure table rows */
+.fail-row{
+  display:grid;grid-template-columns:1fr 1.2fr 1.2fr 1fr;gap:0;
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  margin-bottom:6px;font-size:14px;
+}
+.fail-row .fr-label{
+  padding:10px 14px;font-weight:700;font-size:15px;
+  border-right:3px solid var(--ink);
+}
+.fail-row .fr-mid{
+  padding:10px 14px;border-right:3px solid var(--ink);font-size:14px;
+}
+.fail-row .fr-right{padding:10px 14px;font-size:14px}
+.fr-teal{background:var(--mint)}
+.fr-yellow{background:var(--yellow)}
+.fr-blue{background:var(--blue);color:#fff}
+.fr-blue .fr-mid,.fr-blue .fr-right{color:#fff}
+.fr-pink{background:var(--pink);color:#fff}
+.fr-pink .fr-mid,.fr-pink .fr-right{color:#fff}
+.fr-gray{background:#E8E8E8}
+/* Section divider */
+.section-div{
+  background:var(--ink)!important;
+  justify-content:center;align-items:center;text-align:center;
+}
+.section-div h2{color:var(--mint);font-size:56px;margin-bottom:16px}
+.section-div p{color:rgba(255,255,255,.7);font-size:22px}
+/* Hands up badge */
+.hands-up{
+  position:absolute;top:14px;right:18px;
+  font-family:var(--disp);font-size:16px;
+  background:var(--pink);color:#fff;
+  padding:8px 16px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);z-index:5;
+}
+/* Checklist flow */
+.check-flow{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+.check-step{
+  display:flex;align-items:center;gap:12px;
+}
+.check-step .cs-label{
+  font-family:var(--disp);font-size:15px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);flex-shrink:0;min-width:180px;
+}
+.check-step .cs-desc{
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);font-size:15px;flex:1;
+}
+.cs-teal{background:var(--mint)}
+.cs-yellow{background:var(--yellow)}
+.cs-blue{background:var(--blue);color:#fff}
+.cs-pink{background:var(--pink);color:#fff}
+.cs-orange{background:var(--orange);color:#fff}
+.cs-dark{background:var(--ink);color:var(--paper)}
+/* Memory stack */
+.stack-box{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:16px 20px;margin:8px 0;
+}
+.stack-box .sb-title{font-family:var(--disp);font-size:20px;margin-bottom:6px}
+.stack-box .sb-desc{font-size:15px;color:#444}
+.sb-blue{background:var(--blue);color:#fff}
+.sb-blue .sb-desc{color:rgba(255,255,255,.85)}
+.sb-teal{background:var(--mint)}
+.sb-yellow{background:var(--yellow)}
+/* Next class */
+.next-list{list-style:none;padding:0}
+.next-list li{
+  padding:12px 18px;border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  margin-bottom:10px;font-size:20px;font-weight:700;
+  display:flex;align-items:center;gap:14px;
+}
+.next-list li .nl-num{
+  font-family:var(--disp);font-size:22px;
+  background:var(--ink);color:var(--mint);
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+/* 5-col grid for designing for failure */
+.col5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:12px 0}
+.col5 .c5-card{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:12px 10px;font-size:14px;
+}
+.c5-card .c5-head{
+  font-family:var(--disp);font-size:14px;
+  padding:6px 8px;margin:-12px -10px 10px;
+  border-bottom:3px solid var(--ink);
+}
+.c5-card .c5-head h4{font-family:var(--disp);font-size:14px;margin:0}
+.c5-card ul{padding-left:16px;margin:0}
+.c5-card li{font-size:13px;margin-bottom:4px}
+.c5-blue .c5-head{background:var(--blue);color:#fff}
+.c5-teal .c5-head{background:var(--mint)}
+.c5-orange .c5-head{background:var(--orange);color:#fff}
+.c5-pink .c5-head{background:var(--pink);color:#fff}
+.c5-gray .c5-head{background:#B0BEC5}
+/* Bar chart for reliability */
+.bar-chart{display:flex;align-items:flex-end;gap:16px;height:220px;margin:14px 0;padding:0 20px}
+.bar-chart .bc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-chart .bc-bar{width:80%;background:var(--ink);border:3px solid var(--ink);border-radius:2px 2px 0 0}
+.bar-chart .bc-bar.red{background:var(--pink);border-color:var(--pink)}
+.bar-chart .bc-val{font-family:var(--disp);font-size:18px}
+.bar-chart .bc-label{font-size:14px;font-weight:700}
+/* Failure mode cards */
+.fm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.fm-card{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:12px 16px;
+}
+.fm-card .fm-title{font-family:var(--disp);font-size:16px;margin-bottom:4px}
+.fm-card .fm-desc{font-size:14px;color:#444}
+.fm-teal{background:var(--mint)}
+.fm-yellow{background:var(--yellow)}
+.fm-blue{background:var(--blue);color:#fff}
+.fm-blue .fm-desc{color:rgba(255,255,255,.85)}
+.fm-pink{background:var(--pink);color:#fff}
+.fm-pink .fm-desc{color:rgba(255,255,255,.85)}
+/* Memory retrieval signals */
+.signal-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:12px 0}
+.signal-card{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:12px 10px;
+}
+.signal-card .sc-title{font-family:var(--disp);font-size:15px;margin-bottom:6px}
+.signal-card .sc-desc{font-size:13px;color:#444}
+.sc-teal{background:var(--mint)}
+.sc-yellow{background:var(--yellow)}
+.sc-blue{background:var(--blue);color:#fff}
+.sc-blue .sc-desc{color:rgba(255,255,255,.85)}
+.sc-pink{background:var(--pink);color:#fff}
+.sc-pink .sc-desc{color:rgba(255,255,255,.85)}
+.sc-gray{background:#E0E0E0}
+/* Pipeline */
+.pipeline{display:flex;align-items:center;gap:8px;margin:14px 0}
+.pipeline .pipe-box{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:12px 18px;font-weight:700;font-size:16px;text-align:center;flex:1;
+  background:#E8E8E8;
+}
+.pipeline .pipe-arrow{font-size:1.8em;font-weight:700;color:var(--ink)}
+/* Ownership diagrams */
+.own-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+.own-card{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:16px 18px;
+}
+.own-card .oc-title{font-family:var(--disp);font-size:18px;margin-bottom:4px}
+.own-card .oc-desc{font-size:14px;color:#444;margin-bottom:12px}
+.own-diagram{
+  border:3px solid var(--ink);padding:14px;
+  display:flex;align-items:center;gap:10px;justify-content:center;
+  font-size:14px;font-weight:700;
+}
+.od-box{
+  border:3px solid var(--ink);padding:10px 16px;
+}
+.od-arrow{font-size:1.4em;font-weight:700}
+#bar-bg{position:fixed;left:0;bottom:0;width:100%;height:7px;background:#000;z-index:51}
+#bar{height:100%;width:0;background:linear-gradient(90deg,var(--yellow),var(--pink),var(--blue));transition:width .3s}
+#ctrls{position:fixed;right:16px;bottom:16px;display:flex;gap:8px;align-items:center;z-index:52;pointer-events:auto}
+#ctrls button{
+  font-family:var(--disp);font-size:15px;width:44px;height:44px;
+  background:var(--paper);border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);cursor:pointer;color:var(--ink);
+}
+#ctrls button:hover{background:var(--yellow)}
+#ctrls button:active{transform:translate(2px,2px);box-shadow:none}
+#counter{
+  position:fixed;left:16px;bottom:14px;z-index:52;
+  font-family:var(--disp);font-size:16px;
+  background:var(--ink);color:var(--mint);padding:6px 12px;border:3px solid var(--mint);
+}
+#hint{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:52;
+  font-family:var(--mono);font-size:12.5px;color:#bbb;
+  background:rgba(0,0,0,.55);padding:5px 12px;border-radius:2px;
+  opacity:0;transition:opacity .4s;pointer-events:none;
+}
+#ovl{position:fixed;inset:0;z-index:60;background:rgba(10,10,10,.94);display:none;overflow:auto;padding:34px 40px}
+#ovl.on{display:block}
+#ovl h2{font-family:var(--disp);color:var(--mint);font-size:26px;margin-bottom:6px}
+#ovl .ov-sec{color:var(--yellow);font-family:var(--disp);font-size:15px;margin:18px 0 8px;letter-spacing:.5px}
+#ovl .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+#ovl .ov-item{background:#1c1c1c;border:2px solid #444;color:#eee;font-size:13.5px;padding:9px 11px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+#ovl .ov-item:hover{background:var(--mint);color:var(--ink);border-color:var(--mint)}
+#ovl .ov-item b{font-family:var(--mono);font-size:12px;opacity:.7}
+#ovl .close{position:fixed;top:20px;right:26px;font-family:var(--disp);font-size:16px;background:var(--yellow);border:3px solid var(--ink);color:var(--ink);padding:6px 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+  <!-- 1 COVER -->
+  <section class="slide cover active" data-title="封面" data-section="开场">
+    <span class="sticker float" style="--r:-5deg;background:var(--yellow);top:48px;right:56px;color:var(--ink)">Memory</span>
+    <span class="sticker float" style="--r:4deg;background:var(--blue);top:100px;right:80px;animation-delay:.4s;color:#fff">Reliability</span>
+    <span class="sticker float" style="--r:-3deg;background:var(--pink);top:150px;right:40px;animation-delay:.8s;color:#fff">Failure</span>
+    <div class="brand pop">LECTURE 06</div>
+    <h1 class="title-anim">Agent Design III<br>记忆与可靠性</h1>
+    <p class="lead sub-anim">Harvard CS2680 · 现代 AI 系统：Agents 与系统优化</p>
+  </section>
+
+  <!-- 2 LOGISTICS -->
+  <section class="slide" data-title="课程安排" data-section="开场">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">LOGISTICS</div>
+    <h2 class="title-anim">课程安排</h2>
+    <ul class="step-list rise" style="--i:0">
+      <li><strong>Office hour</strong>：本周四 3:30pm，SEC 4.308</li>
+      <li><strong>期末项目海报展示</strong>：12月7日 9am-1pm（时间冲突请本周联系）</li>
+      <li><strong>AI 生成参考资料</strong>：cs2680.com/notes/agent-evaluation，由讲师和 TF 审核</li>
+    </ul>
+  </section>
+
+  <!-- 3 PLAN -->
+  <section class="slide" data-title="今天的计划" data-section="开场">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">PLAN</div>
+    <h2 class="title-anim">今天的计划</h2>
+    <ul class="step-list rise" style="--i:0">
+      <li><strong>多 Agent 设计</strong>（接上节课）</li>
+      <li><strong>Agent 记忆</strong>：如何存储、检索、遗忘</li>
+      <li><strong>Agent 可靠性</strong>：错误来源与应对策略</li>
+    </ul>
+  </section>
+
+  <!-- 5 AGENT MEMORY INTRO -->
+  <section class="slide" data-title="Agent 记忆" data-section="Agent 记忆">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">AGENT MEMORY</div>
+    <h2 class="title-anim">Agent 记忆</h2>
+    <p class="subtitle rise" style="--i:0;margin-bottom:16px">超越上下文窗口的持久化状态</p>
+    <div class="grid g2 rise" style="--i:1">
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>上下文窗口</h3>
+          <p>临时工作状态，随对话结束而消失</p>
+        </div>
+        <div class="card mint">
+          <h3>记忆存储</h3>
+          <p>跨交互的持久化状态，长期保留</p>
+        </div>
+      </div>
+      <div class="diag-box diag-box-teal" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;justify-content:center">
+          <div class="od-box" style="background:var(--blue);color:#fff">用户</div>
+          <span class="od-arrow">→</span>
+          <div class="od-box" style="background:var(--mint)">Agent Harness</div>
+          <span class="od-arrow">→</span>
+          <div class="od-box">LLM</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;justify-content:center">
+          <span class="od-arrow" style="writing-mode:vertical-rl">↕</span>
+          <div class="od-box" style="background:var(--yellow)">记忆存储</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 MEMORY DESIGN QUESTIONS -->
+  <section class="slide" data-title="记忆设计问题" data-section="Agent 记忆">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">DESIGN QUESTIONS</div>
+    <h2 class="title-anim">Agent 记忆设计问题</h2>
+    <div class="rise" style="--i:0">
+      <div class="check-flow">
+        <div class="check-step">
+          <div class="cs-label cs-teal">值得保留吗？</div>
+          <span class="wf-arrow">→</span>
+          <div class="cs-desc cs-dark">决策：写入或跳过</div>
+        </div>
+        <div class="check-step">
+          <div class="cs-label cs-yellow">变成什么形式？</div>
+          <span class="wf-arrow">→</span>
+          <div class="cs-desc cs-dark">格式：编码 / 组织</div>
+        </div>
+        <div class="check-step">
+          <div class="cs-label cs-blue">存在哪里？</div>
+          <span class="wf-arrow">→</span>
+          <div class="cs-desc cs-dark">后端：存储</div>
+        </div>
+        <div class="check-step">
+          <div class="cs-label cs-pink">当前任务需要吗？</div>
+          <span class="wf-arrow">→</span>
+          <div class="cs-desc cs-dark">任务：检索</div>
+        </div>
+        <div class="check-step">
+          <div class="cs-label cs-orange">能得出什么更广泛的教训？</div>
+          <span class="wf-arrow">→</span>
+          <div class="cs-desc cs-dark">反思 / 泛化</div>
+        </div>
+        <div class="check-step">
+          <div class="cs-label cs-dark">仍然有效吗？</div>
+          <span class="wf-arrow">→</span>
+          <div class="cs-desc cs-dark">状态：保留 / 更新 / 删除</div>
+        </div>
+      </div>
+    </div>
+    <div class="banner ban-g rise" style="--i:1;margin-top:10px">谁拥有这段记忆？</div>
+  </section>
+
+  <!-- 7 DECISION -->
+  <section class="slide" data-title="决策：何时写入记忆" data-section="Agent 记忆">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">DECISION</div>
+    <h2 class="title-anim">决策：何时应该写入记忆？</h2>
+    <div class="banner ban-p rise" style="--i:0;margin-bottom:14px">写入每次交互会提高召回率，但也会增加噪声</div>
+    <div class="grid g2 rise" style="--i:1">
+      <div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:10px 0">
+          <div style="font-weight:700;font-size:18px">写入每次交互</div>
+          <div style="font-size:14px;color:#666">高召回率</div>
+          <div style="font-size:2em;font-weight:700">↕</div>
+          <div style="font-size:14px;color:#666">高精度</div>
+          <div style="font-weight:700;font-size:18px">选择性写入</div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:8px"><h3>️ 显式用户请求</h3></div>
+        <div class="card mint" style="margin-bottom:8px"><h3>📋 确定性规则（启发式）</h3></div>
+        <div class="card blue" style="margin-bottom:8px"><h3>🔽 小型分类器</h3></div>
+        <div class="card pink"><h3>🧠 周期性 LLM 审查</h3></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 FORMAT -->
+  <section class="slide" data-title="格式：如何组织记忆" data-section="Agent 记忆">
+    <div class="hands-up"> Hands up</div>
+    <div class="kicker b tag-anim" style="margin-bottom:12px">FORMAT</div>
+    <h2 class="title-anim">如何组织记忆？</h2>
+    <div class="rise" style="--i:0">
+      <div class="info-row ir-teal" style="margin-bottom:8px">
+        <div class="ir-label">原始事件 / 片段</div>
+        <div class="ir-mid">"我们把服务从 vLLM 迁移到了 SGLang。"</div>
+        <div class="ir-right">高保真；但冗余、体积大</div>
+      </div>
+      <div class="info-row ir-yellow" style="margin-bottom:8px">
+        <div class="ir-label">非结构化摘要</div>
+        <div class="ir-mid">"使用 SGLang 做模型服务。"</div>
+        <div class="ir-right">紧凑，但可能丢失上下文</div>
+      </div>
+      <div class="info-row ir-blue" style="margin-bottom:8px">
+        <div class="ir-label">结构化状态</div>
+        <div class="ir-mid">{"serving_engine":"SGLang"...}</div>
+        <div class="ir-right">可查询；受 schema 约束</div>
+      </div>
+      <div class="info-row ir-pink">
+        <div class="ir-label">知识图谱</div>
+        <div class="ir-mid">Project → USES → SGLang</div>
+        <div class="ir-right">实体关联，随时间演变</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 BACKEND -->
+  <section class="slide" data-title="后端：如何存储记忆" data-section="Agent 记忆">
+    <div class="hands-up">🖐 Hands up</div>
+    <div class="kicker g tag-anim" style="margin-bottom:12px">BACKEND</div>
+    <h2 class="title-anim">如何存储记忆？</h2>
+    <div class="rise" style="--i:0">
+      <div class="info-row ir-teal" style="margin-bottom:8px">
+        <div class="ir-label">纯文本文件</div>
+        <div class="ir-mid">CLAUDE.md，scratchpad</div>
+        <div class="ir-right">易于检查、diff 和搜索</div>
+      </div>
+      <div class="info-row ir-yellow" style="margin-bottom:8px">
+        <div class="ir-label">键值或关系数据库</div>
+        <div class="ir-mid">Redis，SQLite，Postgres JSONB</div>
+        <div class="ir-right">精确查找、过滤、事务</div>
+      </div>
+      <div class="info-row ir-blue" style="margin-bottom:8px">
+        <div class="ir-label">向量存储</div>
+        <div class="ir-mid">pgvector，Chroma，Pinecone</div>
+        <div class="ir-right">精确或近似相似度搜索</div>
+      </div>
+      <div class="info-row ir-pink">
+        <div class="ir-label">图数据库</div>
+        <div class="ir-mid">Neo4j，FalkorDB（Graphiti）</div>
+        <div class="ir-right">关系查询和多跳遍历</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9b CLAUDE.md EXAMPLE -->
+  <section class="slide" data-title="CLAUDE.md 实例" data-section="Agent 记忆">
+    <div class="kicker g tag-anim" style="margin-bottom:10px">CONCRETE EXAMPLE</div>
+    <h2 class="title-anim">CLAUDE.md：Agent 记忆文件</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="nb-code" style="font-size:12.5px;line-height:1.5">
+# Project: My Web App
+
+## Build &amp; Test Commands
+- Build: `npm run build`
+- Test all: `npm test`
+- Test single: `npm test -- -t "name"`
+- Lint: `npm run lint -- --fix`
+
+## Code Style
+- TypeScript strict mode
+- Prefer functional components (React)
+- Use Zod for runtime validation
+- Error messages: sentence case, no period
+
+## Memory Rules
+- After fixing a bug, record root cause
+  in docs/decisions.md
+- Never repeat a fix that failed before
+- Check docs/decisions.md before debugging
+
+## User Preferences
+- Reply in Chinese
+- Keep explanations under 3 sentences
+- Always run tests before committing</div>
+      <div>
+        <div class="card mint" style="margin-bottom:10px">
+          <h3>CLAUDE.md 是什么？</h3>
+          <ul class="nb-list">
+            <li>放在项目根目录的<strong>持久化记忆文件</strong></li>
+            <li>每次会话开始时自动加载到上下文</li>
+            <li>Agent 可以在会话中<strong>追加和修改</strong></li>
+            <li>跨会话保留项目知识和用户偏好</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>关键设计</h3>
+          <ul class="nb-list">
+            <li><strong>纯文本</strong>：可 diff、可 git 追踪</li>
+            <li><strong>结构化</strong>：用 Markdown 标题分区</li>
+            <li><strong>可操作</strong>：写具体的命令和规则</li>
+            <li><strong>可演化</strong>：Agent 和用户共同维护</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9c SKILL.MD EXAMPLE -->
+  <section class="slide" data-title="skill.md 实例" data-section="Agent 记忆">
+    <div class="kicker b tag-anim" style="margin-bottom:10px">CONCRETE EXAMPLE</div>
+    <h2 class="title-anim">skill.md：可复用的 Agent 技能</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="nb-code" style="font-size:12px;line-height:1.45">
+# Skill: code-reviewer
+
+## Description
+Review pull requests for bugs, style,
+and security issues.
+
+## Tools
+- read_file(path)
+- list_dir(path)
+- search(pattern, glob)
+
+## Instructions
+When reviewing a PR:
+1. Read the diff carefully
+2. Check for OWASP Top 10 issues:
+   - SQL injection
+   - XSS (unsanitized user input)
+   - Hardcoded secrets
+3. Verify error handling at
+   system boundaries
+4. Check test coverage for new code
+5. Output format:
+   - 🔴 Critical: must fix
+   - 🟡 Warning: should fix
+   - 🟢 Suggestion: nice to have
+
+## Constraints
+- Never modify code directly
+- Always cite file:line for each issue
+- Max 10 issues per review</div>
+      <div>
+        <div class="card blue" style="margin-bottom:10px">
+          <h3>skill.md 是什么？</h3>
+          <ul class="nb-list">
+            <li>定义 Agent 的<strong>一项具体能力</strong></li>
+            <li>包含工具列表、执行步骤、输出格式</li>
+            <li>可被不同 Agent <strong>复用和组合</strong></li>
+            <li>类似"插件"但更轻量、更声明式</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>与 CLAUDE.md 的区别</h3>
+          <ul class="nb-list">
+            <li><strong>CLAUDE.md</strong>：项目级记忆，全局生效</li>
+            <li><strong>skill.md</strong>：任务级能力，按需加载</li>
+            <li>CLAUDE.md 是"我知道什么"</li>
+            <li>skill.md 是"我能做什么"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9d MCP EXAMPLE -->
+  <section class="slide" data-title="MCP 实例" data-section="Agent 记忆">
+    <div class="kicker p tag-anim" style="margin-bottom:10px">CONCRETE EXAMPLE</div>
+    <h2 class="title-anim">MCP：模型上下文协议</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <div class="nb-code" style="font-size:11.5px;line-height:1.4;margin-bottom:10px">
+// MCP Server 配置 (mcp.json)
+{
+  "servers": {
+    "database": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://..."
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem",
+               "/path/to/allowed/dir"]
+    }
+  }
+}</div>
+        <div class="nb-code" style="font-size:11.5px;line-height:1.4">
+// MCP Tool 定义 (TypeScript)
+server.tool(
+  "query_users",
+  "Search users by name or email",
+  { name: z.string(), limit: z.number() },
+  async ({ name, limit }) =&gt; {
+    const rows = await db.query(
+      `SELECT * FROM users
+       WHERE name ILIKE $1 LIMIT $2`,
+      [`%${name}%`, limit]
+    );
+    return { content: [{ type:"text",
+      text: JSON.stringify(rows) }] };
+  }
+);</div>
+      </div>
+      <div>
+        <div class="card pink" style="margin-bottom:10px">
+          <h3>MCP 是什么？</h3>
+          <ul class="nb-list">
+            <li><strong>标准协议</strong>：Agent 连接外部工具的接口</li>
+            <li>类比：USB-C 之于硬件设备</li>
+            <li>提供 <strong>Tools</strong>（操作）、<strong>Resources</strong>（数据）、<strong>Prompts</strong>（模板）</li>
+            <li>Agent 通过 MCP 调用数据库、文件系统、API 等</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>三个核心抽象</h3>
+          <div class="info-row ir-teal" style="margin-bottom:6px">
+            <div class="ir-label" style="font-size:13px">Tools</div>
+            <div class="ir-mid" style="font-size:13px">Agent 可调用的函数</div>
+          </div>
+          <div class="info-row ir-yellow" style="margin-bottom:6px">
+            <div class="ir-label" style="font-size:13px">Resources</div>
+            <div class="ir-mid" style="font-size:13px">Agent 可读取的数据</div>
+          </div>
+          <div class="info-row ir-blue">
+            <div class="ir-label" style="font-size:13px">Prompts</div>
+            <div class="ir-mid" style="font-size:13px">预定义的提示模板</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 WHEN TO USE -->
+  <section class="slide" data-title="何时使用记忆" data-section="Agent 记忆">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">WHEN</div>
+    <h2 class="title-anim">何时应该使用记忆？</h2>
+    <div class="grid g3 rise" style="--i:0">
+      <div class="card mint">
+        <h3>自动模式</h3>
+        <div class="nb-code" style="margin:8px 0;font-size:13px">每轮：
+search → LLM → add</div>
+        <ul class="nb-list">
+          <li>+ 可预测、简单</li>
+          <li>− 增加延迟和无关上下文</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>运行时控制</h3>
+        <div class="nb-code" style="margin:8px 0;font-size:13px">if memory_needed:
+  search()
+if memorable:
+  add()</div>
+        <ul class="nb-list">
+          <li>+ 选择性、高效</li>
+          <li>− 需要规则或分类器</li>
+        </ul>
+      </div>
+      <div class="card orange">
+        <h3>模型控制</h3>
+        <div class="nb-code" style="margin:8px 0;font-size:13px">search_memory()
+add_memory()
+update_memory()
+forget_memory()</div>
+        <ul class="nb-list">
+          <li>+ 按需驱动，LLM 决定</li>
+          <li>− 可能遗漏有用的读写</li>
+        </ul>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:1;margin-top:10px">许多系统采用混合方式；读和写策略可以不同</div>
+  </section>
+
+  <!-- 11 RETRIEVAL -->
+  <section class="slide" data-title="如何检索记忆" data-section="Agent 记忆">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">RETRIEVAL</div>
+    <h2 class="title-anim">如何检索记忆？</h2>
+    <div class="rise" style="--i:0">
+      <p style="font-weight:700;margin-bottom:8px">基本流水线</p>
+      <div class="pipeline">
+        <div class="pipe-box">查询</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box">向量搜索</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box">Top-k 记忆</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box">Prompt</div>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:1;margin:12px 0">语义相关性只是检索信号之一</div>
+    <div class="signal-grid rise" style="--i:2">
+      <div class="signal-card sc-teal">
+        <div class="sc-title">语义匹配</div>
+        <div class="sc-desc">含义与查询匹配</div>
+      </div>
+      <div class="signal-card sc-yellow">
+        <div class="sc-title">范围</div>
+        <div class="sc-desc">同一用户、项目、实体或任务</div>
+      </div>
+      <div class="signal-card sc-blue">
+        <div class="sc-title">重要性</div>
+        <div class="sc-desc">遗漏或包含的代价</div>
+      </div>
+      <div class="signal-card sc-pink">
+        <div class="sc-title">有效性</div>
+        <div class="sc-desc">对当前任务在此时是否真实</div>
+      </div>
+      <div class="signal-card sc-gray">
+        <div class="sc-title">来源</div>
+        <div class="sc-desc">来源、置信度和证据</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 GENERALIZATION -->
+  <section class="slide" data-title="如何从观察中泛化" data-section="Agent 记忆">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">GENERALIZATION</div>
+    <h2 class="title-anim">如何从观察中泛化？</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <div class="seq-item seq-blue" style="margin-bottom:6px">被问到 vLLM</div>
+        <div class="seq-item seq-blue" style="margin-bottom:6px">被问到 SGLang</div>
+        <div class="seq-item seq-blue" style="margin-bottom:6px">被问到 TRT-LLM</div>
+        <div class="seq-item seq-blue">被问到 LLM 调度</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+        <div style="font-size:14px;font-weight:700">反思 →</div>
+        <div class="diag-box diag-box-pink" style="text-align:left">
+          <strong>假设：</strong>对 LLM 推理系统有频繁兴趣<br>
+          <strong>置信度：</strong>中等
+        </div>
+      </div>
+    </div>
+    <div class="card mint rise" style="--i:1;margin-top:14px">
+      <h3>何时应该进行整合？</h3>
+      <div class="grid g2">
+        <ul class="nb-list">
+          <li>积累足够的新证据后，例如每 N 个事件或上下文填满时</li>
+        </ul>
+        <ul class="nb-list">
+          <li>当事实冲突或重复时</li>
+          <li>在后台任务中（如果可能）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 FORGETTING -->
+  <section class="slide" data-title="遗忘是一等记忆操作" data-section="Agent 记忆">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">FORGETTING</div>
+    <h2 class="title-anim">遗忘是一等记忆操作</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card blue">
+        <h3>为什么要遗忘</h3>
+        <ul class="nb-list">
+          <li>过时信息</li>
+          <li>不正确或冲突的信息</li>
+          <li>隐私和安全</li>
+          <li>存储和检索成本</li>
+        </ul>
+      </div>
+      <div class="card orange">
+        <h3>生命周期控制</h3>
+        <ul class="nb-list">
+          <li>标记为无效</li>
+          <li>永久擦除</li>
+          <li>TTL 后过期</li>
+          <li>创建层级并从活跃记忆中驱逐</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 VALID TIME & PROVENANCE -->
+  <section class="slide" data-title="有效时间与来源" data-section="Agent 记忆">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">VALID TIME & PROVENANCE</div>
+    <h2 class="title-anim">记忆需要有效时间和来源</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>有效时间：哪个事实在何时适用</h3>
+        <div class="card" style="margin-bottom:10px;opacity:.6">
+          <p class="small">2026年4月</p>
+          <p style="font-weight:700">项目使用 vLLM 服务模型</p>
+          <p class="small">已取代</p>
+        </div>
+        <div class="arrow">⬇</div>
+        <div class="card mint">
+          <p class="small">2026年6月</p>
+          <p style="font-weight:700">项目使用 SGLang 服务模型</p>
+          <p class="small">当前</p>
+        </div>
+      </div>
+      <div>
+        <h3>来源：事实从何而来</h3>
+        <div class="card" style="margin-bottom:8px">
+          <p style="font-weight:700">片段 28</p>
+          <p>"我们把服务从 vLLM 迁移到了 SGLang。"</p>
+        </div>
+        <div class="arrow">⬇</div>
+        <div class="card mint" style="margin-bottom:8px">
+          <p>Project → SERVES_WITH → SGLang</p>
+        </div>
+        <div class="arrow">⬇</div>
+        <div class="card">
+          <p>来源：片段 28</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 OWNERSHIP -->
+  <section class="slide" data-title="谁拥有记忆" data-section="Agent 记忆">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">OWNERSHIP</div>
+    <h2 class="title-anim">谁拥有记忆？</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card mint">
+        <h3>Agent 拥有</h3>
+        <p>Harness 中的文件：CLAUDE.md、Agent scratchpad、任务笔记</p>
+      </div>
+      <div class="card mint">
+        <h3>专用记忆系统</h3>
+        <p>Agent 调用的服务：Mem0、Graphiti、supermemory</p>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:10px">
+      <div class="card">
+        <h3>Agent Harness</h3>
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin:12px 0">
+          <div class="od-box">LLM</div>
+          <span class="od-arrow">⇄</span>
+          <div class="od-box" style="background:var(--mint)">CLAUDE.md<br>任务笔记</div>
+        </div>
+        <p class="small" style="text-align:center">Harness 将记忆持久化到磁盘</p>
+      </div>
+      <div class="card">
+        <h3>Agent Harness</h3>
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin:12px 0">
+          <div class="od-box">LLM</div>
+          <span class="od-arrow">→</span>
+          <div class="od-box" style="background:var(--mint)">记忆层<br>库或服务</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center">
+          <span class="od-arrow">←</span>
+          <span style="font-size:14px">记忆</span>
+        </div>
+        <p class="small" style="text-align:center">记忆是 API，跨 Agent 和会话共享</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 DEDICATED SYSTEMS -->
+  <section class="slide" data-title="专用记忆系统" data-section="Agent 记忆">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">DEDICATED SYSTEMS</div>
+    <h2 class="title-anim">专用记忆系统</h2>
+    <div class="rise" style="--i:0">
+      <div class="info-row ir-teal" style="margin-bottom:8px">
+        <div class="ir-label">Mem0<br><span style="font-size:13px;font-weight:500">以事实为中心</span></div>
+        <div class="ir-mid">输入：<strong>消息</strong>，按用户、Agent 或运行<strong>分域</strong>。检索：<strong>向量搜索</strong>加过滤；可选图记忆。例如："使用 SGLang 做模型服务。"</div>
+        <div class="ir-right">事实中心</div>
+      </div>
+      <div class="info-row ir-yellow" style="margin-bottom:8px">
+        <div class="ir-label">Graphiti<br><span style="font-size:13px;font-weight:500">时序知识图谱</span></div>
+        <div class="ir-mid">输入：产生<strong>实体</strong>和<strong>时间感知</strong>事实的片段。检索：混合语义、关键词和<strong>图搜索</strong>。例如：uses → SGLang，有效 2026年4月 → 现在</div>
+        <div class="ir-right">图谱 + 时间</div>
+      </div>
+      <div class="info-row ir-blue">
+        <div class="ir-label">supermemory<br><span style="font-size:13px;font-weight:500">画像、记忆、文档</span></div>
+        <div class="ir-mid">维护<strong>用户画像</strong>以及记忆和文档。输入：关联来源和时间的对话。检索：画像、记忆和文档搜索</div>
+        <div class="ir-right">全面管理</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17 CHECKLIST -->
+  <section class="slide" data-title="记忆设计清单" data-section="Agent 记忆">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">CHECKLIST</div>
+    <h2 class="title-anim">Agent 记忆设计清单</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <div class="check-flow">
+          <div class="check-step"><div class="cs-label cs-teal">观察</div><span class="wf-arrow">⬇</span></div>
+          <div class="check-step"><div class="cs-label cs-blue">选择</div><span class="wf-arrow">⬇</span></div>
+          <div class="check-step"><div class="cs-label cs-yellow">编码 / 组织</div><span class="wf-arrow">⬇</span></div>
+          <div class="check-step"><div class="cs-label cs-pink">存储</div><span class="wf-arrow">⬇</span></div>
+          <div class="check-step"><div class="cs-label cs-orange">检索</div><span class="wf-arrow">⬇</span></div>
+          <div class="check-step"><div class="cs-label cs-dark">反思 / 整合</div><span class="wf-arrow"></span></div>
+          <div class="check-step"><div class="cs-label" style="background:var(--pink);color:#fff">遗忘</div></div>
+        </div>
+      </div>
+      <div>
+        <p style="font-weight:700;font-size:18px;margin-bottom:12px">每个阶段都是策略决策</p>
+        <div class="card" style="margin-bottom:8px"><p>这段信息值得记住吗？</p></div>
+        <div class="card mint" style="margin-bottom:8px"><p>什么表示能保留所需含义？</p></div>
+        <div class="card blue" style="margin-bottom:8px"><p>它应该存在哪里？文件还是数据库？</p></div>
+        <div class="card yellow" style="margin-bottom:8px"><p>什么对当前任务有用？</p></div>
+        <div class="card orange" style="margin-bottom:8px"><p>这会更新或矛盾旧记忆吗？</p></div>
+        <div class="card pink"><p>信息何时过时或无关？</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 18 FAILURE MODES -->
+  <section class="slide" data-title="失败模式" data-section="Agent 记忆">
+    <div class="hands-up"> Hands up</div>
+    <div class="kicker p tag-anim" style="margin-bottom:12px">FAILURE MODES</div>
+    <h2 class="title-anim">失败模式</h2>
+    <div class="fm-grid rise" style="--i:0">
+      <div class="fm-card fm-teal">
+        <div class="fm-title">检索遗漏</div>
+        <div class="fm-desc">相关记忆存在但未被找到</div>
+      </div>
+      <div class="fm-card fm-teal">
+        <div class="fm-title">上下文污染</div>
+        <div class="fm-desc">过多无关记忆进入上下文</div>
+      </div>
+      <div class="fm-card fm-yellow">
+        <div class="fm-title">记忆幻觉</div>
+        <div class="fm-desc">推断被当作事实存储："在哈佛学习"变成"哈佛访问学生"</div>
+      </div>
+      <div class="fm-card fm-yellow">
+        <div class="fm-title">过时</div>
+        <div class="fm-desc">旧事实覆盖了新信息</div>
+      </div>
+      <div class="fm-card fm-blue">
+        <div class="fm-title">隔离失败</div>
+        <div class="fm-desc">记忆跨越了用户边界</div>
+      </div>
+      <div class="fm-card fm-blue">
+        <div class="fm-title">过度泛化</div>
+        <div class="fm-desc">一个事件变成了持久偏好</div>
+      </div>
+      <div class="fm-card fm-pink">
+        <div class="fm-title">持久提示注入</div>
+        <div class="fm-desc">不受信任的内容后来作为指令返回</div>
+      </div>
+      <div class="fm-card fm-pink">
+        <div class="fm-title">无界增长</div>
+        <div class="fm-desc">大小随生命周期增长，检索成本和质量下降</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 20 EVALUATION -->
+  <section class="slide" data-title="如何评估 Agent 记忆" data-section="Agent 记忆">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">EVALUATION</div>
+    <h2 class="title-anim">如何评估 Agent 记忆</h2>
+    <div class="rise" style="--i:0">
+      <div class="info-row ir-yellow" style="margin-bottom:8px">
+        <div class="ir-label">检索</div>
+        <div class="ir-mid">精确率、召回率</div>
+        <div class="ir-right"></div>
+      </div>
+      <div class="info-row ir-teal" style="margin-bottom:8px">
+        <div class="ir-label">写入与更新</div>
+        <div class="ir-mid">精确率、召回率和过时记忆率</div>
+        <div class="ir-right"></div>
+      </div>
+      <div class="info-row ir-pink" style="margin-bottom:8px">
+        <div class="ir-label">治理</div>
+        <div class="ir-mid">删除合规性和范围隔离</div>
+        <div class="ir-right"></div>
+      </div>
+      <div class="info-row ir-blue">
+        <div class="ir-label">系统</div>
+        <div class="ir-mid">延迟、token 开销和存储增长</div>
+        <div class="ir-right"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 21 BENCHMARKS -->
+  <section class="slide" data-title="记忆评估基准" data-section="Agent 记忆">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">BENCHMARKS</div>
+    <h2 class="title-anim">Agent 记忆评估</h2>
+    <p class="subtitle rise" style="--i:0;margin-bottom:14px">记忆组件评估</p>
+    <div class="grid g3 rise" style="--i:1">
+      <div class="card mint">
+        <h3>LoCoMo</h3>
+        <p style="font-size:28px;font-family:var(--disp);margin:8px 0">1,540 问题</p>
+        <p>10 段长对话</p>
+      </div>
+      <div class="card yellow">
+        <h3>LongMemEval</h3>
+        <p style="font-size:28px;font-family:var(--disp);margin:8px 0">500 问题</p>
+        <p>5 种记忆能力</p>
+      </div>
+      <div class="card blue">
+        <h3>BEAM</h3>
+        <p style="font-size:28px;font-family:var(--disp);margin:8px 0">2,000 问题</p>
+        <p>最多 10M tokens</p>
+      </div>
+    </div>
+    <div class="banner ban-d rise" style="--i:2;margin-top:14px">
+      主要测试 Agent 能否回忆和推理用户-助手历史。覆盖<strong>召回、时间推理、更新、偏好和弃权</strong>。
+    </div>
+    <p class="small rise" style="--i:3;text-align:right;margin-top:8px">LoCoMo (ACL 2024) · LongMemEval (ICLR 2025) · BEAM (ICLR 2026) · LoCoMo-Refined</p>
+  </section>
+
+  <!-- 22 MEMORY STACK -->
+  <section class="slide" data-title="Agent 记忆栈" data-section="Agent 记忆">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">MEMORY STACK</div>
+    <h2 class="title-anim">Agent 记忆栈</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>独立记忆层</h3>
+        <div class="stack-box sb-blue">
+          <div class="sb-title">Agent 运行时</div>
+          <div class="sb-desc">Claude Code, Letta, Codex</div>
+        </div>
+        <div class="stack-box sb-teal">
+          <div class="sb-title">记忆管理</div>
+          <div class="sb-desc">Mem0, Letta 内置, 自定义</div>
+        </div>
+        <div class="stack-box sb-yellow">
+          <div class="sb-title">存储</div>
+          <div class="sb-desc">向量、SQL、图、对象存储</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center">
+        <span style="font-size:80px;font-family:var(--disp);color:var(--ink)">?</span>
+      </div>
+      <div></div>
+      <div>
+        <h3>Harness 内记忆</h3>
+        <div class="stack-box sb-blue" style="border-width:4px">
+          <div class="sb-title">Agent 运行时</div>
+          <div class="sb-desc">Claude Code, Letta, Codex</div>
+          <div class="stack-box sb-teal" style="margin-top:10px">
+            <div class="sb-title">记忆管理</div>
+            <div class="sb-desc">在运行时内部</div>
+          </div>
+          <div class="stack-box sb-yellow" style="margin-top:10px">
+            <div class="sb-title">存储</div>
+            <div class="sb-desc">Markdown 文件</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 23 WHY RELIABILITY -->
+  <section class="slide" data-title="为什么可靠性是个问题" data-section="Agent 可靠性">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">WHY RELIABILITY?</div>
+    <h2 class="title-anim">为什么 Agent 可靠性是个问题？</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>Agent 运行无错误的概率</h3>
+        <p class="small">每步 95% 成功率，按轨迹步数计算</p>
+        <div class="bar-chart" style="height:180px">
+          <div class="bc-col"><div class="bc-val">95%</div><div class="bc-bar" style="height:170px"></div><div class="bc-label">1步</div></div>
+          <div class="bc-col"><div class="bc-val">77%</div><div class="bc-bar" style="height:138px"></div><div class="bc-label">5步</div></div>
+          <div class="bc-col"><div class="bc-val">60%</div><div class="bc-bar" style="height:108px"></div><div class="bc-label">10步</div></div>
+          <div class="bc-col"><div class="bc-val">36%</div><div class="bc-bar" style="height:65px"></div><div class="bc-label">20步</div></div>
+          <div class="bc-col"><div class="bc-val">8%</div><div class="bc-bar red" style="height:14px"></div><div class="bc-label">50步</div></div>
+        </div>
+        <p class="small">假设每步独立成功，概率 0.95</p>
+      </div>
+      <div class="card pink" style="display:flex;flex-direction:column;justify-content:center">
+        <h3>错误会复合</h3>
+        <p style="font-family:var(--disp);font-size:52px;color:#fff;margin:10px 0">1 in 13</p>
+        <p>50 步运行无错误完成的概率</p>
+        <ul class="nb-list" style="margin-top:14px">
+          <li>运行成功需要<strong>每一步</strong>都成功</li>
+          <li>错误传播使实际运行<strong>更差</strong></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 24 AGENT RELIABILITY DIVIDER -->
+  <section class="slide section-div" data-title="Agent 可靠性" data-section="Agent 可靠性">
+    <h2 class="title-anim">Agent 可靠性</h2>
+    <p class="sub-anim">Agent 有哪些不同的失败方式？</p>
+  </section>
+
+  <!-- 25 WHERE FAULT ORIGINATES -->
+  <section class="slide" data-title="故障来源" data-section="Agent 可靠性">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">FAULT ORIGIN</div>
+    <h2 class="title-anim">故障从何而来？</h2>
+    <div class="rise" style="--i:0">
+      <div class="fail-row fr-teal" style="margin-bottom:8px">
+        <div class="fr-label">用户 / 任务规格</div>
+        <div class="fr-mid">目标是否明确？</div>
+        <div class="fr-right" style="font-style:italic;color:var(--pink)">specification failure</div>
+      </div>
+      <div class="fail-row fr-yellow" style="margin-bottom:8px">
+        <div class="fr-label">Agent Harness</div>
+        <div class="fr-mid">上下文、循环、调度</div>
+        <div class="fr-right" style="font-style:italic;color:var(--orange)">harness failure</div>
+      </div>
+      <div class="fail-row fr-blue" style="margin-bottom:8px">
+        <div class="fr-label">LLM</div>
+        <div class="fr-mid">推理和规划</div>
+        <div class="fr-right" style="font-style:italic">model failure</div>
+      </div>
+      <div class="fail-row" style="margin-bottom:8px;background:#B0BEC5">
+        <div class="fr-label">工具层</div>
+        <div class="fr-mid">Shell、浏览器、API</div>
+        <div class="fr-right" style="font-style:italic;color:var(--ink)">tool failure</div>
+      </div>
+      <div class="fail-row fr-gray">
+        <div class="fr-label">环境</div>
+        <div class="fr-mid">仓库、OS、Web、服务</div>
+        <div class="fr-right" style="font-style:italic;color:var(--ink)">environment failure</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 26 TASK SPECIFICATION -->
+  <section class="slide" data-title="任务规格失败" data-section="Agent 可靠性">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">TASK SPEC</div>
+    <h2 class="title-anim">任务规格</h2>
+    <div class="rise" style="--i:0">
+      <div class="fail-row fr-teal" style="margin-bottom:6px">
+        <div class="fr-label">目标模糊</div>
+        <div class="fr-mid">"修复登录 bug"</div>
+        <div class="fr-mid" style="color:var(--pink)">修复了三个中的错误那个 ➡</div>
+        <div class="fr-right">命名文件、症状和复现步骤</div>
+      </div>
+      <div class="fail-row fr-yellow" style="margin-bottom:6px">
+        <div class="fr-label">代理目标</div>
+        <div class="fr-mid">"让测试通过"</div>
+        <div class="fr-mid" style="color:var(--pink)">删除了失败的测试 ➡</div>
+        <div class="fr-right">禁止修改测试；审查 diff</div>
+      </div>
+      <div class="fail-row fr-blue" style="margin-bottom:6px">
+        <div class="fr-label">未声明的约束</div>
+        <div class="fr-mid">"加速搜索"</div>
+        <div class="fr-mid" style="color:var(--pink)">破坏了公共 API ➡</div>
+        <div class="fr-right">声明什么不能改</div>
+      </div>
+      <div class="fail-row" style="margin-bottom:6px;background:#B0BEC5">
+        <div class="fr-label">没有完成定义</div>
+        <div class="fr-mid">"清理解析器"</div>
+        <div class="fr-mid" style="color:var(--pink)">从未停止重构 ➡</div>
+        <div class="fr-right">给出退出测试和停止规则</div>
+      </div>
+      <div class="fail-row fr-gray">
+        <div class="fr-label">冲突目标</div>
+        <div class="fr-mid">"最小 diff，覆盖所有边界情况"</div>
+        <div class="fr-mid" style="color:var(--pink)">默默丢弃了边界情况 ➡</div>
+        <div class="fr-right">显式排列目标优先级</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 27 AGENT HARNESS -->
+  <section class="slide" data-title="Agent Harness 失败" data-section="Agent 可靠性">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">HARNESS</div>
+    <h2 class="title-anim">Agent Harness</h2>
+    <div class="rise" style="--i:0">
+      <div class="fail-row fr-teal" style="margin-bottom:6px">
+        <div class="fr-label">上下文截断</div>
+        <div class="fr-mid">裁剪了最旧的轮次</div>
+        <div class="fr-mid" style="color:var(--pink)">忘记了"保持 API"规则 ➡</div>
+        <div class="fr-right">将关键规则固定在窗口外</div>
+      </div>
+      <div class="fail-row fr-yellow" style="margin-bottom:6px">
+        <div class="fr-label">记忆错误</div>
+        <div class="fr-mid">将过时笔记当作事实</div>
+        <div class="fr-mid" style="color:var(--pink)">编辑了已移动的文件 ➡</div>
+        <div class="fr-right">给记忆加日期；使用前重新检查</div>
+      </div>
+      <div class="fail-row fr-blue" style="margin-bottom:6px">
+        <div class="fr-label">状态损坏</div>
+        <div class="fr-mid">保留了半应用的编辑</div>
+        <div class="fr-mid" style="color:var(--pink)">后续步骤基于损坏文件 ➡</div>
+        <div class="fr-right">检查点；回滚失败步骤</div>
+      </div>
+      <div class="fail-row" style="margin-bottom:6px;background:#B0BEC5">
+        <div class="fr-label">控制循环错误</div>
+        <div class="fr-mid">未设置步数或成本上限</div>
+        <div class="fr-mid" style="color:var(--pink)">200 步无进展 ➡</div>
+        <div class="fr-right">限制步数、成本和时间</div>
+      </div>
+      <div class="fail-row fr-gray">
+        <div class="fr-label">阻塞扇出</div>
+        <div class="fr-mid">等待每个子 Agent</div>
+        <div class="fr-mid" style="color:var(--pink)">一个慢子任务拖慢整个运行 ➡</div>
+        <div class="fr-right">设置超时；使用部分结果</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 28 MODEL -->
+  <section class="slide" data-title="模型失败" data-section="Agent 可靠性">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">MODEL</div>
+    <h2 class="title-anim">模型</h2>
+    <div class="rise" style="--i:0">
+      <div class="fail-row fr-teal" style="margin-bottom:6px">
+        <div class="fr-label">幻觉</div>
+        <div class="fr-mid">"requests.fetch() 存在"</div>
+        <div class="fr-mid" style="color:var(--pink)">调用了不存在的函数 ➡</div>
+        <div class="fr-right">对照真实文档检查调用</div>
+      </div>
+      <div class="fail-row fr-yellow" style="margin-bottom:6px">
+        <div class="fr-label">指令违反</div>
+        <div class="fr-mid">"速度比 API 更重要"</div>
+        <div class="fr-mid" style="color:var(--pink)">改了被告知要保持的签名 ➡</div>
+        <div class="fr-right">重述约束；检查 diff</div>
+      </div>
+      <div class="fail-row fr-blue" style="margin-bottom:6px">
+        <div class="fr-label">错误推理</div>
+        <div class="fr-mid">"超时意味着网络断了"</div>
+        <div class="fr-mid" style="color:var(--pink)">给死锁加了重试 ➡</div>
+        <div class="fr-right">修复前先验证假设</div>
+      </div>
+      <div class="fail-row" style="margin-bottom:6px;background:#B0BEC5">
+        <div class="fr-label">推理-行动不匹配</div>
+        <div class="fr-mid">"我只改 parser.py"</div>
+        <div class="fr-mid" style="color:var(--pink)">重写了三个其他文件 ➡</div>
+        <div class="fr-right">将每个行动与计划对比</div>
+      </div>
+      <div class="fail-row fr-pink" style="margin-bottom:6px">
+        <div class="fr-label">未验证成功</div>
+        <div class="fr-mid">"测试可能通过了"</div>
+        <div class="fr-mid" style="color:var(--pink)">宣布完成，什么都没跑 ➡</div>
+        <div class="fr-right">要求测试输出作为证明</div>
+      </div>
+      <div class="fail-row fr-gray">
+        <div class="fr-label">长程退化</div>
+        <div class="fr-mid">"配置还需要修复"</div>
+        <div class="fr-mid" style="color:var(--pink)">撤销了第 12 步自己的修复 ➡</div>
+        <div class="fr-right">重新读取状态；拆分为短任务</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 29 TOOL -->
+  <section class="slide" data-title="工具失败" data-section="Agent 可靠性">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">TOOL</div>
+    <h2 class="title-anim">工具</h2>
+    <div class="rise" style="--i:0">
+      <div class="fail-row fr-teal" style="margin-bottom:6px">
+        <div class="fr-label">截断输出</div>
+        <div class="fr-mid">日志的前 100 行</div>
+        <div class="fr-mid" style="color:var(--pink)">错过了第 4000 行的错误 ➡</div>
+        <div class="fr-right">先返回错误；允许分页</div>
+      </div>
+      <div class="fail-row fr-yellow" style="margin-bottom:6px">
+        <div class="fr-label">静默失败</div>
+        <div class="fr-mid">Exit 0，空结果</div>
+        <div class="fr-mid" style="color:var(--pink)">假设没有匹配 ➡</div>
+        <div class="fr-right">区分"空"和"失败"</div>
+      </div>
+      <div class="fail-row fr-blue" style="margin-bottom:6px">
+        <div class="fr-label">模糊 schema</div>
+        <div class="fr-mid">没有时区的日期</div>
+        <div class="fr-mid" style="color:var(--pink)">任务调度差了 8 小时 ➡</div>
+        <div class="fr-right">使用有类型的显式 schema</div>
+      </div>
+      <div class="fail-row" style="margin-bottom:6px;background:#B0BEC5">
+        <div class="fr-label">不稳定调用</div>
+        <div class="fr-mid">第一次尝试超时</div>
+        <div class="fr-mid" style="color:var(--pink)">宣布服务宕机 ➡</div>
+        <div class="fr-right">判断前先退避重试</div>
+      </div>
+      <div class="fail-row fr-gray">
+        <div class="fr-label">误导性错误</div>
+        <div class="fr-mid">拼写错误导致"权限被拒"</div>
+        <div class="fr-mid" style="color:var(--pink)">用 sudo 重试 ➡</div>
+        <div class="fr-right">返回精确、可操作的错误</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 30 ENVIRONMENT -->
+  <section class="slide" data-title="环境失败" data-section="Agent 可靠性">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">ENVIRONMENT</div>
+    <h2 class="title-anim">环境</h2>
+    <div class="rise" style="--i:0">
+      <div class="fail-row fr-teal" style="margin-bottom:6px">
+        <div class="fr-label">过时状态</div>
+        <div class="fr-mid">昨天的缓存构建</div>
+        <div class="fr-mid" style="color:var(--pink)">在旧代码上通过了测试 ➡</div>
+        <div class="fr-right">从干净缓存重新构建</div>
+      </div>
+      <div class="fail-row fr-yellow" style="margin-bottom:6px">
+        <div class="fr-label">版本不匹配</div>
+        <div class="fr-mid">Python 3.8 而非 3.12</div>
+        <div class="fr-mid" style="color:var(--pink)">发布了崩溃的代码 ➡</div>
+        <div class="fr-right">在 lockfile 中锁定版本</div>
+      </div>
+      <div class="fail-row fr-blue" style="margin-bottom:6px">
+        <div class="fr-label">随机失败</div>
+        <div class="fr-mid">任务成功取决于环境</div>
+        <div class="fr-mid" style="color:var(--pink)">因为闰年而失败 </div>
+        <div class="fr-right">重新运行失败；隔离不稳定测试</div>
+      </div>
+      <div class="fail-row" style="margin-bottom:6px;background:#B0BEC5">
+        <div class="fr-label">网页布局变化</div>
+        <div class="fr-mid">重新设计的结账页面</div>
+        <div class="fr-mid" style="color:var(--pink)">点错了按钮 ➡</div>
+        <div class="fr-right">行动前重新读取页面</div>
+      </div>
+      <div class="fail-row fr-gray">
+        <div class="fr-label">速率限制</div>
+        <div class="fr-mid">50 次调用后 HTTP 429</div>
+        <div class="fr-mid" style="color:var(--pink)">迁移中途停止 ➡</div>
+        <div class="fr-right">节流并为长任务设检查点</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 31 DESIGNING FOR FAILURE -->
+  <section class="slide" data-title="为失败而设计" data-section="Agent 可靠性">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">DESIGN FOR FAILURE</div>
+    <h2 class="title-anim">为失败而设计</h2>
+    <div class="col5 rise" style="--i:0">
+      <div class="c5-card c5-blue">
+        <div class="c5-head"><h4>任务规格</h4></div>
+        <p style="font-weight:700;margin-bottom:6px">将"完成"写为测试</p>
+        <ul>
+          <li>预先写好验收测试</li>
+          <li>列出什么不能改</li>
+        </ul>
+      </div>
+      <div class="c5-card c5-teal">
+        <div class="c5-head"><h4>Agent Harness</h4></div>
+        <p style="font-weight:700;margin-bottom:6px">限制每次运行</p>
+        <ul>
+          <li>步数、成本和时间上限</li>
+          <li>检查点和回滚</li>
+        </ul>
+      </div>
+      <div class="c5-card c5-orange">
+        <div class="c5-head"><h4>模型</h4></div>
+        <p style="font-weight:700;margin-bottom:6px">要求证据</p>
+        <ul>
+          <li>每个声明都要证明</li>
+          <li>验证</li>
+          <li>使用更强的模型</li>
+        </ul>
+      </div>
+      <div class="c5-card c5-pink">
+        <div class="c5-head"><h4>工具</h4></div>
+        <p style="font-weight:700;margin-bottom:6px">大声失败</p>
+        <ul>
+          <li>有类型的 schema</li>
+          <li>错误与空结果区分</li>
+        </ul>
+      </div>
+      <div class="c5-card c5-gray">
+        <div class="c5-head"><h4>环境</h4></div>
+        <p style="font-weight:700;margin-bottom:6px">锁定和隔离</p>
+        <ul>
+          <li>干净、锁定的沙箱</li>
+          <li>判断前重试不稳定项</li>
+        </ul>
+      </div>
+    </div>
+    <div class="banner ban-d rise" style="--i:1;margin-top:14px">
+      我们尚未在大规模上理解 Agent，也几乎没有正式的最佳实践。
+    </div>
+  </section>
+
+  <!-- 32 NEXT CLASS -->
+  <section class="slide" data-title="下节课" data-section="结尾">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">NEXT CLASS</div>
+    <h2 class="title-anim">下节课</h2>
+    <ul class="next-list rise" style="--i:0">
+      <li><span class="nl-num">1</span> Agent 评估</li>
+      <li><span class="nl-num">2</span> 成本有效的 Agent</li>
+      <li><span class="nl-num">3</span> 案例研究</li>
+    </ul>
+  </section>
+
+  </div><!-- /stage -->
+</div><!-- /viewport -->
+
+<div id="bar-bg"><div id="bar"></div></div>
+<div id="counter">1 / 33</div>
+<div id="hint">← → 翻页 · F 全屏 · O 总览</div>
+<div id="ctrls">
+  <button id="btn-prev" title="上一页">◀</button>
+  <button id="btn-next" title="下一页">▶</button>
+  <button id="btn-ovl" title="总览">☰</button>
+  <button id="btn-fs" title="全屏">⛶</button>
+</div>
+
+<div id="ovl">
+  <button class="close" id="ovl-close">✕ 关闭</button>
+  <h2>总览</h2>
+  <div id="ovl-body"></div>
+</div>
+
+<script>
+(function(){
+  var slides=document.querySelectorAll('.slide');
+  var cur=0;
+  function resize(){
+    var s=Math.min(window.innerWidth/1280,window.innerHeight/720);
+    document.getElementById('stage').style.transform='translate(-50%,-50%) scale('+s+')';
+  }
+  window.addEventListener('resize',resize);resize();
+  function show(n,fromDir){
+    if(n<0)n=0;if(n>=slides.length)n=slides.length-1;
+    var dir=(n>=cur)?1:-1; if(fromDir!==undefined)dir=fromDir;
+    slides.forEach(function(s,i){
+      s.classList.remove('from-left');
+      if(i===n){ if(dir<0) s.classList.add('from-left'); s.classList.add('active'); }
+      else s.classList.remove('active');
+    });
+    cur=n;
+    document.getElementById('counter').textContent=(cur+1)+' / '+slides.length;
+    document.getElementById('bar').style.width=((cur+1)/slides.length*100)+'%';
+  }
+  function next(){show(cur+1,1);} function prev(){show(cur-1,-1);}
+
+  window.addEventListener('keydown',function(e){
+    if(document.getElementById('ovl').classList.contains('on')){
+      if(e.key==='o'||e.key==='O'||e.key==='Escape'){toggleOvl();} return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': e.preventDefault(); prev(); break;
+      case 'Home': e.preventDefault(); show(0,-1); break;
+      case 'End': e.preventDefault(); show(slides.length-1,1); break;
+      case 'f': case 'F': toggleFs(); break;
+      case 'o': case 'O': toggleOvl(); break;
+    }
+  });
+
+  document.getElementById('viewport').addEventListener('click',function(e){
+    if(e.target.closest('button,a,.no-nav')) return;
+    var sel=window.getSelection(); if(sel&&String(sel).length>0) return;
+    var x=e.clientX/window.innerWidth;
+    if(x<0.38) prev(); else next();
+  });
+
+  function toggleFs(){
+    if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}
+    else{document.exitFullscreen&&document.exitFullscreen();}
+  }
+  document.getElementById('btn-fs').addEventListener('click',function(e){e.stopPropagation();toggleFs();});
+  document.getElementById('btn-next').addEventListener('click',function(e){e.stopPropagation();next();});
+  document.getElementById('btn-prev').addEventListener('click',function(e){e.stopPropagation();prev();});
+  document.getElementById('btn-ovl').addEventListener('click',function(e){e.stopPropagation();toggleOvl();});
+
+  var ovl=document.getElementById('ovl'),ovlBody=document.getElementById('ovl-body');
+  (function buildOvl(){
+    var lastSec=null,grid=null;
+    slides.forEach(function(s,i){
+      var sec=s.getAttribute('data-section')||'',title=s.getAttribute('data-title')||('第 '+(i+1)+' 页');
+      if(sec!==lastSec){var h=document.createElement('div');h.className='ov-sec';h.textContent=sec;ovlBody.appendChild(h);grid=document.createElement('div');grid.className='ov-grid';ovlBody.appendChild(grid);lastSec=sec;}
+      var it=document.createElement('div');it.className='ov-item';
+      it.innerHTML='<b>'+String(i+1).padStart(2,'0')+'</b><span></span>';
+      it.querySelector('span').textContent=title;
+      it.addEventListener('click',function(){show(i);toggleOvl();});
+      grid.appendChild(it);
+    });
+  })();
+  function toggleOvl(){ovl.classList.toggle('on');}
+  document.getElementById('ovl-close').addEventListener('click',function(){toggleOvl();});
+
+  var tx=null;
+  window.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  window.addEventListener('touchend',function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?next():prev();}tx=null;},{passive:true});
+})();
+</script>
+</body>
+</html>

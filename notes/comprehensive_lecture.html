@@ -1,0 +1,2676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 系统综合讲稿: CS2680 Lectures 2-6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A0A0A;--paper:#FAFAFA;--yellow:#FFE600;--blue:#0047FF;--pink:#FF006E;
+  --mint:#00F5A0;--orange:#FF6B00;
+  --disp:'Archivo Black','Arial Black','Microsoft YaHei',system-ui,sans-serif;
+  --body:'Space Grotesk','Microsoft YaHei',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Courier New',monospace;
+  --sh:6px 6px 0 var(--ink);--sh-sm:4px 4px 0 var(--ink);--brd:3px solid var(--ink);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#101010;font-family:var(--body)}
+body{background:radial-gradient(circle at 18% 12%,#2a2a2a 0,transparent 45%),radial-gradient(circle at 82% 88%,#232323 0,transparent 45%),#101010}
+#viewport{position:fixed;inset:0}
+#stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;transform:translate(-50%,-50%) scale(1);transform-origin:center center}
+.slide{position:absolute;inset:0;width:1280px;height:720px;display:none;flex-direction:column;padding:40px 54px 46px;background-color:var(--paper);background-image:radial-gradient(rgba(10,10,10,.14) 1.3px,transparent 1.3px);background-size:22px 22px;color:var(--ink);overflow:hidden}
+.slide.active{display:flex;animation:slideEnter .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnter{0%{opacity:0;transform:translateX(70px) scale(.985) rotate(.4deg)}100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}}
+.slide.active.from-left{animation:slideEnterL .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnterL{0%{opacity:0;transform:translateX(-70px) scale(.985) rotate(-.4deg)}100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}}
+.slide.active .rise{animation:rise .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .pop{animation:pop .45s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .slide-r{animation:slideR .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .shake{animation:shake .6s both;animation-delay:calc(var(--i,0)*.07s + .15s)}
+@keyframes rise{0%{opacity:0;transform:translateY(26px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{opacity:0;transform:scale(.82) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes slideR{0%{opacity:0;transform:translateX(-40px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-5px) rotate(-1.5deg)}40%{transform:translateX(5px) rotate(1.5deg)}60%{transform:translateX(-4px) rotate(-1deg)}80%{transform:translateX(4px) rotate(1deg)}}
+.slide.active .title-anim{animation:rise .5s .05s both}
+.slide.active .sub-anim{animation:rise .5s .12s both}
+.slide.active .tag-anim{animation:pop .4s both}
+.cover{background:var(--yellow)!important;background-image:radial-gradient(rgba(10,10,10,.18) 1.5px,transparent 1.5px)!important;background-size:24px 24px!important;justify-content:center;align-items:center;text-align:center}
+.cover .brand{font-family:var(--disp);font-size:22px;background:var(--ink);color:var(--yellow);display:inline-block;padding:8px 18px;border:4px solid var(--ink);transform:rotate(-2deg);box-shadow:var(--sh)}
+.cover h1{font-family:var(--disp);font-size:64px;line-height:1.02;margin:22px 0 10px;letter-spacing:-2px}
+.cover .lead{font-size:22px;font-weight:700;max-width:800px;line-height:1.4}
+.section-div{background:var(--ink)!important;background-image:radial-gradient(rgba(255,255,255,.08) 1.5px,transparent 1.5px)!important;background-size:24px 24px!important;justify-content:center;align-items:center;text-align:center;color:var(--paper)}
+.section-div h1{font-family:var(--disp);font-size:56px;color:var(--yellow);margin-bottom:16px;letter-spacing:-1px}
+.section-div .sub{font-size:20px;color:#ccc;font-weight:500}
+h2{font-family:var(--disp);font-size:38px;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px}
+h3{font-family:var(--disp);font-size:18px;margin-bottom:8px;letter-spacing:-.3px}
+p,li{font-size:16px;line-height:1.55}
+ul,ol{padding-left:24px;margin:8px 0}
+li{margin-bottom:5px}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-family:var(--disp);font-size:14px;letter-spacing:.5px;padding:6px 14px;border:3px solid var(--ink);transform:rotate(-1.2deg);box-shadow:var(--sh-sm)}
+.kicker.y{background:var(--ink);color:var(--yellow)}.kicker.b{background:var(--blue);color:#fff}.kicker.p{background:var(--pink);color:#fff}.kicker.g{background:var(--mint);color:var(--ink)}.kicker.o{background:var(--orange);color:#fff}
+.card{background:#fff;border:4px solid var(--ink);box-shadow:var(--sh);padding:14px 16px;color:var(--ink)}
+.card.yellow{background:var(--yellow);color:var(--ink)}.card.yellow h3,.card.yellow p,.card.yellow li{color:var(--ink)}.card.blue{background:var(--blue);color:#fff}.card.blue h3,.card.blue p,.card.blue li{color:#fff}.card.pink{background:var(--pink);color:#fff}.card.pink h3,.card.pink p,.card.pink li{color:#fff}.card.mint{background:var(--mint);color:var(--ink)}.card.mint h3,.card.mint p,.card.mint li{color:var(--ink)}.card.orange{background:var(--orange);color:#fff}.card.orange h3,.card.orange p,.card.orange li{color:#fff}.card.dark{background:var(--ink);color:var(--paper)}.card.dark h3,.card.dark p,.card.dark li{color:var(--paper)}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.nb-list{list-style:none;padding:0}.nb-list li{padding:6px 12px;border-left:4px solid var(--ink);margin-bottom:4px;background:var(--paper);font-size:15px;color:var(--ink)}
+.card.blue .nb-list li{background:transparent;border-left-color:#fff;color:#fff}.card.pink .nb-list li{background:transparent;border-left-color:#fff;color:#fff}.card.mint .nb-list li{background:transparent;border-left-color:var(--ink);color:var(--ink)}.card.orange .nb-list li{background:transparent;border-left-color:#fff;color:#fff}.card.yellow .nb-list li{background:transparent;border-left-color:var(--ink);color:var(--ink)}.card.dark .nb-list li{background:transparent;border-left-color:var(--paper);color:var(--paper)}
+.nb-code{background:#1b1b1b;color:var(--mint);border:4px solid var(--ink);box-shadow:var(--sh);padding:14px 16px;font-family:var(--mono);font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word;margin:10px 0}
+table{width:100%;border-collapse:collapse;margin:10px 0;border:4px solid var(--ink);box-shadow:var(--sh)}
+th{background:var(--ink);color:var(--paper);font-weight:700;font-size:14px;padding:10px 14px;text-align:left;border:2px solid var(--ink)}
+td{padding:8px 14px;border:2px solid var(--ink);font-size:14px;background:var(--paper);color:var(--ink)}
+tr:nth-child(even) td{background:#f0f0f0}
+code{background:var(--ink);color:var(--mint);padding:2px 7px;font-family:var(--mono);font-size:.88em;border:2px solid var(--ink)}
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0}
+.flow-item{background:var(--ink);color:var(--paper);border:3px solid var(--ink);padding:8px 14px;font-weight:700;font-size:14px;box-shadow:var(--sh-sm)}
+.fi-y{background:var(--yellow);color:var(--ink)}.fi-b{background:var(--blue);color:#fff}.fi-p{background:var(--pink);color:#fff}.fi-g{background:var(--mint);color:var(--ink)}.fi-o{background:var(--orange);color:#fff}
+.flow-arrow{font-size:1.5em;font-weight:700;color:var(--ink)}
+.banner{border:4px solid var(--ink);box-shadow:var(--sh);padding:12px 18px;font-weight:700;font-size:15px;text-align:center;margin:10px 0;background:#fff;color:var(--ink)}
+.ban-y{background:var(--yellow);color:var(--ink)}.ban-b{background:var(--blue);color:#fff}.ban-p{background:var(--pink);color:#fff}.ban-g{background:var(--mint);color:var(--ink)}.ban-o{background:var(--orange);color:#fff}.ban-d{background:var(--ink);color:var(--paper)}
+.step-list{counter-reset:step;list-style:none;padding:0}
+.step-list li{counter-increment:step;display:flex;align-items:flex-start;gap:12px;padding:8px 12px;border:3px solid var(--ink);box-shadow:var(--sh-sm);margin-bottom:6px;background:var(--paper);font-size:15px;color:var(--ink)}
+.step-list li::before{content:counter(step);font-family:var(--disp);font-size:16px;background:var(--ink);color:var(--paper);width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.layer-stack{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.layer{padding:12px 16px;border:3px solid var(--ink);box-shadow:var(--sh-sm);font-weight:600;font-size:14px}
+.step-list li:nth-child(1)::before{background:var(--yellow);color:var(--ink)}.step-list li:nth-child(2)::before{background:var(--blue)}.step-list li:nth-child(3)::before{background:var(--pink)}.step-list li:nth-child(4)::before{background:var(--mint);color:var(--ink)}.step-list li:nth-child(5)::before{background:var(--orange)}
+.info-row{display:grid;grid-template-columns:140px 1fr 180px;gap:12px;align-items:center;border:3px solid var(--ink);box-shadow:var(--sh-sm);padding:10px 14px;margin-bottom:6px;background:#fff;color:var(--ink)}
+.ir-label{font-family:var(--disp);font-size:14px;font-weight:700}.ir-mid{font-size:14px}.ir-right{font-size:13px;color:#555;text-align:right}
+.ir-teal{background:var(--mint);color:var(--ink)}.ir-yellow{background:var(--yellow);color:var(--ink)}.ir-blue{background:var(--blue);color:#fff}.ir-blue .ir-right{color:rgba(255,255,255,.8)}.ir-pink{background:var(--pink);color:#fff}.ir-pink .ir-right{color:rgba(255,255,255,.8)}
+#bar-bg{position:fixed;left:0;bottom:0;width:100%;height:7px;background:#000;z-index:51}
+#bar{height:100%;width:0;background:linear-gradient(90deg,var(--yellow),var(--pink),var(--blue));transition:width .3s}
+#ctrls{position:fixed;right:16px;bottom:16px;display:flex;gap:8px;align-items:center;z-index:52;pointer-events:auto}
+#ctrls button{font-family:var(--disp);font-size:15px;width:44px;height:44px;background:var(--paper);border:3px solid var(--ink);box-shadow:var(--sh-sm);cursor:pointer;color:var(--ink)}
+#ctrls button:hover{background:var(--yellow)}
+#ctrls button:active{transform:translate(2px,2px);box-shadow:none}
+#counter{position:fixed;left:16px;bottom:14px;z-index:52;font-family:var(--disp);font-size:16px;background:var(--ink);color:var(--yellow);padding:6px 12px;border:3px solid var(--yellow)}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:52;font-family:var(--mono);font-size:12.5px;color:#bbb;background:rgba(0,0,0,.55);padding:5px 12px;border-radius:2px;opacity:0;transition:opacity .4s;pointer-events:none}
+#ctrls:hover~#hint{opacity:1}
+#ovl{position:fixed;inset:0;z-index:60;background:rgba(10,10,10,.94);display:none;overflow:auto;padding:34px 40px}
+#ovl.on{display:block}
+#ovl h2{color:var(--yellow);font-size:36px;margin-bottom:20px;text-align:center}
+.ov-sec{margin-bottom:18px}
+.ov-sec-title{font-family:var(--disp);font-size:16px;color:var(--mint);margin-bottom:8px;border-bottom:2px solid var(--mint);padding-bottom:4px}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px}
+.ov-item{background:#1e1e1e;border:3px solid #333;padding:10px 12px;cursor:pointer;transition:all .2s}
+.ov-item:hover{border-color:var(--yellow);background:#252525}
+.ov-item .n{font-family:var(--disp);font-size:13px;color:var(--yellow)}
+.ov-item .t{font-size:14px;color:#eee;margin-top:3px}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <!-- COVER -->
+    <section class="slide cover active" data-title="封面" data-section="开场">
+      <div class="brand">CS2680 · COMPREHENSIVE</div>
+      <h1 class="title-anim">Agent 系统<br>综合讲稿</h1>
+      <p class="lead sub-anim">从 Agentic Loop 到多智能体设计与可靠性<br>Lectures 2-6 核心内容整合</p>
+    </section>
+
+    <!-- PLAN -->
+    <section class="slide" data-title="讲稿结构" data-section="开场">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">STRUCTURE</div>
+      <h2 class="title-anim">四大部分</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>Part 1: Agentic Loop & 扩展</h3>
+          <ul class="nb-list">
+            <li>智能体循环与记忆</li>
+            <li>Skills, MCP, Hooks, Plugins</li>
+            <li>Superpowers & Caveman 案例</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>Part 2: Agent Loop & 工具</h3>
+          <ul class="nb-list">
+            <li>ReAct Loop 回顾</li>
+            <li>工具设计与执行</li>
+            <li>上下文工程</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card mint">
+          <h3>Part 3: 多智能体 & 记忆</h3>
+          <ul class="nb-list">
+            <li>多 Agent 架构与通信</li>
+            <li>A2A 协议</li>
+            <li>记忆系统设计（深入）</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>Part 4: 可靠性</h3>
+          <ul class="nb-list">
+            <li>错误复合效应</li>
+            <li>五层故障来源</li>
+            <li>为失败而设计</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PART 1: AGENTIC LOOP & EXTENDING ============ -->
+    <section class="slide section-div" data-title="Part 1: Agentic Loop" data-section="Part 1">
+      <h1>Part 1</h1>
+      <div class="sub">Agentic Loop · Memory · Extending the Agent</div>
+    </section>
+
+    <!-- AGENTIC LOOP -->
+    <section class="slide" data-title="输入提示词后发生了什么" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">AGENTIC LOOP</div>
+      <h2 class="title-anim">输入提示词后发生了什么？</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card">
+          <h3>传统 LLM 交互</h3>
+          <ul class="nb-list">
+            <li>用户输入 → 模型生成 → 返回结果</li>
+            <li>单轮对话，无状态</li>
+            <li>模型无法主动执行操作</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>Agent 模式</h3>
+          <ul class="nb-list">
+            <li>模型可以<strong>调用工具</strong></li>
+            <li>执行结果反馈给模型</li>
+            <li>模型决定下一步行动</li>
+            <li>循环直到任务完成</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+        Agent = LLM + Tools + Loop
+      </div>
+    </section>
+
+    <section class="slide" data-title="智能体循环三步" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">THREE STEPS</div>
+      <h2 class="title-anim">智能体循环的三个步骤</h2>
+      <div class="flow rise" style="--i:0;justify-content:center;margin:20px 0">
+        <div class="flow-item fi-y" style="font-size:18px;padding:16px 24px">1. 模型推理</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-b" style="font-size:18px;padding:16px 24px">2. 工具调用</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-p" style="font-size:18px;padding:16px 24px">3. 结果反馈</div>
+        <span class="flow-arrow">→</span>
+        <span style="font-size:24px;font-weight:700">循环</span>
+      </div>
+      <div class="grid g3 rise" style="--i:1">
+        <div class="card yellow">
+          <h3>模型推理</h3>
+          <p>LLM 分析当前状态，决定下一步行动：生成文本 or 调用工具</p>
+        </div>
+        <div class="card blue">
+          <h3>工具调用</h3>
+          <p>Harness 执行模型选择的工具（读文件、运行命令、搜索等）</p>
+        </div>
+        <div class="card pink">
+          <h3>结果反馈</h3>
+          <p>工具执行结果添加到上下文，模型继续推理</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Agentic Loop 实例" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">EXAMPLE</div>
+      <h2 class="title-anim">实例：修复一个 Bug</h2>
+      <div class="step-list rise" style="--i:0">
+        <li><strong style="color:var(--blue)">用户：</strong>"修复 app.js 第 42 行的 TypeError"</li>
+        <li><strong style="color:var(--orange)">Thought：</strong>需要先读取 app.js 查看第 42 行的代码</li>
+        <li><strong style="color:var(--pink)">Action：</strong><code>read_file("app.js")</code> → 发现 <code>user.name.trim()</code>，user 可能为 null</li>
+        <li><strong style="color:var(--blue)">Thought：</strong>需要在调用前添加空值检查</li>
+        <li><strong style="color:var(--pink)">Action：</strong><code>edit("app.js", old, new)</code> → 添加 <code>if (user)</code> 保护</li>
+        <li><strong style="color:var(--mint)">Observation：</strong>编辑成功 → 运行 <code>npm test</code> → 全部通过 ✓</li>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:10px">
+        注意循环：Thought → Action → Observation → Thought → ... → 最终回答
+      </div>
+    </section>
+
+    <section class="slide" data-title="输入前的六层上下文" data-section="Part 1">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">CONTEXT</div>
+      <h2 class="title-anim">输入前的六层上下文</h2>
+      <div class="layer-stack rise" style="--i:0">
+        <div class="layer" style="background:var(--yellow);color:var(--ink)">6. 用户输入（当前提示词）</div>
+        <div class="layer" style="background:var(--mint);color:var(--ink)">5. 对话历史（之前的消息）</div>
+        <div class="layer" style="background:var(--blue);color:#fff">4. 系统提示词（行为规则）</div>
+        <div class="layer" style="background:var(--orange);color:#fff">3. 工具定义（可用工具列表）</div>
+        <div class="layer" style="background:var(--pink);color:#fff">2. 记忆文件（CLAUDE.md 等）</div>
+        <div class="layer" style="background:var(--ink);color:var(--paper)">1. 模型权重（预训练知识）</div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:12px">
+        模型看到的不是"你的问题"，而是这六层的完整组合
+      </div>
+    </section>
+
+    <section class="slide" data-title="上下文增长与压缩" data-section="Part 1">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">CONTEXT GROWTH</div>
+      <h2 class="title-anim">上下文增长与压缩</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card">
+          <h3>问题：上下文窗口有限</h3>
+          <ul class="nb-list">
+            <li>每次工具调用都增加上下文</li>
+            <li>长对话会超出窗口限制</li>
+            <li>早期信息可能被截断</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>解决：自动压缩</h3>
+          <ul class="nb-list">
+            <li>接近限制时触发压缩</li>
+            <li>LLM 总结早期对话</li>
+            <li>保留关键信息，丢弃细节</li>
+            <li>用户可手动触发 <code>/compact</code></li>
+          </ul>
+        </div>
+      </div>
+      <div class="nb-code rise" style="--i:1;font-size:13px;margin-top:10px">
+上下文使用: 45K / 200K tokens [=====>        ] 22%
+上下文使用: 180K / 200K tokens [=================>] 90% → 触发压缩
+压缩后:   60K / 200K tokens [======>       ] 30%</div>
+    </section>
+
+    <!-- MEMORY SYSTEM -->
+    <section class="slide" data-title="工具和记忆赋予智能体能力" data-section="Part 1">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">MEMORY</div>
+      <h2 class="title-anim">工具和记忆赋予智能体能力</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card blue">
+          <h3>工具 = 短期能力</h3>
+          <ul class="nb-list">
+            <li>读文件、写文件、运行命令</li>
+            <li>搜索代码、浏览网页</li>
+            <li>每次会话都可用</li>
+            <li>让 Agent 能<strong>行动</strong></li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>记忆 = 长期知识</h3>
+          <ul class="nb-list">
+            <li>项目约定、用户偏好</li>
+            <li>过去的决策和经验</li>
+            <li>跨会话持久化</li>
+            <li>让 Agent 能<strong>学习</strong></li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:12px">
+        没有记忆的 Agent 每次都要从头开始
+      </div>
+    </section>
+
+    <section class="slide" data-title="智能体记忆" data-section="Part 1">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">MEMORY TYPES</div>
+      <h2 class="title-anim">智能体记忆的层次</h2>
+      <div class="rise" style="--i:0">
+        <div class="info-row ir-teal" style="margin-bottom:8px">
+          <div class="ir-label">上下文窗口</div>
+          <div class="ir-mid">当前对话的内容</div>
+          <div class="ir-right">会话内，自动管理</div>
+        </div>
+        <div class="info-row ir-yellow" style="margin-bottom:8px">
+          <div class="ir-label">CLAUDE.md</div>
+          <div class="ir-mid">项目级记忆文件</div>
+          <div class="ir-right">跨会话，手动/自动维护</div>
+        </div>
+        <div class="info-row ir-blue" style="margin-bottom:8px">
+          <div class="ir-right" style="color:rgba(255,255,255,.8)">用户/项目范围</div>
+          <div class="ir-label">用户级记忆</div>
+          <div class="ir-mid" style="color:#fff">跨项目的个人偏好</div>
+        </div>
+        <div class="info-row ir-pink">
+          <div class="ir-label">专用记忆系统</div>
+          <div class="ir-mid">Mem0, Graphiti 等</div>
+          <div class="ir-right">API 驱动，智能检索</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="记忆类型详解" data-section="Part 1">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">MEMORY TYPES</div>
+      <h2 class="title-anim">三种记忆类型</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card mint">
+          <h3>情景记忆 Episodic</h3>
+          <p>具体事件和经历</p>
+          <ul class="nb-list">
+            <li>"3月15日决定迁移到 Postgres"</li>
+            <li>"上周修复了登录页的 XSS 漏洞"</li>
+            <li>带时间戳，可追溯</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>语义记忆 Semantic</h3>
+          <p>事实知识和规则</p>
+          <ul class="nb-list">
+            <li>"项目使用 TypeScript strict mode"</li>
+            <li>"用户偏好中文回复"</li>
+            <li>持久化，不依赖时间</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>程序记忆 Procedural</h3>
+          <p>操作流程和技能</p>
+          <ul class="nb-list">
+            <li>"部署流程：build → test → deploy"</li>
+            <li>"代码审查检查清单"</li>
+            <li>可复用的工作流</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        好的记忆系统需要同时支持三种类型
+      </div>
+    </section>
+
+    <section class="slide" data-title="CLAUDE.md 应该包含什么" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">CLAUDE.MD</div>
+      <h2 class="title-anim">CLAUDE.md 应该包含什么？</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>构建与测试命令</h3>
+          <ul class="nb-list">
+            <li>如何构建项目</li>
+            <li>如何运行测试</li>
+            <li>如何启动开发服务器</li>
+            <li>常用的 npm/pip 命令</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>代码风格约定</h3>
+          <ul class="nb-list">
+            <li>命名规范</li>
+            <li>文件组织方式</li>
+            <li>注释要求</li>
+            <li>错误处理风格</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card mint">
+          <h3>项目架构</h3>
+          <ul class="nb-list">
+            <li>关键目录的用途</li>
+            <li>模块间依赖关系</li>
+            <li>数据流向</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>常见陷阱</h3>
+          <ul class="nb-list">
+            <li>不要做 X（原因）</li>
+            <li>Y 函数有特殊的调用顺序</li>
+            <li>Z 配置需要环境变量</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="CLAUDE.md 实例" data-section="Part 1">
+      <div class="kicker g tag-anim" style="margin-bottom:10px">CONCRETE EXAMPLE</div>
+      <h2 class="title-anim">CLAUDE.md：Agent 记忆文件</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="nb-code" style="font-size:12px;line-height:1.45">
+# Project: My Web App
+
+## Build &amp; Test Commands
+- Build: `npm run build`
+- Test all: `npm test`
+- Test single: `npm test -- -t "name"`
+- Lint: `npm run lint -- --fix`
+
+## Code Style
+- TypeScript strict mode
+- Prefer functional components (React)
+- Use Zod for runtime validation
+- Error messages: sentence case, no period
+
+## Memory Rules
+- After fixing a bug, record root cause
+  in docs/decisions.md
+- Never repeat a fix that failed before
+- Check docs/decisions.md before debugging
+
+## User Preferences
+- Reply in Chinese
+- Keep explanations under 3 sentences
+- Always run tests before committing</div>
+        <div>
+          <div class="card mint" style="margin-bottom:10px">
+            <h3>CLAUDE.md 是什么？</h3>
+            <ul class="nb-list">
+              <li>放在项目根目录的<strong>持久化记忆文件</strong></li>
+              <li>每次会话开始时自动加载到上下文</li>
+              <li>Agent 可以在会话中<strong>追加和修改</strong></li>
+              <li>跨会话保留项目知识和用户偏好</li>
+            </ul>
+          </div>
+          <div class="card yellow">
+            <h3>关键设计</h3>
+            <ul class="nb-list">
+              <li><strong>纯文本</strong>：可 diff、可 git 追踪</li>
+              <li><strong>结构化</strong>：用 Markdown 标题分区</li>
+              <li><strong>可操作</strong>：写具体的命令和规则</li>
+              <li><strong>可演化</strong>：Agent 和用户共同维护</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="CLAUDE.md 实战对比" data-section="Part 1">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">BEST PRACTICES</div>
+      <h2 class="title-anim">CLAUDE.md 实战：好 vs 坏</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>❌ 坏的写法</h3>
+          <div class="nb-code" style="font-size:12px;margin:8px 0;box-shadow:none">
+# CLAUDE.md
+
+写好代码。
+注意性能。
+项目用 React。
+测试很重要。</div>
+          <ul class="nb-list">
+            <li>模糊、不可操作</li>
+            <li>没有具体命令</li>
+            <li>Agent 无法执行</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>✅ 好的写法</h3>
+          <div class="nb-code" style="font-size:12px;margin:8px 0;box-shadow:none">
+# Build &amp; Test
+npm run build &amp;&amp; npm test
+
+# Style
+TypeScript strict, 函数式组件
+用 Zod 做运行时验证
+
+# Pitfalls
+不要修改 config/env.ts
+API key 从环境变量读取</div>
+          <ul class="nb-list">
+            <li>具体、可操作</li>
+            <li>有命令和规则</li>
+            <li>Agent 可以直接使用</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXTENDING THE AGENT -->
+    <section class="slide" data-title="四种扩展机制" data-section="Part 1">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">EXTENDING</div>
+      <h2 class="title-anim">四种扩展 Agent 的机制</h2>
+      <div class="grid g4 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>Skills 技能</h3>
+          <p>可复用的工作流程，定义在 skill.md 中</p>
+        </div>
+        <div class="card blue">
+          <h3>MCP 协议</h3>
+          <p>连接外部工具的标准接口</p>
+        </div>
+        <div class="card pink">
+          <h3>Hooks 钩子</h3>
+          <p>生命周期自动化脚本</p>
+        </div>
+        <div class="card mint">
+          <h3>Plugins 插件</h3>
+          <p>打包分发 Skills + MCP + Hooks</p>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:14px">
+        让 Agent 从"通用助手"变成"领域专家"
+      </div>
+    </section>
+
+    <section class="slide" data-title="技能结构" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">SKILL STRUCTURE</div>
+      <h2 class="title-anim">Skill 的结构</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="nb-code" style="font-size:12px;line-height:1.4">
+# Skill: code-reviewer
+
+## Description
+Review pull requests for bugs,
+style, and security issues.
+
+## Tools
+- read_file(path)
+- list_dir(path)
+- search(pattern, glob)
+
+## Instructions
+When reviewing a PR:
+1. Read the diff carefully
+2. Check for OWASP Top 10 issues
+3. Verify error handling
+4. Check test coverage
+5. Output format:
+   - 🔴 Critical: must fix
+   - 🟡 Warning: should fix
+   - 🟢 Suggestion: nice to have
+
+## Constraints
+- Never modify code directly
+- Always cite file:line
+- Max 10 issues per review</div>
+        <div>
+          <div class="card yellow" style="margin-bottom:10px">
+            <h3>Skill 定义包含</h3>
+            <ul class="nb-list">
+              <li><strong>Description</strong>：何时触发这个技能</li>
+              <li><strong>Tools</strong>：允许使用的工具列表</li>
+              <li><strong>Instructions</strong>：详细的执行步骤</li>
+              <li><strong>Constraints</strong>：限制和边界</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>加载方式</h3>
+            <ul class="nb-list">
+              <li>用户显式调用 <code>/code-reviewer</code></li>
+              <li>Agent 根据上下文自动选择</li>
+              <li>只在需要时加载，节省上下文</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="skill.md 实例" data-section="Part 1">
+      <div class="kicker b tag-anim" style="margin-bottom:10px">CONCRETE EXAMPLE</div>
+      <h2 class="title-anim">skill.md：可复用的 Agent 技能</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="nb-code" style="font-size:11.5px;line-height:1.4">
+# Skill: code-reviewer
+
+## Description
+Review pull requests for bugs, style,
+and security issues.
+
+## Tools
+- read_file(path)
+- list_dir(path)
+- search(pattern, glob)
+
+## Instructions
+When reviewing a PR:
+1. Read the diff carefully
+2. Check for OWASP Top 10 issues:
+   - SQL injection
+   - XSS (unsanitized user input)
+   - Hardcoded secrets
+3. Verify error handling at
+   system boundaries
+4. Check test coverage for new code
+5. Output format:
+   - 🔴 Critical: must fix
+   - 🟡 Warning: should fix
+   - 🟢 Suggestion: nice to have
+
+## Constraints
+- Never modify code directly
+- Always cite file:line for each issue
+- Max 10 issues per review</div>
+        <div>
+          <div class="card blue" style="margin-bottom:10px">
+            <h3>skill.md 是什么？</h3>
+            <ul class="nb-list">
+              <li>定义 Agent 的<strong>一项具体能力</strong></li>
+              <li>包含工具列表、执行步骤、输出格式</li>
+              <li>可被不同 Agent <strong>复用和组合</strong></li>
+              <li>类似"插件"但更轻量、更声明式</li>
+            </ul>
+          </div>
+          <div class="card yellow">
+            <h3>与 CLAUDE.md 的区别</h3>
+            <ul class="nb-list">
+              <li><strong>CLAUDE.md</strong>：项目级记忆，全局生效</li>
+              <li><strong>skill.md</strong>：任务级能力，按需加载</li>
+              <li>CLAUDE.md 是"我知道什么"</li>
+              <li>skill.md 是"我能做什么"</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="代码审查输出实例" data-section="Part 1">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">SKILL OUTPUT</div>
+      <h2 class="title-anim">Skill 输出实例：Code Reviewer</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card dark">
+          <h3>🔴 Critical</h3>
+          <div class="nb-code" style="font-size:11px;margin:8px 0;box-shadow:none;color:var(--pink)">
+src/db/query.js:42
+const sql = `SELECT * FROM users
+  WHERE name = '${req.body.name}'`;
+
+问题: SQL 注入漏洞
+修复: 使用参数化查询
+  → WHERE name = $1</div>
+        </div>
+        <div class="card dark">
+          <h3>🟡 Warning &nbsp; 🟢 Suggestion</h3>
+          <div class="nb-code" style="font-size:11px;margin:8px 0;box-shadow:none;color:var(--yellow)">
+🟡 src/api/auth.js:18
+  catch(err) { return null; }
+  → 不应吞掉错误，至少记录日志
+
+🟢 src/utils/format.js:7
+  建议提取为独立函数
+  → 提高可读性和可测试性</div>
+        </div>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:10px">
+        结构化输出：分级 + file:line 引用 + 具体修复建议
+      </div>
+    </section>
+
+    <section class="slide" data-title="MCP 作为外部能力层" data-section="Part 1">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">MCP</div>
+      <h2 class="title-anim">MCP：模型上下文协议</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div>
+          <div class="nb-code" style="font-size:11px;line-height:1.35;margin-bottom:10px">
+// MCP Server 配置 (mcp.json)
+{
+  "servers": {
+    "database": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://..."
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem",
+               "/path/to/allowed/dir"]
+    }
+  }
+}</div>
+          <div class="nb-code" style="font-size:11px;line-height:1.35">
+// MCP Tool 定义 (TypeScript)
+server.tool(
+  "query_users",
+  "Search users by name or email",
+  { name: z.string(), limit: z.number() },
+  async ({ name, limit }) =&gt; {
+    const rows = await db.query(
+      `SELECT * FROM users
+       WHERE name ILIKE $1 LIMIT $2`,
+      [`%${name}%`, limit]
+    );
+    return { content: [{ type:"text",
+      text: JSON.stringify(rows) }] };
+  }
+);</div>
+        </div>
+        <div>
+          <div class="card pink" style="margin-bottom:10px">
+            <h3>MCP 是什么？</h3>
+            <ul class="nb-list">
+              <li><strong>标准协议</strong>：Agent 连接外部工具的接口</li>
+              <li>类比：USB-C 之于硬件设备</li>
+              <li>提供 <strong>Tools</strong>（操作）、<strong>Resources</strong>（数据）、<strong>Prompts</strong>（模板）</li>
+              <li>Agent 通过 MCP 调用数据库、文件系统、API 等</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>三个核心抽象</h3>
+            <div class="info-row ir-teal" style="margin-bottom:6px">
+              <div class="ir-label" style="font-size:13px">Tools</div>
+              <div class="ir-mid" style="font-size:13px">Agent 可调用的函数</div>
+            </div>
+            <div class="info-row ir-yellow" style="margin-bottom:6px">
+              <div class="ir-label" style="font-size:13px">Resources</div>
+              <div class="ir-mid" style="font-size:13px">Agent 可读取的数据</div>
+            </div>
+            <div class="info-row ir-blue">
+              <div class="ir-label" style="font-size:13px">Prompts</div>
+              <div class="ir-mid" style="font-size:13px">预定义的提示模板</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="MCP 实例" data-section="Part 1">
+      <div class="kicker p tag-anim" style="margin-bottom:10px">CONCRETE EXAMPLE</div>
+      <h2 class="title-anim">MCP：模型上下文协议</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div>
+          <div class="nb-code" style="font-size:11px;line-height:1.35;margin-bottom:10px">
+// MCP Server 配置 (mcp.json)
+{
+  "servers": {
+    "database": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://..."
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem",
+               "/path/to/allowed/dir"]
+    }
+  }
+}</div>
+          <div class="nb-code" style="font-size:11px;line-height:1.35">
+// MCP Tool 定义 (TypeScript)
+server.tool(
+  "query_users",
+  "Search users by name or email",
+  { name: z.string(), limit: z.number() },
+  async ({ name, limit }) =&gt; {
+    const rows = await db.query(
+      `SELECT * FROM users
+       WHERE name ILIKE $1 LIMIT $2`,
+      [`%${name}%`, limit]
+    );
+    return { content: [{ type:"text",
+      text: JSON.stringify(rows) }] };
+  }
+);</div>
+        </div>
+        <div>
+          <div class="card pink" style="margin-bottom:10px">
+            <h3>MCP 是什么？</h3>
+            <ul class="nb-list">
+              <li><strong>标准协议</strong>：Agent 连接外部工具的接口</li>
+              <li>类比：USB-C 之于硬件设备</li>
+              <li>提供 <strong>Tools</strong>（操作）、<strong>Resources</strong>（数据）、<strong>Prompts</strong>（模板）</li>
+              <li>Agent 通过 MCP 调用数据库、文件系统、API 等</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>三个核心抽象</h3>
+            <div class="info-row ir-teal" style="margin-bottom:6px">
+              <div class="ir-label" style="font-size:13px">Tools</div>
+              <div class="ir-mid" style="font-size:13px">Agent 可调用的函数</div>
+            </div>
+            <div class="info-row ir-yellow" style="margin-bottom:6px">
+              <div class="ir-label" style="font-size:13px">Resources</div>
+              <div class="ir-mid" style="font-size:13px">Agent 可读取的数据</div>
+            </div>
+            <div class="info-row ir-blue">
+              <div class="ir-label" style="font-size:13px">Prompts</div>
+              <div class="ir-mid" style="font-size:13px">预定义的提示模板</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="钩子作为生命周期自动化" data-section="Part 1">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">HOOKS</div>
+      <h2 class="title-anim">Hooks：生命周期自动化</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card orange">
+          <h3>什么是 Hooks？</h3>
+          <ul class="nb-list">
+            <li>在特定事件发生时自动执行的脚本</li>
+            <li>类似 Git Hooks 的概念</li>
+            <li>无需 Agent 主动调用</li>
+            <li>由 Harness 在后台触发</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>常见 Hook 事件</h3>
+          <ul class="nb-list">
+            <li><code>pre-tool-call</code>：工具调用前</li>
+            <li><code>post-tool-call</code>：工具调用后</li>
+            <li><code>session-start</code>：会话开始时</li>
+            <li><code>session-end</code>：会话结束时</li>
+          </ul>
+        </div>
+      </div>
+      <div class="nb-code rise" style="--i:1;font-size:12px;margin-top:10px">
+// .claude/hooks/post-tool-call.sh
+#!/bin/bash
+# 每次文件修改后自动运行格式化
+if [[ "$TOOL_NAME" == "write_file" || "$TOOL_NAME" == "edit" ]]; then
+  npx prettier --write "$FILE_PATH"
+fi</div>
+    </section>
+
+    <section class="slide" data-title="Hook 生命周期详解" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">LIFECYCLE</div>
+      <h2 class="title-anim">Hook 生命周期详解</h2>
+      <div class="flow rise" style="--i:0;justify-content:center;margin:16px 0">
+        <div class="flow-item fi-y">Harness 检测到事件</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-b">pre-tool-call Hook</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-p">执行工具</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-g">post-tool-call Hook</div>
+      </div>
+      <div class="grid g2 rise" style="--i:1">
+        <div class="card yellow">
+          <h3>pre-tool-call 用途</h3>
+          <ul class="nb-list">
+            <li><strong>参数验证</strong>：检查文件路径是否合法</li>
+            <li><strong>权限检查</strong>：确认是否允许执行此操作</li>
+            <li><strong>安全拦截</strong>：阻止危险命令（如 rm -rf）</li>
+            <li><strong>日志记录</strong>：记录即将执行的操作</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>post-tool-call 用途</h3>
+          <ul class="nb-list">
+            <li><strong>自动格式化</strong>：文件修改后运行 Prettier</li>
+            <li><strong>类型检查</strong>：代码变更后运行 tsc</li>
+            <li><strong>测试验证</strong>：修改后自动运行相关测试</li>
+            <li><strong>结果处理</strong>：过滤或转换工具输出</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:2;margin-top:10px">
+        Hook 对 Agent 透明 — Agent 不需要知道 Hook 的存在
+      </div>
+    </section>
+
+    <section class="slide" data-title="插件作为打包层" data-section="Part 1">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">PLUGINS</div>
+      <h2 class="title-anim">Plugins：打包分发</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card mint">
+          <h3>Plugin 包含什么？</h3>
+          <ul class="nb-list">
+            <li>多个 Skills（技能定义）</li>
+            <li>MCP Server 配置</li>
+            <li>Hooks（自动化脚本）</li>
+            <li>CLAUDE.md 片段（记忆模板）</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>为什么要用 Plugin？</h3>
+          <ul class="nb-list">
+            <li><strong>一键安装</strong>：完整的领域能力</li>
+            <li><strong>可分享</strong>：团队/社区共享</li>
+            <li><strong>版本管理</strong>：依赖和兼容性</li>
+            <li><strong>隔离</strong>：不同项目用不同插件</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+        Plugin = Skills + MCP + Hooks + Memory Templates
+      </div>
+    </section>
+
+    <!-- SUPERPOWERS CASE STUDY -->
+    <section class="slide" data-title="案例研究：Superpowers" data-section="Part 1">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">CASE STUDY</div>
+      <h2 class="title-anim">案例：Superpowers</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>Same Model, Different Workflow</h3>
+          <ul class="nb-list">
+            <li>使用相同的 Claude 模型</li>
+            <li>通过 Skills 定义专业工作流</li>
+            <li>9 个不同的 Skills 覆盖不同任务</li>
+            <li>每个 Skill 有专门的工具和指令</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>九个 Skills 示例</h3>
+          <ul class="nb-list">
+            <li><code>code-reviewer</code>：代码审查</li>
+            <li><code>test-writer</code>：测试生成</li>
+            <li><code>doc-generator</code>：文档生成</li>
+            <li><code>refactorer</code>：代码重构</li>
+            <li><code>debugger</code>：调试助手</li>
+            <li>... 等等</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        关键洞察：模型能力不变，通过 Skill 改变工作方式
+      </div>
+    </section>
+
+    <section class="slide" data-title="Superpowers 架构" data-section="Part 1">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">ARCHITECTURE</div>
+      <h2 class="title-anim">Superpowers 架构</h2>
+      <div class="rise" style="--i:0">
+        <div class="flow" style="justify-content:center;margin:16px 0">
+          <div class="flow-item fi-y">用户请求</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-b">Skill Router</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-p">Selected Skill</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-g">执行结果</div>
+        </div>
+      </div>
+      <div class="grid g3 rise" style="--i:1">
+        <div class="card">
+          <h3>Session-Start 脚本</h3>
+          <p>会话开始时自动加载项目上下文和可用 Skills 列表</p>
+        </div>
+        <div class="card yellow">
+          <h3>Skill 选择</h3>
+          <p>根据用户意图或显式调用（<code>/skill-name</code>）加载对应 Skill</p>
+        </div>
+        <div class="card mint">
+          <h3>上下文隔离</h3>
+          <p>每个 Skill 只加载需要的工具和指令，避免上下文污染</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Superpowers 的设计经验" data-section="Part 1">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">LESSONS</div>
+      <h2 class="title-anim">Superpowers 的设计经验</h2>
+      <div class="rise" style="--i:0">
+        <ol class="step-list">
+          <li><strong>Skill 要具体</strong>：不要写"写好代码"，要写"检查 SQL 注入、XSS、硬编码密钥"</li>
+          <li><strong>限制工具集</strong>：code-reviewer 不需要 write_file，只给 read 和 search</li>
+          <li><strong>明确输出格式</strong>：用 🔴🟡🟢 分级，强制 file:line 引用</li>
+          <li><strong>设置边界</strong>：明确告诉 Skill 什么不能做（如"不要直接修改代码"）</li>
+          <li><strong>Session-Start 很重要</strong>：自动加载上下文减少用户重复说明</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- CAVEMAN CASE STUDY -->
+    <section class="slide" data-title="Caveman 案例研究" data-section="Part 1">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">CASE STUDY</div>
+      <h2 class="title-anim">案例：Caveman</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card orange">
+          <h3>问题：上下文爆炸</h3>
+          <ul class="nb-list">
+            <li>长对话消耗大量 tokens</li>
+            <li>API 成本高昂</li>
+            <li>模型性能下降</li>
+            <li>用户等待时间长</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Caveman 的解决方案</h3>
+          <ul class="nb-list">
+            <li><strong>双向压缩</strong>：输入和输出都压缩</li>
+            <li>用 Plugin 打包压缩逻辑</li>
+            <li>Response Skill 让输出更简洁</li>
+            <li>自动摘要早期对话</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-o rise" style="--i:1;margin-top:12px">
+        核心思想：压缩 Agent 的 tokens，而不是压缩模型的能力
+      </div>
+    </section>
+
+    <section class="slide" data-title="Caveman 双向压缩" data-section="Part 1">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">COMPRESSION</div>
+      <h2 class="title-anim">Caveman 双向压缩</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>输入压缩</h3>
+          <ul class="nb-list">
+            <li>自动摘要早期对话</li>
+            <li>只保留关键决策和结果</li>
+            <li>丢弃中间推理过程</li>
+            <li>类似 /compact 但更智能</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>输出压缩</h3>
+          <ul class="nb-list">
+            <li>Response Skill 约束输出格式</li>
+            <li>"用 3 句话回答"</li>
+            <li>"不要解释基础概念"</li>
+            <li>"直接给代码，不要注释"</li>
+          </ul>
+        </div>
+      </div>
+      <div class="nb-code rise" style="--i:1;font-size:13px;margin-top:10px">
+原始: 45K tokens → 压缩后: 12K tokens (73% 减少)
+成本: $0.45 → $0.12 | 延迟: 8s → 2.5s</div>
+    </section>
+
+    <!-- ============ PART 2: AGENT LOOP & TOOLS ============ -->
+    <section class="slide section-div" data-title="Part 2: Agent Loop" data-section="Part 2">
+      <h1>Part 2</h1>
+      <div class="sub">ReAct Loop · Agent Loop · Tool Design</div>
+    </section>
+
+    <section class="slide" data-title="ReAct Loop 回顾" data-section="Part 2">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">REACT LOOP</div>
+      <h2 class="title-anim">ReAct Loop 回顾</h2>
+      <div class="rise" style="--i:0">
+        <div class="flow" style="justify-content:center;margin:20px 0">
+          <div class="flow-item fi-y" style="font-size:20px;padding:18px 28px">Thought</div>
+          <span class="flow-arrow" style="font-size:2em">→</span>
+          <div class="flow-item fi-b" style="font-size:20px;padding:18px 28px">Action</div>
+          <span class="flow-arrow" style="font-size:2em">→</span>
+          <div class="flow-item fi-p" style="font-size:20px;padding:18px 28px">Observation</div>
+          <span class="flow-arrow" style="font-size:2em">→</span>
+          <span style="font-size:28px;font-weight:700">循环</span>
+        </div>
+      </div>
+      <div class="grid g3 rise" style="--i:1">
+        <div class="card yellow">
+          <h3>Thought 思考</h3>
+          <p>模型分析当前状态，推理下一步该做什么</p>
+        </div>
+        <div class="card blue">
+          <h3>Action 行动</h3>
+          <p>调用工具执行操作（读文件、搜索、运行命令）</p>
+        </div>
+        <div class="card pink">
+          <h3>Observation 观察</h3>
+          <p>工具返回结果，成为下一轮思考的输入</p>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:2;margin-top:10px">
+        ReAct = Reasoning + Acting，让模型边想边做
+      </div>
+    </section>
+
+    <section class="slide" data-title="ReAct Loop 完整实例" data-section="Part 2">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">FULL TRACE</div>
+      <h2 class="title-anim">ReAct Loop 完整实例</h2>
+      <div class="step-list rise" style="--i:0">
+        <li><strong>用户：</strong>"找到并修复 utils.js 中的 bug"</li>
+        <li><strong style="color:var(--orange)">Thought 1：</strong>需要先找到 utils.js 文件的位置</li>
+        <li><strong style="color:var(--pink)">Action 1：</strong><code>glob("**/utils.js")</code> → <code>src/utils/utils.js</code></li>
+        <li><strong style="color:var(--orange)">Thought 2：</strong>读取文件内容，查找可疑代码</li>
+        <li><strong style="color:var(--pink)">Action 2：</strong><code>read_file("src/utils/utils.js")</code> → 发现第 23 行 <code>arr.sort()</code> 没有比较函数</li>
+        <li><strong style="color:var(--orange)">Thought 3：</strong>数字排序需要比较函数，应改为 <code>arr.sort((a,b) => a-b)</code></li>
+        <li><strong style="color:var(--pink)">Action 3：</strong><code>edit("src/utils/utils.js", old, new)</code> → 修复成功</li>
+        <li><strong style="color:var(--mint)">Observation：</strong>运行测试 → 全部通过 → 生成最终回答</li>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Agent Loop 示意图" data-section="Part 2">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">AGENT LOOP</div>
+      <h2 class="title-anim">Agent Loop 示意图</h2>
+      <div class="rise" style="--i:0">
+        <div class="card" style="padding:20px;margin:10px 0">
+          <div style="display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap">
+            <div style="border:3px solid var(--ink);padding:14px 20px;background:var(--yellow);color:var(--ink);font-weight:700;font-size:16px;box-shadow:var(--sh-sm)">用户输入</div>
+            <span style="font-size:1.5em;font-weight:700">→</span>
+            <div style="border:3px solid var(--ink);padding:14px 20px;background:var(--blue);color:#fff;font-weight:700;font-size:16px;box-shadow:var(--sh-sm)">LLM 推理</div>
+            <span style="font-size:1.5em;font-weight:700">→</span>
+            <div style="border:3px solid var(--ink);padding:14px 20px;background:var(--pink);color:#fff;font-weight:700;font-size:16px;box-shadow:var(--sh-sm)">工具调用</div>
+            <span style="font-size:1.5em;font-weight:700">→</span>
+            <div style="border:3px solid var(--ink);padding:14px 20px;background:var(--mint);color:var(--ink);font-weight:700;font-size:16px;box-shadow:var(--sh-sm)">结果反馈</div>
+          </div>
+          <div style="text-align:center;margin-top:12px;font-size:1.5em;font-weight:700">↓ 循环直到任务完成 ↓</div>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1">
+        <div class="card">
+          <h3>循环终止条件</h3>
+          <ul class="nb-list">
+            <li>模型生成最终回答（不调用工具）</li>
+            <li>达到最大迭代次数</li>
+            <li>用户中断</li>
+            <li>发生错误</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>关键组件</h3>
+          <ul class="nb-list">
+            <li><strong>Harness</strong>：管理循环和执行</li>
+            <li><strong>Tool Executor</strong>：执行工具调用</li>
+            <li><strong>Context Manager</strong>：管理上下文窗口</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="编码 Agent 的组件" data-section="Part 2">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">COMPONENTS</div>
+      <h2 class="title-anim">编码 Agent 的核心组件</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card mint">
+          <h3>搜索工具</h3>
+          <ul class="nb-list">
+            <li><code>grep</code>：文本搜索</li>
+            <li><code>find</code>：文件查找</li>
+            <li><code>glob</code>：模式匹配</li>
+            <li>语义搜索（向量）</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>读取工具</h3>
+          <ul class="nb-list">
+            <li><code>read_file</code>：读取文件</li>
+            <li><code>list_dir</code>：列出目录</li>
+            <li><code>head/tail</code>：查看部分</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>编辑工具</h3>
+          <ul class="nb-list">
+            <li><code>write_file</code>：写入文件</li>
+            <li><code>edit</code>：精确替换</li>
+            <li><code>insert</code>：插入内容</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card yellow">
+          <h3>执行工具</h3>
+          <ul class="nb-list">
+            <li><code>bash</code>：运行 Shell 命令</li>
+            <li>支持后台运行</li>
+            <li>超时控制</li>
+          </ul>
+        </div>
+        <div class="card orange">
+          <h3>其他工具</h3>
+          <ul class="nb-list">
+            <li><code>browser</code>：网页浏览</li>
+            <li><code>web_fetch</code>：获取网页</li>
+            <li>MCP 工具：数据库、API 等</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="编码任务流程实例" data-section="Part 2">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">WORKFLOW</div>
+      <h2 class="title-anim">编码任务流程实例</h2>
+      <p class="rise" style="--i:0;font-size:15px;margin-bottom:10px"><strong>任务：</strong>"给 User 类添加 email 验证功能"</p>
+      <div class="step-list rise" style="--i:1">
+        <li><strong style="color:var(--blue)">搜索：</strong><code>glob("**/user.*")</code> → 找到 <code>src/models/user.ts</code></li>
+        <li><strong style="color:var(--blue)">搜索：</strong><code>grep("class User", "src/models/")</code> → 定位类定义</li>
+        <li><strong style="color:var(--mint)">读取：</strong><code>read_file("src/models/user.ts")</code> → 理解现有结构</li>
+        <li><strong style="color:var(--mint)">读取：</strong><code>read_file("src/models/user.test.ts")</code> → 了解测试模式</li>
+        <li><strong style="color:var(--orange)">编辑：</strong><code>edit()</code> → 添加 <code>validateEmail()</code> 方法</li>
+        <li><strong style="color:var(--orange)">编辑：</strong><code>edit()</code> → 在构造函数中调用验证</li>
+        <li><strong style="color:var(--pink)">执行：</strong><code>bash("npm test -- user")</code> → 验证测试通过</li>
+      </div>
+      <div class="banner ban-g rise" style="--i:2;margin-top:8px">
+        搜索 → 读取 → 编辑 → 执行：工具组合使用完成复杂任务
+      </div>
+    </section>
+
+    <section class="slide" data-title="搜索方法对比" data-section="Part 2">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">SEARCH</div>
+      <h2 class="title-anim">搜索方法对比</h2>
+      <table class="rise" style="--i:0">
+        <thead>
+          <tr>
+            <th>方法</th>
+            <th>适用场景</th>
+            <th>优点</th>
+            <th>缺点</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>grep</strong></td>
+            <td>精确文本匹配</td>
+            <td>快速、准确</td>
+            <td>需要知道关键词</td>
+          </tr>
+          <tr>
+            <td><strong>glob</strong></td>
+            <td>文件名模式匹配</td>
+            <td>找到相关文件</td>
+            <td>只能匹配文件名</td>
+          </tr>
+          <tr>
+            <td><strong>find</strong></td>
+            <td>复杂文件查找</td>
+            <td>灵活的条件组合</td>
+            <td>语法复杂</td>
+          </tr>
+          <tr>
+            <td><strong>语义搜索</strong></td>
+            <td>概念查找</td>
+            <td>理解意图</td>
+            <td>需要向量索引</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="banner ban-y rise" style="--i:1;margin-top:10px">
+        最佳实践：先用 glob 定位文件，再用 grep 查找内容
+      </div>
+    </section>
+
+    <section class="slide" data-title="工具：编辑方法" data-section="Part 2">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">EDITING</div>
+      <h2 class="title-anim">编辑方法对比</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>write_file：全量写入</h3>
+          <ul class="nb-list">
+            <li>覆盖整个文件</li>
+            <li>适合创建新文件</li>
+            <li>适合完全重写</li>
+            <li><strong>危险</strong>：会丢失未包含的内容</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>edit：精确替换</h3>
+          <ul class="nb-list">
+            <li>指定 old_string 和 new_string</li>
+            <li>只修改匹配的部分</li>
+            <li>更安全，不会意外删除</li>
+            <li><strong>推荐</strong>：大多数修改场景</li>
+          </ul>
+        </div>
+      </div>
+      <div class="nb-code rise" style="--i:1;font-size:13px;margin-top:10px">
+// edit 工具示例
+old_string: "function add(a, b) { return a - b; }"
+new_string: "function add(a, b) { return a + b; }"
+// 只替换这一行，其他代码不受影响</div>
+    </section>
+
+    <section class="slide" data-title="Shell 工具执行" data-section="Part 2">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">EXECUTION</div>
+      <h2 class="title-anim">Shell 工具执行</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card blue">
+          <h3>执行模式</h3>
+          <ul class="nb-list">
+            <li><strong>前台</strong>：等待命令完成</li>
+            <li><strong>后台</strong>：立即返回，稍后检查结果</li>
+            <li><strong>超时控制</strong>：防止无限等待</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>安全考虑</h3>
+          <ul class="nb-list">
+            <li>权限检查：哪些命令允许执行</li>
+            <li>沙箱隔离：限制文件系统访问</li>
+            <li>资源限制：CPU、内存、时间</li>
+          </ul>
+        </div>
+      </div>
+      <div class="nb-code rise" style="--i:1;font-size:13px;margin-top:10px">
+// 前台执行
+bash("npm test")  // 等待测试完成，返回输出
+
+// 后台执行
+bash("npm run dev", run_in_background=true)  // 立即返回
+// ... 稍后检查 ...
+bash("curl http://localhost:3000")  // 验证服务启动</div>
+    </section>
+
+    <section class="slide" data-title="工具设计最佳实践" data-section="Part 2">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">BEST PRACTICES</div>
+      <h2 class="title-anim">工具设计最佳实践</h2>
+      <div class="rise" style="--i:0">
+        <ol class="step-list">
+          <li><strong>原子性</strong>：每个工具做一件事，做好它</li>
+          <li><strong>明确的输入输出</strong>：参数类型清晰，返回值可预测</li>
+          <li><strong>错误处理</strong>：失败时返回有用的错误信息，不是崩溃</li>
+          <li><strong>幂等性</strong>：相同的输入产生相同的结果（尽可能）</li>
+          <li><strong>最小权限</strong>：只给工具必要的访问权限</li>
+          <li><strong>可组合</strong>：工具之间可以组合使用，解决复杂问题</li>
+        </ol>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:10px">
+        好的工具设计 = Agent 成功的一半
+      </div>
+    </section>
+
+    <!-- CONTEXT ENGINEERING -->
+    <section class="slide" data-title="从提示词到 Agent 系统" data-section="Part 2">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">CONTEXT</div>
+      <h2 class="title-anim">从提示词工程到上下文工程</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>提示词工程</h3>
+          <ul class="nb-list">
+            <li>关注单次输入</li>
+            <li>优化措辞和格式</li>
+            <li>假设上下文固定</li>
+            <li>适合单轮对话</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>上下文工程</h3>
+          <ul class="nb-list">
+            <li>关注整个上下文窗口</li>
+            <li>管理信息的进入和退出</li>
+            <li>动态调整上下文内容</li>
+            <li>适合多轮 Agent 循环</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:12px">
+        Agent 系统的核心挑战：在有限的上下文窗口中放入最相关的信息
+      </div>
+    </section>
+
+    <section class="slide" data-title="上下文是有限资源" data-section="Part 2">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">SCARCITY</div>
+      <h2 class="title-anim">上下文是有限资源</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card orange">
+          <h3>窗口大小限制</h3>
+          <ul class="nb-list">
+            <li>Claude: 200K tokens</li>
+            <li>GPT-4: 128K tokens</li>
+            <li>看似很大，但很快用完</li>
+            <li>长代码文件 = 数千 tokens</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>性能影响</h3>
+          <ul class="nb-list">
+            <li>上下文越长，推理越慢</li>
+            <li>成本随 tokens 线性增长</li>
+            <li>过长上下文降低准确性</li>
+            <li>"Lost in the Middle" 问题</li>
+          </ul>
+        </div>
+      </div>
+      <div class="nb-code rise" style="--i:1;font-size:13px;margin-top:10px">
+上下文使用策略：
+✓ 准入：只让相关信息进入
+✓ 卸载：按需加载，用完即弃
+✓ 转换：压缩历史，保留要点
+✓ 压缩：LLM 总结作为最后手段</div>
+    </section>
+
+    <section class="slide" data-title="上下文管理实例" data-section="Part 2">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">EXAMPLE</div>
+      <h2 class="title-anim">上下文管理：错误 vs 正确</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>❌ 错误做法</h3>
+          <ul class="nb-list">
+            <li>一次性读取所有项目文件</li>
+            <li>保留完整的工具调用历史</li>
+            <li>把所有搜索结果塞入上下文</li>
+            <li>不区分相关和不相关信息</li>
+          </ul>
+          <div class="nb-code" style="font-size:11px;margin-top:8px">
+上下文占用：180K / 200K tokens
+结果：响应变慢、准确性下降
+"Lost in the Middle" 效应严重</div>
+        </div>
+        <div class="card mint">
+          <h3>✅ 正确做法</h3>
+          <ul class="nb-list">
+            <li>按需加载：只读当前任务相关文件</li>
+            <li>及时卸载：用完的工具结果立即丢弃</li>
+            <li>摘要压缩：长对话用 LLM 总结</li>
+            <li>分层管理：核心信息常驻，边缘信息按需</li>
+          </ul>
+          <div class="nb-code" style="font-size:11px;margin-top:8px">
+上下文占用：45K / 200K tokens
+结果：快速、准确、留有余量
+关键信息始终在注意力范围内</div>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        好的上下文管理 = 只让正确的信息在正确的时间出现在正确的地方
+      </div>
+    </section>
+
+    <section class="slide" data-title="上下文窗口的解剖" data-section="Part 2">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">ANATOMY</div>
+      <h2 class="title-anim">上下文窗口的解剖</h2>
+      <div class="rise" style="--i:0">
+        <div class="layer-stack">
+          <div class="layer" style="background:var(--yellow);color:var(--ink);font-size:14px">系统提示词 (2-4K tokens) — 行为规则、工具定义</div>
+          <div class="layer" style="background:var(--mint);color:var(--ink);font-size:14px">记忆文件 (1-3K tokens) — CLAUDE.md、项目知识</div>
+          <div class="layer" style="background:var(--blue);color:#fff;font-size:14px">对话历史 (变化) — 之前的消息和工具调用结果</div>
+          <div class="layer" style="background:var(--pink);color:#fff;font-size:14px">当前输入 (变化) — 用户的最新请求</div>
+          <div class="layer" style="background:var(--orange);color:#fff;font-size:14px">预留空间 — 模型生成输出</div>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        每一层都在争夺有限的空间，优先级管理至关重要
+      </div>
+    </section>
+
+    <section class="slide" data-title="管理上下文窗口" data-section="Part 2">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">MANAGEMENT</div>
+      <h2 class="title-anim">管理上下文窗口的四种策略</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card mint">
+          <h3>1. 准入 (Admission)</h3>
+          <p>守护入口：只让相关信息进入上下文</p>
+          <ul class="nb-list">
+            <li>按需加载文件，不要一次性读取全部</li>
+            <li>使用搜索而非全量扫描</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>2. 卸载 (Offloading)</h3>
+          <p>按需加载：用到时才放入上下文</p>
+          <ul class="nb-list">
+            <li>Skill 只在需要时加载</li>
+            <li>工具结果用完后可以丢弃</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card blue">
+          <h3>3. 转换 (Transformation)</h3>
+          <p>选择性丢弃：压缩历史，保留要点</p>
+          <ul class="nb-list">
+            <li>自动摘要早期对话</li>
+            <li>保留决策，丢弃推理过程</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>4. 压缩 (Compression)</h3>
+          <p>LLM 总结：最后的手段</p>
+          <ul class="nb-list">
+            <li>用 LLM 总结长对话</li>
+            <li>成本高，但在必要时有效</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Agent = Model × Harness" data-section="Part 2">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">FORMULA</div>
+      <h2 class="title-anim">Agent = Model × Harness</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card blue">
+          <h3>Model 模型</h3>
+          <ul class="nb-list">
+            <li>预训练知识和推理能力</li>
+            <li>遵循指令的能力</li>
+            <li>工具使用的准确性</li>
+            <li>由模型提供商决定</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>Harness 框架</h3>
+          <ul class="nb-list">
+            <li>上下文管理和优化</li>
+            <li>工具设计和执行</li>
+            <li>循环控制和错误处理</li>
+            <li><strong>我们可以改进的部分</strong></li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+        改进 Harness 可以将 Agent 准确率提升 2 倍
+      </div>
+    </section>
+
+    <!-- ============ PART 3: MULTI-AGENT & MEMORY ============ -->
+    <section class="slide section-div" data-title="Part 3: Multi-Agent" data-section="Part 3">
+      <h1>Part 3</h1>
+      <div class="sub">Multi-Agent Design · Communication · Memory Systems</div>
+    </section>
+
+    <section class="slide" data-title="从一个到多个" data-section="Part 3">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">SCALING</div>
+      <h2 class="title-anim">从一个 Agent 到多个 Agent</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card">
+          <h3>Single Agent 单 Agent</h3>
+          <ul class="nb-list">
+            <li>一个 LLM 处理所有任务</li>
+            <li>简单的 ReAct 循环</li>
+            <li>适合简单、线性任务</li>
+            <li>上下文窗口是瓶颈</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>Multi-Agent 多 Agent</h3>
+          <ul class="nb-list">
+            <li>多个 specialized Agent 协作</li>
+            <li>并行处理不同子任务</li>
+            <li>适合复杂、多维度任务</li>
+            <li>通信和协调是挑战</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-p rise" style="--i:1;margin-top:12px">
+        多 Agent 不是银弹 — 只有在单 Agent 不够时才引入
+      </div>
+    </section>
+
+    <section class="slide" data-title="多Agent架构模式" data-section="Part 3">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">PATTERNS</div>
+      <h2 class="title-anim">多 Agent 架构模式</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card blue">
+          <h3>🔗 Pipeline</h3>
+          <p>顺序处理，前一个 Agent 的输出是后一个的输入</p>
+          <div class="nb-code" style="font-size:10px;margin-top:6px">
+Agent A → Agent B → Agent C
+研究 → 写作 → 审校</div>
+          <p class="small" style="margin-top:6px">适合：有明确阶段的任务</p>
+        </div>
+        <div class="card orange">
+          <h3>🔀 Router</h3>
+          <p>一个调度 Agent 将任务分发给专家 Agent</p>
+          <div class="nb-code" style="font-size:10px;margin-top:6px">
+       ┌→ 代码Agent
+Router ┼→ 测试Agent
+       └→ 文档Agent</div>
+          <p class="small" style="margin-top:6px">适合：任务类型多样的场景</p>
+        </div>
+        <div class="card mint">
+          <h3>⚡ Worker Pool</h3>
+          <p>多个相同 Agent 并行处理同类子任务</p>
+          <div class="nb-code" style="font-size:10px;margin-top:6px">
+Worker 1 → 文件A
+Worker 2 → 文件B
+Worker 3 → 文件C</div>
+          <p class="small" style="margin-top:6px">适合：可并行的大批量任务</p>
+        </div>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:10px">
+        选择模式的关键：任务是否有可并行性？是否需要专业化？
+      </div>
+    </section>
+
+    <section class="slide" data-title="何时以及为什么拆分工作" data-section="Part 3">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">WHEN & WHY</div>
+      <h2 class="title-anim">何时以及为什么拆分工作？</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>并行性</h3>
+          <p>子任务可以独立执行，并行加速</p>
+        </div>
+        <div class="card blue">
+          <h3>专业化</h3>
+          <p>不同 Agent 使用不同的 prompt、工具、模型</p>
+        </div>
+        <div class="card pink">
+          <h3>上下文隔离</h3>
+          <p>避免单个 Agent 的上下文窗口过载</p>
+        </div>
+      </div>
+      <div class="grid g3 rise" style="--i:1;margin-top:10px">
+        <div class="card mint">
+          <h3>故障隔离</h3>
+          <p>一个 Agent 失败不影响其他 Agent</p>
+        </div>
+        <div class="card orange">
+          <h3>可扩展性</h3>
+          <p>按需添加更多 Agent 处理更大任务</p>
+        </div>
+        <div class="card dark">
+          <h3>人类协作</h3>
+          <p>不同 Agent 对接不同的利益相关者</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="三个关键问题" data-section="Part 3">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">KEY QUESTIONS</div>
+      <h2 class="title-anim">设计多 Agent 系统的三个关键问题</h2>
+      <div class="rise" style="--i:0">
+        <div class="card yellow" style="margin-bottom:10px">
+          <h3>1. 如何分解任务？</h3>
+          <p>将大任务拆分成哪些子任务？粒度如何？静态还是动态？</p>
+        </div>
+        <div class="card blue" style="margin-bottom:10px">
+          <h3>2. Agent 之间如何通信？</h3>
+          <p>使用什么媒介、通道、消息格式和语义？</p>
+        </div>
+        <div class="card pink">
+          <h3>3. 如何协调和同步？</h3>
+          <p>如何处理依赖关系、冲突和失败？</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="任务分解" data-section="Part 3">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">DECOMPOSITION</div>
+      <h2 class="title-anim">任务分解：静态 vs 动态</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card blue">
+          <h3>静态分解</h3>
+          <ul class="nb-list">
+            <li>任务开始前就确定子任务</li>
+            <li>固定的 Agent 数量和角色</li>
+            <li>适合结构化、可预测的任务</li>
+            <li>例如：代码审查流水线</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>动态分解</h3>
+          <ul class="nb-list">
+            <li>运行时决定如何拆分</li>
+            <li>Agent 数量可变</li>
+            <li>适合开放式、探索性任务</li>
+            <li>例如：研究助手、复杂问题求解</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:12px">
+        权衡：静态更可预测，动态更灵活
+      </div>
+    </section>
+
+    <section class="slide" data-title="Agent 通信示意图" data-section="Part 3">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">COMMUNICATION</div>
+      <h2 class="title-anim">Agent 通信的四个维度</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>1. 媒介 (Medium)</h3>
+          <p>消息通过什么传递？</p>
+          <ul class="nb-list">
+            <li>共享内存/文件</li>
+            <li>消息队列</li>
+            <li>API 调用</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>2. 通道 (Channel)</h3>
+          <p>如何组织和路由消息？</p>
+          <ul class="nb-list">
+            <li>点对点</li>
+            <li>广播</li>
+            <li>发布-订阅</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card blue">
+          <h3>3. 格式 (Format)</h3>
+          <p>消息的结构是什么？</p>
+          <ul class="nb-list">
+            <li>自然语言</li>
+            <li>JSON/结构化数据</li>
+            <li>混合</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>4. 语义 (Semantics)</h3>
+          <p>消息的含义是什么？</p>
+          <ul class="nb-list">
+            <li>请求/响应</li>
+            <li>事件通知</li>
+            <li>状态更新</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="A2A 协议" data-section="Part 3">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">A2A PROTOCOL</div>
+      <h2 class="title-anim">A2A：Agent 间通信协议</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card orange">
+          <h3>Agent Card</h3>
+          <ul class="nb-list">
+            <li>描述 Agent 的能力</li>
+            <li>输入/输出格式</li>
+            <li>可用的技能和工具</li>
+            <li>类似"名片"或"API 文档"</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>三个核心抽象</h3>
+          <ul class="nb-list">
+            <li><strong>Task</strong>：Agent 处理的工作单元</li>
+            <li><strong>Message</strong>：Agent 间的通信内容</li>
+            <li><strong>Artifact</strong>：任务产生的输出</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:12px">
+        A2A 让不同厂商的 Agent 可以互操作
+      </div>
+    </section>
+
+    <section class="slide" data-title="A2A消息示例" data-section="Part 3">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">JSON EXAMPLE</div>
+      <h2 class="title-anim">A2A 消息示例</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>Agent Card 示例</h3>
+          <div class="nb-code" style="font-size:10px;margin-top:6px;text-align:left">
+{
+  "name": "code-reviewer",
+  "description": "代码审查专家",
+  "skills": [
+    "bug-detection",
+    "style-check",
+    "security-audit"
+  ],
+  "input": "diff 或文件路径",
+  "output": "审查报告 JSON"
+}</div>
+        </div>
+        <div class="card">
+          <h3>Task 消息流</h3>
+          <div class="nb-code" style="font-size:10px;margin-top:6px;text-align:left">
+// 1. 创建任务
+→ { type: "task",
+    action: "review",
+    input: "src/auth.py" }
+
+// 2. 执行中
+← { type: "status",
+    state: "working" }
+
+// 3. 返回结果
+← { type: "artifact",
+    findings: 3,
+    severity: "medium" }</div>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        Agent Card 是名片，Task 是对话，Artifact 是交付物
+      </div>
+    </section>
+
+    <section class="slide" data-title="任务生命周期" data-section="Part 3">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">TASK LIFECYCLE</div>
+      <h2 class="title-anim">Task 生命周期</h2>
+      <div class="rise" style="--i:0">
+        <div class="flow" style="justify-content:center;margin:16px 0">
+          <div class="flow-item fi-y" style="font-size:16px;padding:12px 20px">submitted</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-b" style="font-size:16px;padding:12px 20px">working</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-g" style="font-size:16px;padding:12px 20px">completed</div>
+        </div>
+        <div style="text-align:center;margin:10px 0;font-size:14px;color:#666">或者</div>
+        <div class="flow" style="justify-content:center;margin:10px 0">
+          <div class="flow-item fi-y" style="font-size:16px;padding:12px 20px">submitted</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-b" style="font-size:16px;padding:12px 20px">working</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-p" style="font-size:16px;padding:12px 20px">failed</div>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card">
+          <h3>长时间运行的任务</h3>
+          <p>支持异步执行和状态查询，可以跟踪进度</p>
+        </div>
+        <div class="card yellow">
+          <h3>取消和超时</h3>
+          <p>支持取消正在进行的任务，设置超时限制</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="MCP vs A2A" data-section="Part 3">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">COMPARISON</div>
+      <h2 class="title-anim">MCP vs A2A：能力边界 vs Agent 通信</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card blue">
+          <h3>MCP：Agent ↔ 能力</h3>
+          <ul class="nb-list">
+            <li>Agent 调用外部工具和资源</li>
+            <li>单向：Agent → Tool</li>
+            <li>工具是被动的，不主动发起</li>
+            <li>类似"Agent 的手和眼"</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>A2A：Agent ↔ Agent</h3>
+          <ul class="nb-list">
+            <li>Agent 之间协作和通信</li>
+            <li>双向：Agent ⇄ Agent</li>
+            <li>每个 Agent 都是主动的</li>
+            <li>类似"Agent 之间的对话"</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+        MCP 让 Agent 能做事情，A2A 让 Agent 能协作
+      </div>
+    </section>
+
+    <!-- MEMORY SYSTEMS (from Lecture 6) -->
+    <section class="slide" data-title="Agent 记忆设计" data-section="Part 3">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">MEMORY DESIGN</div>
+      <h2 class="title-anim">Agent 记忆设计问题</h2>
+      <div class="rise" style="--i:0">
+        <div class="flow" style="justify-content:center;margin:14px 0;flex-wrap:wrap">
+          <div class="flow-item fi-y" style="font-size:14px;padding:10px 16px">值得保留吗？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-b" style="font-size:14px;padding:10px 16px">变成什么形式？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-p" style="font-size:14px;padding:10px 16px">存在哪里？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-g" style="font-size:14px;padding:10px 16px">如何检索？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-o" style="font-size:14px;padding:10px 16px">仍然有效吗？</div>
+        </div>
+      </div>
+      <div class="grid g3 rise" style="--i:1">
+        <div class="card yellow">
+          <h3>决策</h3>
+          <p>什么信息值得记住？什么可以遗忘？</p>
+        </div>
+        <div class="card blue">
+          <h3>格式</h3>
+          <p>如何编码和组织记忆？纯文本？结构化？</p>
+        </div>
+        <div class="card pink">
+          <h3>后端</h3>
+          <p>存储在哪里？文件？数据库？向量存储？</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="记忆设计问题" data-section="Part 3">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">DESIGN QUESTIONS</div>
+      <h2 class="title-anim">Agent 记忆设计问题</h2>
+      <div class="rise" style="--i:0">
+        <div class="flow" style="justify-content:center;margin:16px 0;flex-wrap:wrap">
+          <div class="flow-item fi-y">值得保留吗？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-b">决策：写入或跳过</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-p">变成什么形式？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-g">格式：编码 / 组织</div>
+        </div>
+        <div class="flow" style="justify-content:center;margin:16px 0;flex-wrap:wrap">
+          <div class="flow-item fi-o">存在哪里？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-b">后端：存储</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-p">当前任务需要吗？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-y">任务：检索</div>
+        </div>
+        <div class="flow" style="justify-content:center;margin:16px 0;flex-wrap:wrap">
+          <div class="flow-item fi-g">能得出什么更广泛的教训？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-p">反思 / 泛化</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-o">仍然有效吗？</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item fi-y">状态：保留 / 更新 / 删除</div>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        谁拥有这段记忆？ → 所有权问题
+      </div>
+    </section>
+
+    <section class="slide" data-title="决策：何时写入记忆" data-section="Part 3">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">DECISION</div>
+      <h2 class="title-anim">决策：何时写入记忆？</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card orange">
+          <h3>显式指令</h3>
+          <p>用户说"记住这个"</p>
+          <ul class="nb-list">
+            <li>明确、可控</li>
+            <li>但依赖用户主动</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>自动检测</h3>
+          <p>系统判断信息重要性</p>
+          <ul class="nb-list">
+            <li>无需用户干预</li>
+            <li>但可能误判</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>混合模式</h3>
+          <p>自动检测 + 用户确认</p>
+          <ul class="nb-list">
+            <li>平衡自动化和控制</li>
+            <li>推荐方案</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+        关键问题：什么信息值得跨会话保留？
+      </div>
+    </section>
+
+    <section class="slide" data-title="格式：如何组织记忆" data-section="Part 3">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">FORMAT</div>
+      <h2 class="title-anim">格式：如何组织记忆？</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>纯文本 (Markdown)</h3>
+          <ul class="nb-list">
+            <li>人类可读、可编辑</li>
+            <li>易于 diff 和版本控制</li>
+            <li>适合规则和偏好</li>
+            <li>例如：CLAUDE.md</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>结构化 (JSON/YAML)</h3>
+          <ul class="nb-list">
+            <li>机器可解析</li>
+            <li>支持复杂查询</li>
+            <li>适合事实和数据</li>
+            <li>例如：配置文件</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card mint">
+          <h3>向量嵌入</h3>
+          <p>用于语义搜索，适合大量非结构化记忆</p>
+        </div>
+        <div class="card yellow">
+          <h3>图结构</h3>
+          <p>用于关系推理，适合实体和关系</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="后端：如何存储记忆" data-section="Part 3">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">BACKEND</div>
+      <h2 class="title-anim">如何存储记忆？</h2>
+      <div class="rise" style="--i:0">
+        <div class="info-row ir-teal" style="margin-bottom:8px">
+          <div class="ir-label">纯文本文件</div>
+          <div class="ir-mid">CLAUDE.md，scratchpad</div>
+          <div class="ir-right">易于检查、diff 和搜索</div>
+        </div>
+        <div class="info-row ir-yellow" style="margin-bottom:8px">
+          <div class="ir-label">键值或关系数据库</div>
+          <div class="ir-mid">Redis，SQLite，Postgres JSONB</div>
+          <div class="ir-right">精确查找、过滤、事务</div>
+        </div>
+        <div class="info-row ir-blue" style="margin-bottom:8px">
+          <div class="ir-label">向量存储</div>
+          <div class="ir-mid">pgvector，Chroma，Pinecone</div>
+          <div class="ir-right">精确或近似相似度搜索</div>
+        </div>
+        <div class="info-row ir-pink">
+          <div class="ir-label">图数据库</div>
+          <div class="ir-mid">Neo4j，FalkorDB（Graphiti）</div>
+          <div class="ir-right">关系查询和多跳遍历</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="如何检索记忆" data-section="Part 3">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">RETRIEVAL</div>
+      <h2 class="title-anim">如何检索记忆？</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card blue">
+          <h3>精确匹配</h3>
+          <ul class="nb-list">
+            <li>关键词搜索</li>
+            <li>ID 查找</li>
+            <li>过滤条件</li>
+            <li>快速、准确</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>语义搜索</h3>
+          <ul class="nb-list">
+            <li>向量相似度</li>
+            <li>理解意图</li>
+            <li>模糊匹配</li>
+            <li>灵活、智能</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card yellow">
+          <h3>混合检索</h3>
+          <p>结合精确和语义，先过滤再排序</p>
+        </div>
+        <div class="card pink">
+          <h3>检索管线</h3>
+          <p>查询 → 检索 → 重排 → 截断 → 注入上下文</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="遗忘是一等记忆操作" data-section="Part 3">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">FORGETTING</div>
+      <h2 class="title-anim">遗忘是一等记忆操作</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card orange">
+          <h3>为什么要遗忘？</h3>
+          <ul class="nb-list">
+            <li>信息过时（项目迁移）</li>
+            <li>避免上下文污染</li>
+            <li>保护隐私（敏感数据）</li>
+            <li>减少噪音，提高检索质量</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>遗忘策略</h3>
+          <ul class="nb-list">
+            <li><strong>TTL</strong>：设置有效期</li>
+            <li><strong>LRU</strong>：最近最少使用优先删除</li>
+            <li><strong>显式删除</strong>：用户或 Agent 主动删除</li>
+            <li><strong>自动清理</strong>：定期扫描和归档</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:12px">
+        遗忘和记忆同样重要 — 主动管理记忆的生命周期
+      </div>
+    </section>
+
+    <section class="slide" data-title="谁拥有记忆" data-section="Part 3">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">OWNERSHIP</div>
+      <h2 class="title-anim">谁拥有记忆？</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card mint">
+          <h3>Agent 拥有</h3>
+          <p>Harness 中的文件：CLAUDE.md、Agent scratchpad、任务笔记</p>
+        </div>
+        <div class="card mint">
+          <h3>专用记忆系统</h3>
+          <p>Agent 调用的服务：Mem0、Graphiti、supermemory</p>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card">
+          <h3>Agent Harness</h3>
+          <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 0">
+            <div style="border:3px solid var(--ink);padding:8px 14px;font-weight:700">LLM</div>
+            <span style="font-size:1.3em;font-weight:700">⇄</span>
+            <div style="border:3px solid var(--ink);padding:8px 14px;font-weight:700;background:var(--mint);color:var(--ink)">CLAUDE.md<br>任务笔记</div>
+          </div>
+          <p class="small" style="text-align:center">Harness 将记忆持久化到磁盘</p>
+        </div>
+        <div class="card">
+          <h3>Agent Harness</h3>
+          <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin:10px 0">
+            <div style="border:3px solid var(--ink);padding:8px 14px;font-weight:700">LLM</div>
+            <span style="font-size:1.3em;font-weight:700">→</span>
+            <div style="border:3px solid var(--ink);padding:8px 14px;font-weight:700;background:var(--mint);color:var(--ink)">记忆层<br>库或服务</div>
+          </div>
+          <p class="small" style="text-align:center">记忆是 API，跨 Agent 和会话共享</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="专用记忆系统" data-section="Part 3">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">DEDICATED SYSTEMS</div>
+      <h2 class="title-anim">专用记忆系统</h2>
+      <div class="rise" style="--i:0">
+        <div class="info-row ir-teal" style="margin-bottom:8px">
+          <div class="ir-label">Mem0<br><span style="font-size:12px;font-weight:500">以事实为中心</span></div>
+          <div class="ir-mid">输入：<strong>消息</strong>，按用户、Agent 或运行<strong>分域</strong>。检索：<strong>向量搜索</strong>加过滤；可选图记忆。例如："使用 SGLang 做模型服务。"</div>
+          <div class="ir-right">事实中心</div>
+        </div>
+        <div class="info-row ir-yellow" style="margin-bottom:8px">
+          <div class="ir-label">Graphiti<br><span style="font-size:12px;font-weight:500">以事件为中心</span></div>
+          <div class="ir-mid">输入：<strong>事件和观察</strong>，构建<strong>知识图</strong>。检索：<strong>图遍历</strong>加向量搜索。例如："用户在 3 月 15 日决定迁移到 Postgres。"</div>
+          <div class="ir-right">事件中心</div>
+        </div>
+        <div class="info-row ir-blue">
+          <div class="ir-label" style="color:#fff">supermemory<br><span style="font-size:12px;font-weight:500">以对话为中心</span></div>
+          <div class="ir-mid" style="color:#fff">输入：<strong>完整对话</strong>，按时间索引。检索：<strong>时间窗口</strong>加语义搜索。例如："上周关于 API 设计的讨论。"</div>
+          <div class="ir-right" style="color:rgba(255,255,255,.8)">对话中心</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="记忆系统对比" data-section="Part 3">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">COMPARISON</div>
+      <h2 class="title-anim">记忆系统选型对比</h2>
+      <div class="rise" style="--i:0">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;font-weight:500">
+          <thead>
+            <tr style="background:var(--ink);color:var(--paper)">
+              <th style="padding:10px;text-align:left;border:3px solid var(--ink)">特性</th>
+              <th style="padding:10px;text-align:center;border:3px solid var(--ink)">Mem0</th>
+              <th style="padding:10px;text-align:center;border:3px solid var(--ink)">Graphiti</th>
+              <th style="padding:10px;text-align:center;border:3px solid var(--ink)">supermemory</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:var(--paper);color:var(--ink)">
+              <td style="padding:8px;border:3px solid var(--ink);font-weight:700">核心模型</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">事实三元组</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">知识图谱</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">对话时间线</td>
+            </tr>
+            <tr style="background:var(--mint);color:var(--ink)">
+              <td style="padding:8px;border:3px solid var(--ink);font-weight:700">最佳场景</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">用户偏好、事实</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">复杂关系推理</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">对话回顾</td>
+            </tr>
+            <tr style="background:var(--paper);color:var(--ink)">
+              <td style="padding:8px;border:3px solid var(--ink);font-weight:700">检索方式</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">向量 + 过滤</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">图遍历 + 向量</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">时间窗口 + 语义</td>
+            </tr>
+            <tr style="background:var(--yellow);color:var(--ink)">
+              <td style="padding:8px;border:3px solid var(--ink);font-weight:700">更新方式</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">增量更新事实</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">添加节点/边</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center">追加对话</td>
+            </tr>
+            <tr style="background:var(--paper);color:var(--ink)">
+              <td style="padding:8px;border:3px solid var(--ink);font-weight:700">示例记忆</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center;font-size:11px">"用户偏好 Python"</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center;font-size:11px">"3月决定迁移数据库"</td>
+              <td style="padding:8px;border:3px solid var(--ink);text-align:center;font-size:11px">"上周讨论 API 设计"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="banner ban-o rise" style="--i:1;margin-top:10px">
+        选择记忆系统：先想清楚你要记住什么类型的信息
+      </div>
+    </section>
+
+    <section class="slide" data-title="记忆设计清单" data-section="Part 3">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">CHECKLIST</div>
+      <h2 class="title-anim">记忆设计清单</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card mint">
+          <h3>决策层</h3>
+          <ul class="nb-list">
+            <li>✓ 什么信息值得记住？</li>
+            <li>✓ 谁决定写入（用户/Agent/自动）？</li>
+            <li>✓ 如何处理冲突的记忆？</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>格式层</h3>
+          <ul class="nb-list">
+            <li>✓ 使用什么编码格式？</li>
+            <li>✓ 如何组织结构？</li>
+            <li>✓ 是否需要元数据（时间、来源）？</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card blue">
+          <h3>存储层</h3>
+          <ul class="nb-list">
+            <li>✓ 选择什么后端？</li>
+            <li>✓ 如何备份和恢复？</li>
+            <li>✓ 跨设备同步？</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>检索层</h3>
+          <ul class="nb-list">
+            <li>✓ 精确还是语义搜索？</li>
+            <li>✓ 如何排序和过滤？</li>
+            <li>✓ 如何注入上下文？</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PART 4: RELIABILITY ============ -->
+    <section class="slide section-div" data-title="Part 4: Reliability" data-section="Part 4">
+      <h1>Part 4</h1>
+      <div class="sub">Agent Reliability · Error Compounding · Designing for Failure</div>
+    </section>
+
+    <section class="slide" data-title="为什么可靠性是个问题" data-section="Part 4">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">RELIABILITY</div>
+      <h2 class="title-anim">为什么可靠性是个问题？</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>错误复合效应</h3>
+          <p>每一步都有失败概率，多步任务失败率指数增长</p>
+          <div class="nb-code" style="font-size:12px;margin-top:8px">
+单步准确率: 95%
+5 步任务: 0.95^5 = 77%
+10 步任务: 0.95^10 = 60%
+20 步任务: 0.95^20 = 36%
+50 步任务: 0.95^50 = 8%</div>
+        </div>
+        <div class="card">
+          <h3>现实世界的挑战</h3>
+          <ul class="nb-list">
+            <li>工具调用可能失败</li>
+            <li>模型可能产生幻觉</li>
+            <li>上下文可能丢失关键信息</li>
+            <li>环境可能变化（文件被删除）</li>
+            <li>用户意图可能模糊</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        Agent 系统必须在不确定性中可靠工作
+      </div>
+    </section>
+
+    <section class="slide" data-title="错误复合效应数学" data-section="Part 4">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">MATH</div>
+      <h2 class="title-anim">错误复合效应：数学真相</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>准确率 vs 任务步数</h3>
+          <div class="nb-code" style="font-size:11px;margin-top:6px;text-align:left">
+单步准确率 p = 0.95
+
+ 5步 → 0.95⁵  = 76.9%  ✅
+10步 → 0.95¹⁰ = 59.9%  ⚠️
+15步 → 0.95¹⁵ = 46.3%  🔴
+20步 → 0.95²⁰ = 35.8%  🔴
+30步 → 0.95³⁰ = 21.5%  💀
+50步 → 0.95⁵⁰ =  7.7%  💀</div>
+        </div>
+        <div class="card">
+          <h3>提升单步准确率的效果</h3>
+          <div class="nb-code" style="font-size:11px;margin-top:6px;text-align:left">
+20步任务，不同单步准确率：
+
+p=0.90 → 12.2%  😰
+p=0.95 → 35.8%  😟
+p=0.98 → 66.8%  🙂
+p=0.99 → 81.8%  😊
+p=0.999→ 98.0%  🎉</div>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:10px">
+        结论：提升每一步的可靠性比减少步数更重要 — 从 95% 到 99% 是质变
+      </div>
+    </section>
+
+    <section class="slide" data-title="故障来源" data-section="Part 4">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">FAULT SOURCES</div>
+      <h2 class="title-anim">五层故障来源</h2>
+      <table class="rise" style="--i:0">
+        <thead>
+          <tr>
+            <th>层级</th>
+            <th>故障类型</th>
+            <th>示例</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. 任务规格</strong></td>
+            <td>需求不清、目标冲突</td>
+            <td>"优化性能"但没有指标</td>
+          </tr>
+          <tr>
+            <td><strong>2. Agent Harness</strong></td>
+            <td>上下文管理、工具执行</td>
+            <td>上下文截断、工具超时</td>
+          </tr>
+          <tr>
+            <td><strong>3. 模型</strong></td>
+            <td>推理错误、幻觉</td>
+            <td>错误的代码逻辑、虚构的 API</td>
+          </tr>
+          <tr>
+            <td><strong>4. 工具</strong></td>
+            <td>API 失败、返回错误</td>
+            <td>数据库连接失败、文件不存在</td>
+          </tr>
+          <tr>
+            <td><strong>5. 环境</strong></td>
+            <td>外部变化、资源限制</td>
+            <td>网络中断、磁盘满、权限变化</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="slide" data-title="任务规格失败" data-section="Part 4">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">TASK SPEC</div>
+      <h2 class="title-anim">任务规格失败</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>模糊的需求</h3>
+          <ul class="nb-list">
+            <li>"让网站更快" — 多快？哪个页面？</li>
+            <li>"修复 bug" — 哪个 bug？如何复现？</li>
+            <li>"重构代码" — 重构什么？目标是什么？</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>冲突的目标</h3>
+          <ul class="nb-list">
+            <li>"快速交付" vs "高质量"</li>
+            <li>"最小改动" vs "彻底修复"</li>
+            <li>"保持兼容" vs "使用新 API"</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+        解决方案：明确、可衡量、可验证的任务定义
+      </div>
+    </section>
+
+    <section class="slide" data-title="Agent Harness 失败" data-section="Part 4">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">HARNESS</div>
+      <h2 class="title-anim">Agent Harness 失败</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card blue">
+          <h3>上下文管理</h3>
+          <ul class="nb-list">
+            <li>关键信息被截断</li>
+            <li>压缩丢失重要细节</li>
+            <li>上下文污染（无关信息）</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>工具执行</h3>
+          <ul class="nb-list">
+            <li>工具调用超时</li>
+            <li>返回结果过大</li>
+            <li>权限不足</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>循环控制</h3>
+          <ul class="nb-list">
+            <li>无限循环</li>
+            <li>过早终止</li>
+            <li>死锁（等待不可能的条件）</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:1;margin-top:12px">
+        Harness 是我们可以控制和改进的部分
+      </div>
+    </section>
+
+    <section class="slide" data-title="模型失败" data-section="Part 4">
+      <div class="kicker p tag-anim" style="margin-bottom:12px">MODEL</div>
+      <h2 class="title-anim">模型失败</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card pink">
+          <h3>推理错误</h3>
+          <ul class="nb-list">
+            <li>逻辑错误（错误的因果推理）</li>
+            <li>数学计算错误</li>
+            <li>忽略约束条件</li>
+            <li>错误的代码逻辑</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>幻觉</h3>
+          <ul class="nb-list">
+            <li>虚构不存在的 API</li>
+            <li>编造函数或方法名</li>
+            <li>错误的文件路径</li>
+            <li>虚假的引用和来源</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card yellow">
+          <h3>指令遵循失败</h3>
+          <p>模型忽略系统提示词中的规则或约束</p>
+        </div>
+        <div class="card mint">
+          <h3>上下文理解错误</h3>
+          <p>误解用户意图，忽略关键上下文信息</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="工具失败" data-section="Part 4">
+      <div class="kicker o tag-anim" style="margin-bottom:12px">TOOLS</div>
+      <h2 class="title-anim">工具失败</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card orange">
+          <h3>API 失败</h3>
+          <ul class="nb-list">
+            <li>服务不可用</li>
+            <li>速率限制</li>
+            <li>认证失败</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>数据错误</h3>
+          <ul class="nb-list">
+            <li>文件不存在</li>
+            <li>数据库连接失败</li>
+            <li>返回格式错误</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>执行错误</h3>
+          <ul class="nb-list">
+            <li>命令超时</li>
+            <li>权限不足</li>
+            <li>资源限制（内存、磁盘）</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-y rise" style="--i:1;margin-top:12px">
+        工具失败是最常见的故障来源 — 必须有重试和降级策略
+      </div>
+    </section>
+
+    <section class="slide" data-title="环境失败" data-section="Part 4">
+      <div class="kicker g tag-anim" style="margin-bottom:12px">ENVIRONMENT</div>
+      <h2 class="title-anim">环境失败</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card mint">
+          <h3>外部变化</h3>
+          <ul class="nb-list">
+            <li>文件被其他进程修改或删除</li>
+            <li>网络中断或不稳定</li>
+            <li>依赖服务宕机</li>
+            <li>配置被更改</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>资源限制</h3>
+          <ul class="nb-list">
+            <li>磁盘空间不足</li>
+            <li>内存耗尽</li>
+            <li>CPU 过载</li>
+            <li>端口冲突</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card blue">
+          <h3>权限问题</h3>
+          <p>文件权限变化、用户权限不足、沙箱限制</p>
+        </div>
+        <div class="card pink">
+          <h3>并发冲突</h3>
+          <p>多个 Agent 同时修改同一资源</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="为失败而设计" data-section="Part 4">
+      <div class="kicker b tag-anim" style="margin-bottom:12px">DESIGN FOR FAILURE</div>
+      <h2 class="title-anim">为失败而设计</h2>
+      <div class="grid g3 rise" style="--i:0">
+        <div class="card blue">
+          <h3>1. 重试策略</h3>
+          <ul class="nb-list">
+            <li>指数退避重试</li>
+            <li>最大重试次数</li>
+            <li>区分可重试和不可重试错误</li>
+          </ul>
+        </div>
+        <div class="card yellow">
+          <h3>2. 降级策略</h3>
+          <ul class="nb-list">
+            <li>工具失败时使用备选方案</li>
+            <li>部分失败时继续执行</li>
+            <li>优雅降级而非完全失败</li>
+          </ul>
+        </div>
+        <div class="card mint">
+          <h3>3. 检查点</h3>
+          <ul class="nb-list">
+            <li>保存中间状态</li>
+            <li>可以从失败点恢复</li>
+            <li>避免重复已完成的工作</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card pink">
+          <h3>4. 验证和确认</h3>
+          <ul class="nb-list">
+            <li>每步验证结果</li>
+            <li>关键操作前确认</li>
+            <li>输出格式检查</li>
+          </ul>
+        </div>
+        <div class="card orange">
+          <h3>5. 人类在环</h3>
+          <ul class="nb-list">
+            <li>关键决策请求确认</li>
+            <li>不确定时询问用户</li>
+            <li>提供回退选项</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ENDING -->
+    <section class="slide" data-title="总结" data-section="结尾">
+      <div class="kicker y tag-anim" style="margin-bottom:12px">SUMMARY</div>
+      <h2 class="title-anim">四大部分总结</h2>
+      <div class="grid g2 rise" style="--i:0">
+        <div class="card yellow">
+          <h3>Part 1: Agentic Loop</h3>
+          <ul class="nb-list">
+            <li>智能体循环：推理 → 行动 → 观察</li>
+            <li>记忆系统：CLAUDE.md、专用系统</li>
+            <li>扩展机制：Skills, MCP, Hooks, Plugins</li>
+          </ul>
+        </div>
+        <div class="card blue">
+          <h3>Part 2: Agent Loop & Tools</h3>
+          <ul class="nb-list">
+            <li>ReAct Loop：边想边做</li>
+            <li>工具设计：原子性、明确性、安全性</li>
+            <li>上下文工程：准入、卸载、转换、压缩</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid g2 rise" style="--i:1;margin-top:10px">
+        <div class="card mint">
+          <h3>Part 3: Multi-Agent & Memory</h3>
+          <ul class="nb-list">
+            <li>任务分解：静态 vs 动态</li>
+            <li>通信设计：四个维度</li>
+            <li>记忆设计：决策、格式、存储、检索</li>
+          </ul>
+        </div>
+        <div class="card pink">
+          <h3>Part 4: Reliability</h3>
+          <ul class="nb-list">
+            <li>错误复合效应：多步任务失败率指数增长</li>
+            <li>五层故障：规格、Harness、模型、工具、环境</li>
+            <li>为失败设计：重试、降级、检查点、验证</li>
+          </ul>
+        </div>
+      </div>
+      <div class="banner ban-d rise" style="--i:2;margin-top:10px">
+        Agent = Model × Harness，改进 Harness 是提升可靠性的关键
+      </div>
+    </section>
+
+  </div><!-- /stage -->
+</div><!-- /viewport -->
+
+<div id="bar-bg"><div id="bar"></div></div>
+<div id="counter">1 / 50</div>
+<div id="hint">← → 翻页 · F 全屏 · O 总览</div>
+<div id="ctrls">
+  <button id="btn-prev" title="上一页">◀</button>
+  <button id="btn-next" title="下一页">▶</button>
+  <button id="btn-ovl" title="总览">☰</button>
+  <button id="btn-fs" title="全屏">⛶</button>
+</div>
+
+<div id="ovl">
+  <h2>总览</h2>
+  <div id="ovl-content"></div>
+</div>
+
+<script>
+(function(){
+  var slides=document.querySelectorAll('.slide'),cur=0,ovl=document.getElementById('ovl'),ovlOn=false;
+  function show(n,dir){
+    if(n<0)n=0;if(n>=slides.length)n=slides.length-1;
+    var old=slides[cur],nw=slides[n];
+    old.classList.remove('active');old.classList.remove('from-left');
+    nw.classList.add('active');
+    if(dir===-1)nw.classList.add('from-left');else nw.classList.remove('from-left');
+    cur=n;
+    document.getElementById('counter').textContent=(cur+1)+' / '+slides.length;
+    document.getElementById('bar').style.width=((cur+1)/slides.length*100)+'%';
+  }
+  function next(){show(cur+1,1)}
+  function prev(){show(cur-1,-1)}
+  document.addEventListener('keydown',function(e){
+    if(ovlOn){if(e.key==='Escape'||e.key==='o'||e.key==='O'){toggleOvl();e.preventDefault()}return}
+    switch(e.key){
+      case 'ArrowRight':case 'PageDown':case ' ':e.preventDefault();next();break;
+      case 'ArrowLeft':case 'PageUp':e.preventDefault();prev();break;
+      case 'Home':e.preventDefault();show(0,-1);break;
+      case 'End':e.preventDefault();show(slides.length-1,1);break;
+      case 'f':case 'F':toggleFs();break;
+      case 'o':case 'O':toggleOvl();break;
+      case 'Escape':if(document.fullscreenElement)document.exitFullscreen();break;
+    }
+  });
+  document.getElementById('btn-next').addEventListener('click',next);
+  document.getElementById('btn-prev').addEventListener('click',prev);
+  document.getElementById('btn-ovl').addEventListener('click',toggleOvl);
+  document.getElementById('btn-fs').addEventListener('click',toggleFs);
+  document.getElementById('viewport').addEventListener('click',function(e){
+    if(e.target.closest('#ctrls')||e.target.closest('#ovl'))return;
+    var r=this.getBoundingClientRect(),x=e.clientX-r.left;
+    if(x>r.width*0.7)next();else if(x<r.width*0.3)prev();
+  });
+  var touchX=0;
+  document.getElementById('viewport').addEventListener('touchstart',function(e){touchX=e.touches[0].clientX},{passive:true});
+  document.getElementById('viewport').addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-touchX;
+    if(Math.abs(dx)>50){if(dx<0)next();else prev()}
+  },{passive:true});
+  function toggleFs(){
+    if(!document.fullscreenElement)document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+  function toggleOvl(){
+    ovlOn=!ovlOn;
+    if(ovlOn){buildOvl();ovl.classList.add('on')}else ovl.classList.remove('on');
+  }
+  function buildOvl(){
+    var c=document.getElementById('ovl-content');c.innerHTML='';
+    var secs={},order=[];
+    slides.forEach(function(s,i){
+      var sec=s.getAttribute('data-section')||'',title=s.getAttribute('data-title')||('第 '+(i+1)+' 页');
+      if(!secs[sec]){secs[sec]=[];order.push(sec)}
+      secs[sec].push({n:i+1,t:title,i:i});
+    });
+    order.forEach(function(sec){
+      var d=document.createElement('div');d.className='ov-sec';
+      d.innerHTML='<div class="ov-sec-title">'+sec+'</div>';
+      var g=document.createElement('div');g.className='ov-grid';
+      secs[sec].forEach(function(it){
+        var item=document.createElement('div');item.className='ov-item';
+        item.innerHTML='<div class="n">'+String(it.n).padStart(2,'0')+'</div><div class="t">'+it.t+'</div>';
+        item.addEventListener('click',function(){show(it.i,it.i>cur?1:-1);toggleOvl()});
+        g.appendChild(item);
+      });
+      d.appendChild(g);c.appendChild(d);
+    });
+  }
+  function resize(){
+    var sw=window.innerWidth/1280,sh=window.innerHeight/720,s=Math.min(sw,sh);
+    document.getElementById('stage').style.transform='translate(-50%,-50%) scale('+s+')';
+  }
+  window.addEventListener('resize',resize);resize();
+  show(0,0);
+})();
+</script>
+</body>
+</html>

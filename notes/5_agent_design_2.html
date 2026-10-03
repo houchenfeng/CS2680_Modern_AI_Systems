@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第5讲 Agent Design II: 多智能体系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A0A0A;
+  --paper:#FAFAFA;
+  --yellow:#FFE600;
+  --blue:#0047FF;
+  --pink:#FF006E;
+  --mint:#00F5A0;
+  --orange:#FF6B00;
+  --disp:'Archivo Black','Arial Black','Microsoft YaHei',system-ui,sans-serif;
+  --body:'Space Grotesk','Microsoft YaHei',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Courier New',monospace;
+  --sh:6px 6px 0 var(--ink);
+  --sh-sm:4px 4px 0 var(--ink);
+  --brd:3px solid var(--ink);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#101010;font-family:var(--body)}
+body{
+  background:
+    radial-gradient(circle at 18% 12%,#2a2a2a 0,transparent 45%),
+    radial-gradient(circle at 82% 88%,#232323 0,transparent 45%),
+    #101010;
+}
+#viewport{position:fixed;inset:0}
+#stage{
+  position:absolute;top:50%;left:50%;
+  width:1280px;height:720px;
+  transform:translate(-50%,-50%) scale(1);
+  transform-origin:center center;
+}
+.slide{
+  position:absolute;inset:0;width:1280px;height:720px;
+  display:none;flex-direction:column;
+  padding:40px 54px 46px;
+  background-color:var(--paper);
+  background-image:radial-gradient(rgba(10,10,10,.14) 1.3px,transparent 1.3px);
+  background-size:22px 22px;
+  color:var(--ink);
+  overflow:hidden;
+}
+.slide.active{display:flex;animation:slideEnter .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnter{
+  0%{opacity:0;transform:translateX(70px) scale(.985) rotate(.4deg)}
+  100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}
+}
+.slide.active.from-left{animation:slideEnterL .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnterL{
+  0%{opacity:0;transform:translateX(-70px) scale(.985) rotate(-.4deg)}
+  100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}
+}
+.slide.active .rise{animation:rise .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .pop{animation:pop .45s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .slide-r{animation:slideR .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .shake{animation:shake .6s both;animation-delay:calc(var(--i,0)*.07s + .15s)}
+@keyframes rise{0%{opacity:0;transform:translateY(26px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{opacity:0;transform:scale(.82) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes slideR{0%{opacity:0;transform:translateX(-40px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-5px) rotate(-1.5deg)}40%{transform:translateX(5px) rotate(1.5deg)}60%{transform:translateX(-4px) rotate(-1deg)}80%{transform:translateX(4px) rotate(1deg)}}
+.slide.active .title-anim{animation:rise .5s .05s both}
+.slide.active .sub-anim{animation:rise .5s .12s both}
+.slide.active .tag-anim{animation:pop .4s both}
+.slide.active .float{animation:float 3.2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(var(--r,-4deg))}50%{transform:translateY(-11px) rotate(var(--r,-4deg))}}
+.cover{
+  background:var(--pink)!important;
+  background-image:radial-gradient(rgba(255,255,255,.12) 1.5px,transparent 1.5px)!important;
+  background-size:24px 24px!important;
+  justify-content:center;align-items:center;text-align:center;
+}
+.cover .brand{
+  font-family:var(--disp);font-size:22px;
+  background:#fff;color:var(--pink);
+  display:inline-block;padding:8px 18px;
+  border:4px solid #fff;transform:rotate(-2deg);
+  box-shadow:var(--sh);
+}
+.cover h1{font-family:var(--disp);font-size:62px;line-height:1.05;margin:22px 0 10px;letter-spacing:-2px;color:#fff}
+.cover .lead{font-size:22px;font-weight:700;max-width:800px;line-height:1.4;color:rgba(255,255,255,.85)}
+.sticker{
+  position:absolute;font-family:var(--disp);border:4px solid #fff;
+  box-shadow:var(--sh-sm);padding:8px 14px;font-size:17px;z-index:3;
+}
+h2{font-family:var(--disp);font-size:42px;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px}
+h3{font-family:var(--disp);font-size:20px;margin-bottom:8px;letter-spacing:-.3px}
+p,li{font-size:17px;line-height:1.55}
+ul,ol{padding-left:24px;margin:8px 0}
+li{margin-bottom:5px}
+.subtitle{font-size:20px;font-weight:500;color:#3a3a3a;margin-top:8px}
+.highlight{color:var(--blue);font-weight:700}
+.small{font-size:14px;color:#6b6b6b;font-weight:500}
+.kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--disp);font-size:15px;letter-spacing:.5px;
+  padding:6px 14px;border:3px solid var(--ink);
+  transform:rotate(-1.2deg);box-shadow:var(--sh-sm);
+}
+.kicker.y{background:var(--ink);color:var(--yellow)}
+.kicker.b{background:var(--blue);color:#fff}
+.kicker.p{background:var(--pink);color:#fff}
+.kicker.g{background:var(--mint);color:var(--ink)}
+.kicker.o{background:var(--orange);color:#fff}
+.card{
+  background:#fff;border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:16px 18px;
+}
+.card.yellow{background:var(--yellow)}
+.card.blue{background:var(--blue);color:#fff}
+.card.blue h3,.card.blue p,.card.blue li{color:#fff}
+.card.pink{background:var(--pink);color:#fff}
+.card.pink h3,.card.pink p,.card.pink li{color:#fff}
+.card.mint{background:var(--mint)}
+.card.orange{background:var(--orange);color:#fff}
+.card.orange h3,.card.orange p,.card.orange li{color:#fff}
+.card.dark{background:var(--ink);color:var(--paper)}
+.card.dark h3,.card.dark p,.card.dark li{color:var(--paper)}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+.nb-list{list-style:none;padding:0}
+.nb-list li{
+  padding:7px 12px;border-left:4px solid var(--ink);
+  margin-bottom:4px;background:var(--paper);font-size:16px;
+}
+.card.blue .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}
+.card.pink .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}
+.card.mint .nb-list li{background:rgba(0,0,0,.06);border-left-color:var(--ink)}
+.nb-code{
+  background:#1b1b1b;color:var(--mint);border:4px solid var(--ink);
+  box-shadow:var(--sh);padding:16px 18px;
+  font-family:var(--mono);font-size:15px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;margin:12px 0;
+}
+table{width:100%;border-collapse:collapse;margin:12px 0;border:4px solid var(--ink);box-shadow:var(--sh)}
+th{background:var(--ink);color:var(--paper);font-family:var(--body);font-weight:700;font-size:15px;padding:12px 16px;text-align:left;border:2px solid var(--ink)}
+td{padding:10px 16px;border:2px solid var(--ink);font-size:15px;background:var(--paper)}
+tr:nth-child(even) td{background:#f0f0f0}
+code{background:var(--ink);color:var(--mint);padding:2px 7px;font-family:var(--mono);font-size:.88em;border:2px solid var(--ink)}
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.flow-item{
+  background:var(--ink);color:var(--paper);border:3px solid var(--ink);
+  padding:10px 16px;font-weight:700;font-size:15px;box-shadow:var(--sh-sm);
+}
+.fi-y{background:var(--yellow);color:var(--ink)}
+.fi-b{background:var(--blue);color:#fff}
+.fi-p{background:var(--pink);color:#fff}
+.fi-g{background:var(--mint);color:var(--ink)}
+.fi-o{background:var(--orange);color:#fff}
+.flow-arrow{font-size:1.5em;font-weight:700;color:var(--ink)}
+.layer-stack{display:flex;flex-direction:column;gap:4px;margin:12px 0}
+.layer{
+  padding:12px 18px;font-weight:700;font-size:15px;
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+}
+.banner{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:14px 20px;font-weight:700;font-size:16px;text-align:center;margin:12px 0;
+}
+.ban-y{background:var(--yellow)}
+.ban-b{background:var(--blue);color:#fff}
+.ban-p{background:var(--pink);color:#fff}
+.ban-g{background:var(--mint)}
+.ban-o{background:var(--orange);color:#fff}
+.ban-d{background:var(--ink);color:var(--paper)}
+.badge{
+  display:inline-block;background:var(--ink);color:var(--paper);
+  padding:3px 12px;font-family:var(--disp);font-weight:700;
+  font-size:13px;letter-spacing:.05em;margin-right:6px;
+}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+.compare-col h3{
+  font-family:var(--disp);font-size:18px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);margin-bottom:10px;
+}
+.compare-col h3.green{background:var(--mint)}
+.compare-col h3.red{background:var(--pink);color:#fff}
+.step-list{counter-reset:step;list-style:none;padding:0}
+.step-list li{
+  counter-increment:step;display:flex;align-items:flex-start;gap:12px;
+  padding:10px 14px;border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  margin-bottom:7px;background:var(--paper);font-size:16px;
+}
+.step-list li::before{
+  content:counter(step);font-family:var(--disp);font-size:17px;
+  background:var(--ink);color:var(--paper);
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.step-list li:nth-child(1)::before{background:var(--yellow);color:var(--ink)}
+.step-list li:nth-child(2)::before{background:var(--blue)}
+.step-list li:nth-child(3)::before{background:var(--pink)}
+.step-list li:nth-child(4)::before{background:var(--mint);color:var(--ink)}
+.step-list li:nth-child(5)::before{background:var(--orange)}
+.step-list li:nth-child(6)::before{background:var(--ink)}
+.step-list li:nth-child(7)::before{background:var(--blue)}
+.top-card{border:3px solid var(--ink);box-shadow:var(--sh);padding:14px 16px;background:var(--paper)}
+.top-card .card-label{
+  font-family:var(--disp);font-weight:700;font-size:15px;
+  margin-bottom:7px;padding:3px 10px;display:inline-block;border:2px solid var(--ink);
+}
+.cl-y{background:var(--yellow)}
+.cl-b{background:var(--blue);color:#fff}
+.cl-p{background:var(--pink);color:#fff}
+.cl-g{background:var(--mint)}
+.cl-o{background:var(--orange);color:#fff}
+.arrow{font-size:2.2em;text-align:center;font-weight:700;margin:6px 0}
+.wf-row{display:flex;align-items:center;gap:0;margin:8px 0;flex-wrap:wrap}
+.wf-label{
+  font-family:var(--disp);font-size:14px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);flex-shrink:0;
+  min-width:90px;text-align:center;
+}
+.wf-label-o{background:var(--orange);color:#fff}
+.wf-label-p{background:var(--pink);color:#fff}
+.wf-label-d{background:var(--ink);color:#fff}
+.wf-label-g{background:var(--mint)}
+.wf-step{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:10px 16px;font-weight:700;font-size:15px;margin:0 4px;
+}
+.wf-step-o{background:var(--orange);color:#fff}
+.wf-step-p{background:var(--pink);color:#fff}
+.wf-step-b{background:var(--blue);color:#fff}
+.wf-step-g{background:var(--mint)}
+.wf-step-d{background:var(--ink);color:#fff}
+.wf-arrow{font-size:1.4em;font-weight:700;color:var(--ink);margin:0 4px}
+.diag-box{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:18px 22px;text-align:center;font-weight:700;font-size:17px;
+}
+.diag-box-blue{background:var(--blue);color:#fff}
+.diag-box-teal{background:var(--mint)}
+.diag-box-orange{background:var(--orange);color:#fff}
+.diag-box-pink{background:var(--pink);color:#fff}
+.diag-box-dark{background:var(--ink);color:var(--paper)}
+.diag-box-yellow{background:var(--yellow)}
+.diag-arrow{font-size:2.4em;font-weight:700;text-align:center}
+.seq-item{
+  padding:10px 16px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);margin:6px 0;
+  font-size:16px;font-weight:600;
+}
+.seq-blue{background:var(--blue);color:#fff}
+.seq-teal{background:var(--mint)}
+.seq-orange{background:var(--orange);color:#fff}
+.seq-gray{background:#E0E0E0}
+#bar-bg{position:fixed;left:0;bottom:0;width:100%;height:7px;background:#000;z-index:51}
+#bar{height:100%;width:0;background:linear-gradient(90deg,var(--yellow),var(--pink),var(--blue));transition:width .3s}
+#ctrls{position:fixed;right:16px;bottom:16px;display:flex;gap:8px;align-items:center;z-index:52;pointer-events:auto}
+#ctrls button{
+  font-family:var(--disp);font-size:15px;width:44px;height:44px;
+  background:var(--paper);border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);cursor:pointer;color:var(--ink);
+}
+#ctrls button:hover{background:var(--yellow)}
+#ctrls button:active{transform:translate(2px,2px);box-shadow:none}
+#counter{
+  position:fixed;left:16px;bottom:14px;z-index:52;
+  font-family:var(--disp);font-size:16px;
+  background:var(--ink);color:var(--pink);padding:6px 12px;border:3px solid var(--pink);
+}
+#hint{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:52;
+  font-family:var(--mono);font-size:12.5px;color:#bbb;
+  background:rgba(0,0,0,.55);padding:5px 12px;border-radius:2px;
+  opacity:0;transition:opacity .4s;pointer-events:none;
+}
+#ovl{position:fixed;inset:0;z-index:60;background:rgba(10,10,10,.94);display:none;overflow:auto;padding:34px 40px}
+#ovl.on{display:block}
+#ovl h2{font-family:var(--disp);color:var(--pink);font-size:26px;margin-bottom:6px}
+#ovl .ov-sec{color:var(--yellow);font-family:var(--disp);font-size:15px;margin:18px 0 8px;letter-spacing:.5px}
+#ovl .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+#ovl .ov-item{background:#1c1c1c;border:2px solid #444;color:#eee;font-size:13.5px;padding:9px 11px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+#ovl .ov-item:hover{background:var(--pink);color:#fff;border-color:var(--pink)}
+#ovl .ov-item b{font-family:var(--mono);font-size:12px;opacity:.7}
+#ovl .close{position:fixed;top:20px;right:26px;font-family:var(--disp);font-size:16px;background:var(--yellow);border:3px solid var(--ink);color:var(--ink);padding:6px 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+  <!-- 1 COVER -->
+  <section class="slide cover active" data-title="封面" data-section="开场">
+    <span class="sticker float" style="--r:-5deg;background:var(--yellow);top:48px;right:56px;color:var(--ink)">Multi-Agent</span>
+    <span class="sticker float" style="--r:4deg;background:var(--blue);top:100px;right:80px;animation-delay:.4s;color:#fff">A2A</span>
+    <span class="sticker float" style="--r:-3deg;background:var(--mint);top:150px;right:40px;animation-delay:.8s">MCP</span>
+    <div class="brand pop">LECTURE 05</div>
+    <h1 class="title-anim">Agent Design II<br>多智能体系统</h1>
+    <p class="lead sub-anim">Harvard CS2680 · 现代 AI 系统：Agents 与系统优化</p>
+  </section>
+
+  <!-- 2 LOGISTICS -->
+  <section class="slide" data-title="课程安排" data-section="开场">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">LOGISTICS</div>
+    <h2 class="title-anim">课程安排</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>作业</h3>
+        <ul class="nb-list">
+          <li>Assignment 2 进行中</li>
+          <li>构建多 Agent 系统</li>
+          <li>实验不同的架构模式</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>资源</h3>
+        <ul class="nb-list">
+          <li>课程网站：course.agentic-system.org</li>
+          <li>A2A 和 MCP 文档已更新</li>
+          <li>Office hours 时间见网站</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 PLAN -->
+  <section class="slide" data-title="今天的计划" data-section="开场">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">PLAN</div>
+    <h2 class="title-anim">今天的计划</h2>
+    <ul class="step-list rise" style="--i:0">
+      <li><strong>从一个到多个</strong>：何时以及为什么拆分工作</li>
+      <li><strong>任务分解</strong>：静态 vs 动态，粒度权衡</li>
+      <li><strong>Agent 通信</strong>：四个维度、媒介、通道、格式</li>
+      <li><strong>A2A 协议</strong>：Agent Card、三个抽象、任务生命周期</li>
+      <li><strong>MCP vs A2A</strong>：能力边界 vs Agent 间通信</li>
+      <li><strong>设计原则</strong></li>
+    </ul>
+  </section>
+
+  <!-- 4 FROM ONE TO MANY -->
+  <section class="slide" data-title="从一个到多个" data-section="多智能体基础">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">SCALING</div>
+    <h2 class="title-anim">从一个 Agent 到多个 Agent</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card">
+        <h3>Single Agent 单 Agent</h3>
+        <ul class="nb-list">
+          <li>一个 LLM 处理所有任务</li>
+          <li>简单的 ReAct 循环</li>
+          <li>适合简单、线性任务</li>
+          <li>上下文窗口是瓶颈</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>Multi-Agent 多 Agent</h3>
+        <ul class="nb-list">
+          <li>多个 specialized Agent 协作</li>
+          <li>并行处理不同子任务</li>
+          <li>适合复杂、多维度任务</li>
+          <li>通信和协调是挑战</li>
+        </ul>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:1;margin-top:12px">
+      多 Agent 不是银弹 — 只有在单 Agent 不够时才引入
+    </div>
+  </section>
+
+  <!-- 5 WHEN WHY SPLIT WORK -->
+  <section class="slide" data-title="何时以及为什么拆分工作" data-section="多智能体基础">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">WHEN & WHY</div>
+    <h2 class="title-anim">何时以及为什么拆分工作？</h2>
+    <div class="grid g3 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>并行性</h3>
+        <p>子任务可以独立执行，并行加速</p>
+      </div>
+      <div class="card blue">
+        <h3>专业化</h3>
+        <p>不同 Agent 使用不同的 prompt、工具、模型</p>
+      </div>
+      <div class="card pink">
+        <h3>上下文隔离</h3>
+        <p>避免单个 Agent 的上下文窗口过载</p>
+      </div>
+    </div>
+    <div class="grid g3 rise" style="--i:1;margin-top:10px">
+      <div class="card mint">
+        <h3>故障隔离</h3>
+        <p>一个 Agent 失败不影响其他 Agent</p>
+      </div>
+      <div class="card orange">
+        <h3>可扩展性</h3>
+        <p>按需添加更多 Agent 处理更大任务</p>
+      </div>
+      <div class="card dark">
+        <h3>人类协作</h3>
+        <p>不同 Agent 对接不同的利益相关者</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 THREE QUESTIONS -->
+  <section class="slide" data-title="三个关键问题" data-section="多智能体基础">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">KEY QUESTIONS</div>
+    <h2 class="title-anim">设计多 Agent 系统的三个关键问题</h2>
+    <div class="rise" style="--i:0">
+      <div class="card yellow" style="margin-bottom:12px">
+        <h3>1. 如何分解任务？</h3>
+        <p>将大任务拆分成哪些子任务？粒度如何？静态还是动态？</p>
+      </div>
+      <div class="card blue" style="margin-bottom:12px">
+        <h3>2. Agent 之间如何通信？</h3>
+        <p>使用什么媒介、通道、消息格式和语义？</p>
+      </div>
+      <div class="card pink">
+        <h3>3. 如何协调和控制？</h3>
+        <p>谁来分配任务？如何处理冲突和失败？如何聚合结果？</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 EIGHT ARCHITECTURES -->
+  <section class="slide" data-title="八种架构" data-section="多智能体架构">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">ARCHITECTURES</div>
+    <h2 class="title-anim">八种多 Agent 架构</h2>
+    <div class="grid g4 rise" style="--i:0">
+      <div class="top-card">
+        <div class="card-label cl-y">1. Pipeline</div>
+        <p>线性流水线，依次传递</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-b">2. Hierarchical</div>
+        <p>层级式，管理者分配任务</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-p">3. Collaborative</div>
+        <p>平等协作，共同决策</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-g">4. Debate</div>
+        <p>辩论式，多角度论证</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-o">5. Ensemble</div>
+        <p>集成式，投票或加权</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-b">6. Router</div>
+        <p>路由式，根据任务分发</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-p">7. Blackboard</div>
+        <p>黑板式，共享工作空间</p>
+      </div>
+      <div class="top-card">
+        <div class="card-label cl-y">8. Society of Mind</div>
+        <p>心智社会，涌现智能</p>
+      </div>
+    </div>
+    <div class="banner ban-b rise" style="--i:1;margin-top:12px">
+      没有最佳架构 — 根据任务特性选择
+    </div>
+  </section>
+
+  <!-- 8 TASK DECOMPOSITION -->
+  <section class="slide" data-title="任务分解" data-section="任务分解">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">DECOMPOSITION</div>
+    <h2 class="title-anim">任务分解</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card">
+        <h3>分解策略</h3>
+        <ul class="nb-list">
+          <li><strong>功能分解</strong>：按功能模块拆分</li>
+          <li><strong>数据分解</strong>：按数据分片拆分</li>
+          <li><strong>时间分解</strong>：按时间阶段拆分</li>
+          <li><strong>空间分解</strong>：按地理/逻辑位置拆分</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>分解原则</h3>
+        <ul class="nb-list">
+          <li>子任务应<strong>高内聚</strong></li>
+          <li>子任务间应<strong>低耦合</strong></li>
+          <li>每个子任务应有<strong>明确输入输出</strong></li>
+          <li>子任务应可<strong>独立验证</strong></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 SUB-TASK CONSIDERATIONS -->
+  <section class="slide" data-title="子任务考虑" data-section="任务分解">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">SUB-TASKS</div>
+    <h2 class="title-anim">子任务设计考虑</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>依赖性</h3>
+        <ul class="nb-list">
+          <li>子任务之间是否有依赖？</li>
+          <li>依赖是线性的还是网状的？</li>
+          <li>能否并行执行？</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>信息流</h3>
+        <ul class="nb-list">
+          <li>子任务需要共享什么信息？</li>
+          <li>信息是单向还是双向流动？</li>
+          <li>如何避免信息过载？</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:10px">
+      <div class="card mint">
+        <h3>错误传播</h3>
+        <ul class="nb-list">
+          <li>一个子任务失败如何影响其他？</li>
+          <li>是否需要回滚机制？</li>
+        </ul>
+      </div>
+      <div class="card orange">
+        <h3>聚合策略</h3>
+        <ul class="nb-list">
+          <li>如何合并子任务的结果？</li>
+          <li>冲突如何解决？</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 GRANULARITY TRADEOFF -->
+  <section class="slide" data-title="粒度权衡" data-section="任务分解">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">GRANULARITY</div>
+    <h2 class="title-anim">粒度权衡</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>粗粒度</h3>
+        <ul class="nb-list">
+          <li>子任务数量少</li>
+          <li>每个子任务复杂度高</li>
+          <li>通信开销低</li>
+          <li>并行度低</li>
+          <li>适合：简单任务、强依赖</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <h3>细粒度</h3>
+        <ul class="nb-list">
+          <li>子任务数量多</li>
+          <li>每个子任务复杂度低</li>
+          <li>通信开销高</li>
+          <li>并行度高</li>
+          <li>适合：复杂任务、弱依赖</li>
+        </ul>
+      </div>
+    </div>
+    <div class="banner ban-o rise" style="--i:1;margin-top:12px">
+      找到通信开销和并行收益之间的平衡点
+    </div>
+  </section>
+
+  <!-- 11 STATIC VS DYNAMIC -->
+  <section class="slide" data-title="静态 vs 动态分解" data-section="任务分解">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">STATIC vs DYNAMIC</div>
+    <h2 class="title-anim">静态 vs 动态分解</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card blue">
+        <h3>静态分解</h3>
+        <ul class="nb-list">
+          <li>任务开始前就确定子任务</li>
+          <li>结构固定，不可更改</li>
+          <li>易于理解和调试</li>
+          <li>适合：结构化、可预测的任务</li>
+        </ul>
+        <div class="nb-code" style="font-size:13px;margin-top:10px">Plan → [Task1, Task2, Task3]
+→ Execute all → Aggregate</div>
+      </div>
+      <div class="card orange">
+        <h3>动态分解</h3>
+        <ul class="nb-list">
+          <li>运行时根据情况决定</li>
+          <li>灵活适应变化</li>
+          <li>更复杂，难以预测</li>
+          <li>适合：开放域、不确定的任务</li>
+        </ul>
+        <div class="nb-code" style="font-size:13px;margin-top:10px">Plan → Task1 → Observe
+→ Re-plan → [Task2a, Task2b]
+→ Execute → ...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 DECOMPOSITION FAILURES -->
+  <section class="slide" data-title="分解失败的六种类型" data-section="任务分解">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">FAILURES</div>
+    <h2 class="title-anim">分解失败的六种类型</h2>
+    <div class="rise" style="--i:0">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="background:var(--pink);color:#fff;padding:8px 16px;font-family:var(--disp);font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm);min-width:140px;text-align:center">1. Over-decomposition</div>
+        <p>过度分解，子任务太小，通信开销超过收益</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="background:var(--paper);padding:8px 16px;font-family:var(--disp);font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm);min-width:140px;text-align:center">2. Under-decomposition</div>
+        <p>分解不足，子任务太大，失去并行优势</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="background:var(--paper);padding:8px 16px;font-family:var(--disp);font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm);min-width:140px;text-align:center">3. Wrong boundaries</div>
+        <p>边界错误，相关功能被拆分，无关功能被合并</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="background:var(--paper);padding:8px 16px;font-family:var(--disp);font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm);min-width:140px;text-align:center">4. Missing dependencies</div>
+        <p>遗漏依赖，子任务执行顺序错误</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="background:var(--paper);padding:8px 16px;font-family:var(--disp);font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm);min-width:140px;text-align:center">5. Information loss</div>
+        <p>信息丢失，分解时丢失关键上下文</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="background:var(--paper);padding:8px 16px;font-family:var(--disp);font-size:15px;border:3px solid var(--ink);box-shadow:var(--sh-sm);min-width:140px;text-align:center">6. Aggregation failure</div>
+        <p>聚合失败，无法正确合并子任务结果</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 AGENT COMMUNICATION DIAGRAM -->
+  <section class="slide" data-title="Agent 通信示意图" data-section="Agent 通信">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">COMMUNICATION</div>
+    <h2 class="title-anim">Agent 通信示意图</h2>
+    <div class="rise" style="--i:0">
+      <div class="grid g3" style="gap:12px">
+        <div class="diag-box diag-box-blue" style="font-size:16px">Agent A<br>研究者</div>
+        <div class="diag-box diag-box-teal" style="font-size:16px">Agent B<br>工程师</div>
+        <div class="diag-box diag-box-orange" style="font-size:16px">Agent C<br>审查者</div>
+      </div>
+      <div style="display:flex;justify-content:space-around;margin-top:16px">
+        <div style="text-align:center">
+          <div style="font-size:24px;color:var(--blue)"></div>
+          <p class="small">消息传递</p>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:24px;color:var(--blue)">⟷</div>
+          <p class="small">消息传递</p>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:24px;color:var(--blue)">⟷</div>
+          <p class="small">消息传递</p>
+        </div>
+      </div>
+      <div class="diag-box diag-box-dark" style="margin-top:16px;font-size:16px">
+        Shared Memory / Blackboard 共享工作空间
+      </div>
+    </div>
+    <div class="banner ban-g rise" style="--i:1;margin-top:12px">
+      通信是多 Agent 系统的核心挑战
+    </div>
+  </section>
+
+  <!-- 14 FOUR COMMUNICATION DIMENSIONS -->
+  <section class="slide" data-title="四个通信维度" data-section="Agent 通信">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">DIMENSIONS</div>
+    <h2 class="title-anim">通信的四个维度</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>1. Medium 媒介</h3>
+        <p>消息通过什么载体传递？</p>
+        <ul class="nb-list">
+          <li>直接消息传递</li>
+          <li>共享黑板/数据库</li>
+          <li>事件总线</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>2. Channel 通道</h3>
+        <p>使用什么通信协议？</p>
+        <ul class="nb-list">
+          <li>同步 vs 异步</li>
+          <li>点对点 vs 广播</li>
+          <li>持久化 vs 临时</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <h3>3. Format 格式</h3>
+        <p>消息的结构化程度？</p>
+        <ul class="nb-list">
+          <li>自然语言</li>
+          <li>结构化数据（JSON）</li>
+          <li>混合格式</li>
+        </ul>
+      </div>
+      <div class="card mint">
+        <h3>4. Semantics 语义</h3>
+        <p>消息的含义和意图？</p>
+        <ul class="nb-list">
+          <li>请求/响应</li>
+          <li>通知/事件</li>
+          <li>命令/确认</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 COMMUNICATION MEDIUM -->
+  <section class="slide" data-title="通信媒介" data-section="Agent 通信">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">MEDIUM</div>
+    <h2 class="title-anim">通信媒介</h2>
+    <div class="grid g3 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>直接消息传递</h3>
+        <p>Agent A 直接发送给 Agent B</p>
+        <ul class="nb-list">
+          <li>简单直接</li>
+          <li>需要知道对方地址</li>
+          <li>适合：点对点通信</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>共享黑板</h3>
+        <p>所有 Agent 读写共享空间</p>
+        <ul class="nb-list">
+          <li>解耦发送者和接收者</li>
+          <li>需要冲突解决</li>
+          <li>适合：协作任务</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <h3>事件总线</h3>
+        <p>通过事件系统广播和订阅</p>
+        <ul class="nb-list">
+          <li>高度解耦</li>
+          <li>支持一对多</li>
+          <li>适合：事件驱动架构</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 CHANNELS -->
+  <section class="slide" data-title="通信通道" data-section="Agent 通信">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">CHANNELS</div>
+    <h2 class="title-anim">通信通道</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card">
+        <h3>同步通道</h3>
+        <ul class="nb-list">
+          <li>发送者等待响应</li>
+          <li>简单但可能阻塞</li>
+          <li>适合：需要即时反馈</li>
+          <li>示例：RPC 调用</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>异步通道</h3>
+        <ul class="nb-list">
+          <li>发送后立即返回</li>
+          <li>非阻塞，更高效</li>
+          <li>适合：长时间任务</li>
+          <li>示例：消息队列</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:10px">
+      <div class="card mint">
+        <h3>点对点</h3>
+        <p>一对一通信，隐私性好</p>
+      </div>
+      <div class="card orange">
+        <h3>广播</h3>
+        <p>一对多通信，效率高</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17 MESSAGE FORMAT -->
+  <section class="slide" data-title="消息格式" data-section="Agent 通信">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">FORMAT</div>
+    <h2 class="title-anim">消息格式</h2>
+    <div class="grid g3 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>自然语言</h3>
+        <div class="nb-code" style="font-size:12px">"请检查这个函数
+是否有安全漏洞"</div>
+        <ul class="nb-list">
+          <li>灵活，人类可读</li>
+          <li>但解析困难</li>
+          <li>适合：LLM 间通信</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>结构化数据</h3>
+        <div class="nb-code" style="font-size:12px">{
+  "type": "review",
+  "target": "auth.py",
+  "focus": "security"
+}</div>
+        <ul class="nb-list">
+          <li>精确，易解析</li>
+          <li>但不够灵活</li>
+          <li>适合：工具调用</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <h3>混合格式</h3>
+        <div class="nb-code" style="font-size:12px">{
+  "text": "请检查...",
+  "metadata": {
+    "type": "review",
+    "priority": "high"
+  }
+}</div>
+        <ul class="nb-list">
+          <li>兼顾灵活和精确</li>
+          <li>最常用</li>
+          <li>适合：大多数场景</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 18 MESSAGE SEMANTICS -->
+  <section class="slide" data-title="消息语义" data-section="Agent 通信">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">SEMANTICS</div>
+    <h2 class="title-anim">消息语义</h2>
+    <div class="grid g3 rise" style="--i:0">
+      <div class="card">
+        <h3>请求/响应</h3>
+        <p><strong>Request:</strong> "请分析这个代码"</p>
+        <p><strong>Response:</strong> "发现 3 个问题..."</p>
+        <ul class="nb-list">
+          <li>明确的期望</li>
+          <li>同步或异步</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>通知/事件</h3>
+        <p><strong>Event:</strong> "测试通过了"</p>
+        <p><strong>No response expected</strong></p>
+        <ul class="nb-list">
+          <li>单向通知</li>
+          <li>触发后续动作</li>
+        </ul>
+      </div>
+      <div class="card orange">
+        <h3>命令/确认</h3>
+        <p><strong>Command:</strong> "执行部署"</p>
+        <p><strong>Ack:</strong> "部署完成"</p>
+        <ul class="nb-list">
+          <li>需要确认</li>
+          <li>可能失败重试</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 19 COMMUNICATION DESIGN SPACE -->
+  <section class="slide" data-title="通信设计空间" data-section="Agent 通信">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">DESIGN SPACE</div>
+    <h2 class="title-anim">通信设计空间</h2>
+    <table class="rise" style="--i:0">
+      <tr><th>维度</th><th>选项 A</th><th>选项 B</th><th>适用场景</th></tr>
+      <tr><td><strong>媒介</strong></td><td>直接消息</td><td>共享黑板</td><td>点对点 vs 协作</td></tr>
+      <tr><td><strong>通道</strong></td><td>同步</td><td>异步</td><td>即时反馈 vs 长时间任务</td></tr>
+      <tr><td><strong>拓扑</strong></td><td>点对点</td><td>广播</td><td>隐私 vs 效率</td></tr>
+      <tr><td><strong>格式</strong></td><td>自然语言</td><td>结构化</td><td>灵活 vs 精确</td></tr>
+      <tr><td><strong>语义</strong></td><td>请求/响应</td><td>通知/事件</td><td>双向 vs 单向</td></tr>
+      <tr><td><strong>持久性</strong></td><td>临时</td><td>持久化</td><td>即时 vs 审计</td></tr>
+    </table>
+    <div class="banner ban-y rise" style="--i:1;margin-top:12px">
+      根据任务特性选择合适的通信组合
+    </div>
+  </section>
+
+  <!-- 20 DISTRIBUTED SYSTEMS PROBLEMS -->
+  <section class="slide" data-title="分布式系统问题" data-section="多智能体挑战">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">DISTRIBUTED</div>
+    <h2 class="title-anim">分布式系统的经典问题</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card pink">
+        <h3>一致性问题</h3>
+        <ul class="nb-list">
+          <li>多个 Agent 如何达成共识？</li>
+          <li>CAP 定理的限制</li>
+          <li>最终一致性 vs 强一致性</li>
+        </ul>
+      </div>
+      <div class="card orange">
+        <h3>死锁和活锁</h3>
+        <ul class="nb-list">
+          <li>循环等待资源</li>
+          <li>不断重试但无进展</li>
+          <li>需要超时和中断机制</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:10px">
+      <div class="card blue">
+        <h3>拜占庭故障</h3>
+        <ul class="nb-list">
+          <li>Agent 可能给出错误答案</li>
+          <li>需要多数投票或验证</li>
+        </ul>
+      </div>
+      <div class="card mint">
+        <h3>网络分区</h3>
+        <ul class="nb-list">
+          <li>通信中断如何处理？</li>
+          <li>降级策略和恢复机制</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 21 MULTI-AGENT CHALLENGES -->
+  <section class="slide" data-title="多 Agent 挑战" data-section="多智能体挑战">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">CHALLENGES</div>
+    <h2 class="title-anim">多 Agent 系统的独特挑战</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>协调开销</h3>
+        <ul class="nb-list">
+          <li>通信成本可能超过收益</li>
+          <li>需要最小化不必要的交互</li>
+          <li>密集网状结构通常不是最佳选择</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>上下文压力</h3>
+        <ul class="nb-list">
+          <li>更多通信 ≠ 更多有用信息</li>
+          <li>每个 Agent 的上下文窗口有限</li>
+          <li>需要智能过滤和聚合</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:10px">
+      <div class="card pink">
+        <h3>责任归属</h3>
+        <ul class="nb-list">
+          <li>出错时谁负责？</li>
+          <li>需要清晰的审计轨迹</li>
+        </ul>
+      </div>
+      <div class="card mint">
+        <h3>可调试性</h3>
+        <ul class="nb-list">
+          <li>多 Agent 交互难以追踪</li>
+          <li>需要可视化和日志工具</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 22 BLACK-BOX LLM CHALLENGES -->
+  <section class="slide" data-title="黑盒 LLM 的挑战" data-section="多智能体挑战">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">BLACK-BOX</div>
+    <h2 class="title-anim">黑盒 LLM 带来的挑战</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card">
+        <h3>不可预测性</h3>
+        <ul class="nb-list">
+          <li>相同输入可能产生不同输出</li>
+          <li>难以保证行为一致性</li>
+          <li>需要冗余和验证机制</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>幻觉传播</h3>
+        <ul class="nb-list">
+          <li>一个 Agent 的幻觉可能被其他 Agent 接受</li>
+          <li>需要交叉验证</li>
+          <li>事实核查机制</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:10px">
+      <div class="card orange">
+        <h3>提示词注入</h3>
+        <ul class="nb-list">
+          <li>Agent 间消息可能包含恶意指令</li>
+          <li>需要输入过滤和沙箱</li>
+        </ul>
+      </div>
+      <div class="card dark">
+        <h3>成本累积</h3>
+        <ul class="nb-list">
+          <li>多个 Agent 的 token 消耗叠加</li>
+          <li>需要成本监控和优化</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 23 A2A PROTOCOL -->
+  <section class="slide" data-title="A2A 协议" data-section="A2A 协议">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">A2A PROTOCOL</div>
+    <h2 class="title-anim">A2A：Agent-to-Agent 协议</h2>
+    <div class="card rise" style="--i:0;margin-bottom:14px">
+      <h3>什么是 A2A？</h3>
+      <p>A2A 是 Google 提出的开放协议，用于标准化 Agent 之间的通信和任务委派</p>
+    </div>
+    <div class="grid g3 rise" style="--i:1">
+      <div class="card yellow">
+        <h3>核心目标</h3>
+        <ul class="nb-list">
+          <li>标准化 Agent 发现</li>
+          <li>统一任务委派接口</li>
+          <li>支持长时间运行任务</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>关键特性</h3>
+        <ul class="nb-list">
+          <li>Agent Card 描述能力</li>
+          <li>任务生命周期管理</li>
+          <li>流式状态更新</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <h3>适用场景</h3>
+        <ul class="nb-list">
+          <li>跨组织 Agent 协作</li>
+          <li>第三方 Agent 集成</li>
+          <li>复杂工作流编排</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 24 AGENT CARD -->
+  <section class="slide" data-title="Agent Card" data-section="A2A 协议">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">AGENT CARD</div>
+    <h2 class="title-anim">Agent Card</h2>
+    <p class="rise" style="--i:0;margin-bottom:14px">Agent Card 是 Agent 的"名片"，描述其能力和接口</p>
+    <div class="nb-code rise" style="--i:1;font-size:14px">{
+  "name": "Code Reviewer Agent",
+  "description": "专注于代码安全性和质量审查",
+  "capabilities": ["security_audit", "code_quality", "performance_review"],
+  "inputFormats": ["text/plain", "application/json"],
+  "outputFormats": ["application/json"],
+  "authentication": { "schemes": ["bearer"] },
+  "provider": {
+    "organization": "Example Corp",
+    "contact": "agent@example.com"
+  }
+}</div>
+    <div class="banner ban-p rise" style="--i:2;margin-top:12px">
+      Agent Card 让 Agent 可被发现、可理解、可调用
+    </div>
+  </section>
+
+  <!-- 25 THREE ABSTRACTIONS -->
+  <section class="slide" data-title="三个抽象" data-section="A2A 协议">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">ABSTRACTIONS</div>
+    <h2 class="title-anim">A2A 的三个核心抽象</h2>
+    <div class="grid g3 rise" style="--i:0">
+      <div class="card yellow">
+        <h3>1. Agent</h3>
+        <p>具有特定能力的自主实体</p>
+        <ul class="nb-list">
+          <li>通过 Agent Card 描述</li>
+          <li>可被发现和调用</li>
+          <li>维护自己的状态</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>2. Task</h3>
+        <p>委派给 Agent 的工作单元</p>
+        <ul class="nb-list">
+          <li>有明确的输入和期望输出</li>
+          <li>可以长时间运行</li>
+          <li>有生命周期状态</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <h3>3. Message</h3>
+        <p>Agent 间通信的基本单位</p>
+        <ul class="nb-list">
+          <li>携带任务指令或结果</li>
+          <li>支持流式传输</li>
+          <li>可包含元数据</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 26 TASK LIFECYCLE -->
+  <section class="slide" data-title="任务生命周期" data-section="A2A 协议">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">LIFECYCLE</div>
+    <h2 class="title-anim">任务生命周期</h2>
+    <div class="rise" style="--i:0">
+      <div class="flow">
+        <div class="flow-item fi-y">Submitted<br>已提交</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-b">Working<br>进行中</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-item fi-g">Completed<br>已完成</div>
+      </div>
+      <div class="flow" style="margin-top:10px">
+        <div class="flow-item fi-o">Failed<br>失败</div>
+        <span class="flow-arrow">←</span>
+        <div class="flow-item fi-p">Paused<br>暂停</div>
+        <span class="flow-arrow">←</span>
+        <div class="flow-item fi-b">Working<br>进行中</div>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:1;margin-top:16px">
+      <div class="card">
+        <h3>状态转换</h3>
+        <ul class="nb-list">
+          <li>Submitted → Working：Agent 开始处理</li>
+          <li>Working → Completed：任务成功完成</li>
+          <li>Working → Failed：任务失败</li>
+          <li>Working → Paused：等待外部输入</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>状态查询</h3>
+        <ul class="nb-list">
+          <li>轮询：定期查询状态</li>
+          <li>流式：实时推送更新</li>
+          <li>Webhook：完成时通知</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 27 FOLLOWING LONG-RUNNING TASK -->
+  <section class="slide" data-title="跟踪长时间运行的任务" data-section="A2A 协议">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">LONG-RUNNING</div>
+    <h2 class="title-anim">跟踪长时间运行的任务</h2>
+    <p class="rise" style="--i:0;margin-bottom:14px">任务可能运行数秒或数小时；调用者选择如何跟踪</p>
+    <div class="grid g3 rise" style="--i:1">
+      <div class="card mint">
+        <h3>Polling 轮询</h3>
+        <p>客户端反复检查直到完成</p>
+        <p style="margin-top:8px"><strong>适用于：</strong>短时间任务</p>
+      </div>
+      <div class="card yellow">
+        <h3>Streaming 流式</h3>
+        <p>实时推送更新</p>
+        <p style="margin-top:8px"><strong>适用于：</strong>交互式输出</p>
+      </div>
+      <div class="card blue">
+        <h3>Push Notification 推送</h3>
+        <p>完成时触发 Webhook</p>
+        <p style="margin-top:8px"><strong>适用于：</strong>数小时的任务</p>
+      </div>
+    </div>
+    <div class="banner ban-g rise" style="--i:2;margin-top:14px">
+      A2A 标准化通信，而非编排：委派、拆分和停止仍由 harness 决定
+    </div>
+  </section>
+
+  <!-- 28 MCP AGENT CAPABILITY -->
+  <section class="slide" data-title="MCP: Agent ↔ 能力" data-section="MCP 协议">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">MCP</div>
+    <h2 class="title-anim">MCP：Agent ↔ 能力</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <div class="diag-box diag-box-pink" style="margin-bottom:12px;font-size:20px">Agent</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:var(--blue);font-size:20px">→</span>
+            <div class="seq-item seq-gray" style="flex:1;margin:0">filesystem 文件系统</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:var(--blue);font-size:20px">→</span>
+            <div class="seq-item seq-gray" style="flex:1;margin:0">database 数据库</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:var(--blue);font-size:20px">→</span>
+            <div class="seq-item seq-gray" style="flex:1;margin:0">GitHub</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:var(--blue);font-size:20px">→</span>
+            <div class="seq-item seq-gray" style="flex:1;margin:0">browser 浏览器</div>
+          </div>
+        </div>
+      </div>
+      <div class="card blue">
+        <h3>MCP 标准化什么</h3>
+        <ul class="nb-list">
+          <li><strong>tools</strong> — 可调用的、类型化的能力</li>
+          <li><strong>resources</strong> — 主机可附加的可读数据</li>
+          <li><strong>prompts</strong> — 可复用的交互模板</li>
+          <li>一个客户端与多个服务器对话</li>
+          <li>由主机（而非模型）决定暴露什么</li>
+        </ul>
+      </div>
+    </div>
+    <div class="banner ban-b rise" style="--i:1;margin-top:12px">
+      MCP 是 Agent↔服务边界：一次工具调用，一个结果
+    </div>
+  </section>
+
+  <!-- 29 MCP VS A2A -->
+  <section class="slide" data-title="MCP vs A2A" data-section="MCP 协议">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">COMPARISON</div>
+    <h2 class="title-anim">MCP vs A2A</h2>
+    <table class="rise" style="--i:0">
+      <tr><th></th><th>MCP</th><th>A2A</th></tr>
+      <tr><td><strong>主要抽象</strong></td><td>能力 / 工具</td><td>Agent / 任务</td></tr>
+      <tr><td><strong>关系</strong></td><td>Agent → 服务</td><td>Agent → Agent</td></tr>
+      <tr><td><strong>发现</strong></td><td>tools, resources, prompts</td><td>agent capabilities</td></tr>
+      <tr><td><strong>工作单元</strong></td><td>一次工具调用</td><td>长时间运行任务</td></tr>
+      <tr><td><strong>内部状态</strong></td><td>能力接口</td><td>理想情况下不透明</td></tr>
+      <tr><td><strong>类比</strong></td><td>设备 / API 接口</td><td>服务间 RPC</td></tr>
+    </table>
+    <div class="banner ban-p rise" style="--i:1;margin-top:12px">
+      一个 A2A 远程 Agent 本身可能调用二十个 MCP 服务器
+    </div>
+  </section>
+
+  <!-- 30 DESIGN PRINCIPLES -->
+  <section class="slide" data-title="设计原则" data-section="设计原则">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">PRINCIPLES</div>
+    <h2 class="title-anim">设计原则</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div class="card mint">
+        <h3>1. 多 Agent 真的必要吗？</h3>
+        <p>单 Agent 足够时，多 Agent 往往只增加开销和复杂度</p>
+      </div>
+      <div class="card yellow">
+        <h3>2. 确定拓扑结构</h3>
+        <p>反映任务依赖关系，最小化通信</p>
+      </div>
+      <div class="card mint">
+        <h3>3. 识别信息丢失点</h3>
+        <p>将聚合节点视为细节可能丢失的地方</p>
+      </div>
+      <div class="card yellow">
+        <h3>4. 识别故障隔离边界</h3>
+        <p>确保系统不会停滞</p>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:1;margin-top:14px;font-size:18px">
+      密集网状结构很少是最佳默认选择。更多通信可能增加上下文压力而不增加有用信息。
+    </div>
+  </section>
+
+  <!-- 31 NEXT CLASS -->
+  <section class="slide" data-title="下节课" data-section="结尾">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">NEXT</div>
+    <h2 class="title-anim">下节课</h2>
+    <ul class="rise" style="--i:0;font-size:22px;line-height:2">
+      <li><strong>Agent Design III</strong></li>
+      <ul style="font-size:18px;margin-left:30px">
+        <li>Agent 记忆</li>
+        <li>Agent 可靠性</li>
+        <li>Agent 评估</li>
+      </ul>
+    </ul>
+  </section>
+
+  </div><!-- /stage -->
+</div>
+
+<div id="bar-bg"><div id="bar"></div></div>
+<div id="ctrls">
+  <button id="btn-prev" title="上一页 (←)"></button>
+  <button id="btn-ovl" title="目录 (O)">☰</button>
+  <button id="btn-fs" title="全屏 (F)">⛶</button>
+  <button id="btn-next" title="下一页 (→)">▶</button>
+</div>
+<div id="counter">1 / 31</div>
+<div id="hint">← → 翻页 · O 目录 · F 全屏</div>
+
+<div id="ovl">
+  <button class="close" id="ovl-close">✕ 关闭 (O)</button>
+  <h2>幻灯片目录 · 点击跳转</h2>
+  <div id="ovl-body"></div>
+</div>
+
+<script>
+(function(){
+  var hint=document.getElementById('hint');
+  var hintTimer;
+  function showHint(){
+    hint.style.opacity='1';
+    clearTimeout(hintTimer);
+    hintTimer=setTimeout(function(){hint.style.opacity='0';},2500);
+  }
+  document.addEventListener('mousemove',showHint);
+  showHint();
+
+  var stage=document.getElementById('stage');
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var cur=0,dir=1;
+
+  function fit(){
+    var s=Math.min(window.innerWidth/1280,window.innerHeight/720);
+    stage.style.transform='translate(-50%,-50%) scale('+s+')';
+  }
+  window.addEventListener('resize',fit); fit();
+
+  function show(n,fromDir){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    dir=(n>=cur)?1:-1; if(fromDir!==undefined)dir=fromDir;
+    slides.forEach(function(s,i){
+      s.classList.remove('from-left');
+      if(i===n){ if(dir<0) s.classList.add('from-left'); s.classList.add('active'); }
+      else s.classList.remove('active');
+    });
+    cur=n;
+    document.getElementById('counter').textContent=(cur+1)+' / '+slides.length;
+    document.getElementById('bar').style.width=((cur+1)/slides.length*100)+'%';
+  }
+  function next(){show(cur+1,1);} function prev(){show(cur-1,-1);}
+
+  window.addEventListener('keydown',function(e){
+    if(document.getElementById('ovl').classList.contains('on')){
+      if(e.key==='o'||e.key==='O'||e.key==='Escape'){toggleOvl();} return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': e.preventDefault(); prev(); break;
+      case 'Home': e.preventDefault(); show(0,-1); break;
+      case 'End': e.preventDefault(); show(slides.length-1,1); break;
+      case 'f': case 'F': toggleFs(); break;
+      case 'o': case 'O': toggleOvl(); break;
+    }
+  });
+
+  document.getElementById('viewport').addEventListener('click',function(e){
+    if(e.target.closest('button,a,.no-nav')) return;
+    var sel=window.getSelection(); if(sel&&String(sel).length>0) return;
+    var x=e.clientX/window.innerWidth;
+    if(x<0.38) prev(); else next();
+  });
+
+  function toggleFs(){
+    if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}
+    else{document.exitFullscreen&&document.exitFullscreen();}
+  }
+  document.getElementById('btn-fs').addEventListener('click',function(e){e.stopPropagation();toggleFs();});
+  document.getElementById('btn-next').addEventListener('click',function(e){e.stopPropagation();next();});
+  document.getElementById('btn-prev').addEventListener('click',function(e){e.stopPropagation();prev();});
+  document.getElementById('btn-ovl').addEventListener('click',function(e){e.stopPropagation();toggleOvl();});
+
+  var ovl=document.getElementById('ovl'),ovlBody=document.getElementById('ovl-body');
+  (function buildOvl(){
+    var lastSec=null,grid=null;
+    slides.forEach(function(s,i){
+      var sec=s.getAttribute('data-section')||'',title=s.getAttribute('data-title')||('第 '+(i+1)+' 页');
+      if(sec!==lastSec){var h=document.createElement('div');h.className='ov-sec';h.textContent=sec;ovlBody.appendChild(h);grid=document.createElement('div');grid.className='ov-grid';ovlBody.appendChild(grid);lastSec=sec;}
+      var it=document.createElement('div');it.className='ov-item';
+      it.innerHTML='<b>'+String(i+1).padStart(2,'0')+'</b><span></span>';
+      it.querySelector('span').textContent=title;
+      it.addEventListener('click',function(){show(i);toggleOvl();});
+      grid.appendChild(it);
+    });
+  })();
+  function toggleOvl(){ovl.classList.toggle('on');}
+  document.getElementById('ovl-close').addEventListener('click',function(){toggleOvl();});
+
+  var tx=null;
+  window.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  window.addEventListener('touchend',function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?next():prev();}tx=null;},{passive:true});
+})();
+</script>
+</body>
+</html>

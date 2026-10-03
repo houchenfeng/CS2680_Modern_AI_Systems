@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第3讲 Agent Use II: 多智能体与最佳实践</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A0A0A;
+  --paper:#FAFAFA;
+  --yellow:#FFE600;
+  --blue:#0047FF;
+  --pink:#FF006E;
+  --mint:#00F5A0;
+  --orange:#FF6B00;
+  --disp:'Archivo Black','Arial Black','Microsoft YaHei',system-ui,sans-serif;
+  --body:'Space Grotesk','Microsoft YaHei',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Courier New',monospace;
+  --sh:6px 6px 0 var(--ink);
+  --sh-sm:4px 4px 0 var(--ink);
+  --brd:3px solid var(--ink);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#101010;font-family:var(--body)}
+body{
+  background:
+    radial-gradient(circle at 18% 12%,#2a2a2a 0,transparent 45%),
+    radial-gradient(circle at 82% 88%,#232323 0,transparent 45%),
+    #101010;
+}
+
+/* --- viewport + scaled stage --- */
+#viewport{position:fixed;inset:0}
+#stage{
+  position:absolute;top:50%;left:50%;
+  width:1280px;height:720px;
+  transform:translate(-50%,-50%) scale(1);
+  transform-origin:center center;
+}
+
+/* --- slide base --- */
+.slide{
+  position:absolute;inset:0;width:1280px;height:720px;
+  display:none;flex-direction:column;
+  padding:40px 54px 46px;
+  background-color:var(--paper);
+  background-image:radial-gradient(rgba(10,10,10,.14) 1.3px,transparent 1.3px);
+  background-size:22px 22px;
+  color:var(--ink);
+  overflow:hidden;
+}
+.slide.active{display:flex;animation:slideEnter .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnter{
+  0%{opacity:0;transform:translateX(70px) scale(.985) rotate(.4deg)}
+  100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}
+}
+.slide.active.from-left{animation:slideEnterL .45s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes slideEnterL{
+  0%{opacity:0;transform:translateX(-70px) scale(.985) rotate(-.4deg)}
+  100%{opacity:1;transform:translateX(0) scale(1) rotate(0)}
+}
+
+/* --- element animations on active --- */
+.slide.active .rise{animation:rise .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .pop{animation:pop .45s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .slide-r{animation:slideR .5s both;animation-delay:calc(var(--i,0)*.07s + .1s)}
+.slide.active .shake{animation:shake .6s both;animation-delay:calc(var(--i,0)*.07s + .15s)}
+@keyframes rise{0%{opacity:0;transform:translateY(26px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{opacity:0;transform:scale(.82) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes slideR{0%{opacity:0;transform:translateX(-40px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-5px) rotate(-1.5deg)}40%{transform:translateX(5px) rotate(1.5deg)}60%{transform:translateX(-4px) rotate(-1deg)}80%{transform:translateX(4px) rotate(1deg)}}
+
+.slide.active .title-anim{animation:rise .5s .05s both}
+.slide.active .sub-anim{animation:rise .5s .12s both}
+.slide.active .tag-anim{animation:pop .4s both}
+
+/* --- float sticker --- */
+.slide.active .float{animation:float 3.2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(var(--r,-4deg))}50%{transform:translateY(-11px) rotate(var(--r,-4deg))}}
+
+/* --- cover slide --- */
+.cover{
+  background:var(--pink)!important;
+  background-image:radial-gradient(rgba(255,255,255,.12) 1.5px,transparent 1.5px)!important;
+  background-size:24px 24px!important;
+  justify-content:center;align-items:center;text-align:center;
+}
+.cover .brand{
+  font-family:var(--disp);font-size:22px;
+  background:#fff;color:var(--pink);
+  display:inline-block;padding:8px 18px;
+  border:4px solid #fff;transform:rotate(-2deg);
+  box-shadow:var(--sh);
+}
+.cover h1{font-family:var(--disp);font-size:72px;line-height:1.02;margin:22px 0 10px;letter-spacing:-2px;color:#fff}
+.cover .lead{font-size:24px;font-weight:700;max-width:800px;line-height:1.4;color:rgba(255,255,255,.85)}
+.sticker{
+  position:absolute;font-family:var(--disp);border:4px solid #fff;
+  box-shadow:var(--sh-sm);padding:8px 14px;font-size:17px;z-index:3;
+}
+
+/* --- typography --- */
+h2{font-family:var(--disp);font-size:42px;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px}
+h3{font-family:var(--disp);font-size:20px;margin-bottom:8px;letter-spacing:-.3px}
+p,li{font-size:17px;line-height:1.55}
+ul,ol{padding-left:24px;margin:8px 0}
+li{margin-bottom:5px}
+.subtitle{font-size:20px;font-weight:500;color:#3a3a3a;margin-top:8px}
+.highlight{color:var(--blue);font-weight:700}
+.small{font-size:14px;color:#6b6b6b;font-weight:500}
+
+/* --- section tag / kicker --- */
+.kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--disp);font-size:15px;letter-spacing:.5px;
+  padding:6px 14px;border:3px solid var(--ink);
+  transform:rotate(-1.2deg);box-shadow:var(--sh-sm);
+}
+.kicker.y{background:var(--ink);color:var(--yellow)}
+.kicker.b{background:var(--blue);color:#fff}
+.kicker.p{background:var(--pink);color:#fff}
+.kicker.g{background:var(--mint);color:var(--ink)}
+.kicker.o{background:var(--orange);color:#fff}
+
+/* --- cards --- */
+.card{
+  background:#fff;border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:16px 18px;
+}
+.card.yellow{background:var(--yellow)}
+.card.blue{background:var(--blue);color:#fff}
+.card.blue h3,.card.blue p,.card.blue li{color:#fff}
+.card.pink{background:var(--pink);color:#fff}
+.card.pink h3,.card.pink p,.card.pink li{color:#fff}
+.card.mint{background:var(--mint)}
+.card.orange{background:var(--orange);color:#fff}
+.card.orange h3,.card.orange p,.card.orange li{color:#fff}
+.card.dark{background:var(--ink);color:var(--paper)}
+.card.dark h3,.card.dark p,.card.dark li{color:var(--paper)}
+
+/* --- grid --- */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:1fr 1fr 1fr 1fr}
+
+/* --- nb-list --- */
+.nb-list{list-style:none;padding:0}
+.nb-list li{
+  padding:7px 12px;border-left:4px solid var(--ink);
+  margin-bottom:4px;background:var(--paper);font-size:16px;
+}
+.card.blue .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}
+.card.pink .nb-list li{background:rgba(255,255,255,.15);border-left-color:#fff}
+.card.mint .nb-list li{background:rgba(0,0,0,.06);border-left-color:var(--ink)}
+
+/* --- code block --- */
+.nb-code{
+  background:#1b1b1b;color:var(--mint);border:4px solid var(--ink);
+  box-shadow:var(--sh);padding:16px 18px;
+  font-family:var(--mono);font-size:15px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;margin:12px 0;
+}
+
+/* --- table --- */
+table{width:100%;border-collapse:collapse;margin:12px 0;border:4px solid var(--ink);box-shadow:var(--sh)}
+th{background:var(--ink);color:var(--paper);font-family:var(--body);font-weight:700;font-size:15px;padding:12px 16px;text-align:left;border:2px solid var(--ink)}
+td{padding:10px 16px;border:2px solid var(--ink);font-size:15px;background:var(--paper)}
+tr:nth-child(even) td{background:#f0f0f0}
+code{background:var(--ink);color:var(--mint);padding:2px 7px;font-family:var(--mono);font-size:.88em;border:2px solid var(--ink)}
+
+/* --- flow --- */
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.flow-item{
+  background:var(--ink);color:var(--paper);border:3px solid var(--ink);
+  padding:10px 16px;font-weight:700;font-size:15px;box-shadow:var(--sh-sm);
+}
+.fi-y{background:var(--yellow);color:var(--ink)}
+.fi-b{background:var(--blue);color:#fff}
+.fi-p{background:var(--pink);color:#fff}
+.fi-g{background:var(--mint);color:var(--ink)}
+.fi-o{background:var(--orange);color:#fff}
+.flow-arrow{font-size:1.5em;font-weight:700;color:var(--ink)}
+
+/* --- layer stack --- */
+.layer-stack{display:flex;flex-direction:column;gap:4px;margin:12px 0}
+.layer{
+  padding:12px 18px;font-weight:700;font-size:15px;
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+}
+
+/* --- banner --- */
+.banner{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:14px 20px;font-weight:700;font-size:16px;text-align:center;margin:12px 0;
+}
+.ban-y{background:var(--yellow)}
+.ban-b{background:var(--blue);color:#fff}
+.ban-p{background:var(--pink);color:#fff}
+.ban-g{background:var(--mint)}
+.ban-o{background:var(--orange);color:#fff}
+.ban-d{background:var(--ink);color:var(--paper)}
+
+/* --- badge --- */
+.badge{
+  display:inline-block;background:var(--ink);color:var(--paper);
+  padding:3px 12px;font-family:var(--disp);font-weight:700;
+  font-size:13px;letter-spacing:.05em;margin-right:6px;
+}
+
+/* --- compare grid --- */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+.compare-col h3{
+  font-family:var(--disp);font-size:18px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);margin-bottom:10px;
+}
+.compare-col h3.green{background:var(--mint)}
+.compare-col h3.red{background:var(--pink);color:#fff}
+
+/* --- step list --- */
+.step-list{counter-reset:step;list-style:none;padding:0}
+.step-list li{
+  counter-increment:step;display:flex;align-items:flex-start;gap:12px;
+  padding:10px 14px;border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  margin-bottom:7px;background:var(--paper);font-size:16px;
+}
+.step-list li::before{
+  content:counter(step);font-family:var(--disp);font-size:17px;
+  background:var(--ink);color:var(--paper);
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.step-list li:nth-child(1)::before{background:var(--yellow);color:var(--ink)}
+.step-list li:nth-child(2)::before{background:var(--blue)}
+.step-list li:nth-child(3)::before{background:var(--pink)}
+.step-list li:nth-child(4)::before{background:var(--mint);color:var(--ink)}
+.step-list li:nth-child(5)::before{background:var(--orange)}
+.step-list li:nth-child(6)::before{background:var(--ink)}
+.step-list li:nth-child(7)::before{background:var(--blue)}
+
+/* --- top card (with label) --- */
+.top-card{border:3px solid var(--ink);box-shadow:var(--sh);padding:14px 16px;background:var(--paper)}
+.top-card .card-label{
+  font-family:var(--disp);font-weight:700;font-size:15px;
+  margin-bottom:7px;padding:3px 10px;display:inline-block;border:2px solid var(--ink);
+}
+.cl-y{background:var(--yellow)}
+.cl-b{background:var(--blue);color:#fff}
+.cl-p{background:var(--pink);color:#fff}
+.cl-g{background:var(--mint)}
+.cl-o{background:var(--orange);color:#fff}
+
+/* --- arrow --- */
+.arrow{font-size:2.2em;text-align:center;font-weight:700;margin:6px 0}
+
+/* --- workflow rows --- */
+.wf-row{display:flex;align-items:center;gap:0;margin:8px 0;flex-wrap:wrap}
+.wf-label{
+  font-family:var(--disp);font-size:14px;
+  padding:8px 14px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);flex-shrink:0;
+  min-width:90px;text-align:center;
+}
+.wf-label-o{background:var(--orange);color:#fff}
+.wf-label-p{background:var(--pink);color:#fff}
+.wf-label-d{background:var(--ink);color:#fff}
+.wf-label-g{background:var(--mint)}
+.wf-step{
+  border:3px solid var(--ink);box-shadow:var(--sh-sm);
+  padding:10px 16px;font-weight:700;font-size:15px;margin:0 4px;
+}
+.wf-step-o{background:var(--orange);color:#fff}
+.wf-step-p{background:var(--pink);color:#fff}
+.wf-step-b{background:var(--blue);color:#fff}
+.wf-step-g{background:var(--mint)}
+.wf-step-d{background:var(--ink);color:#fff}
+.wf-arrow{font-size:1.4em;font-weight:700;color:var(--ink);margin:0 4px}
+
+/* --- diagram boxes --- */
+.diag-box{
+  border:4px solid var(--ink);box-shadow:var(--sh);
+  padding:18px 22px;text-align:center;font-weight:700;font-size:17px;
+}
+.diag-box-blue{background:var(--blue);color:#fff}
+.diag-box-teal{background:var(--mint)}
+.diag-box-orange{background:var(--orange);color:#fff}
+.diag-box-pink{background:var(--pink);color:#fff}
+.diag-box-dark{background:var(--ink);color:var(--paper)}
+.diag-box-yellow{background:var(--yellow)}
+.diag-arrow{font-size:2.4em;font-weight:700;text-align:center}
+
+/* --- sequence items --- */
+.seq-item{
+  padding:10px 16px;border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);margin:6px 0;
+  font-size:16px;font-weight:600;
+}
+.seq-blue{background:var(--blue);color:#fff}
+.seq-teal{background:var(--mint)}
+.seq-orange{background:var(--orange);color:#fff}
+.seq-gray{background:#E0E0E0}
+
+/* --- HUD --- */
+#bar-bg{position:fixed;left:0;bottom:0;width:100%;height:7px;background:#000;z-index:51}
+#bar{height:100%;width:0;background:linear-gradient(90deg,var(--yellow),var(--pink),var(--blue));transition:width .3s}
+#ctrls{position:fixed;right:16px;bottom:16px;display:flex;gap:8px;align-items:center;z-index:52;pointer-events:auto}
+#ctrls button{
+  font-family:var(--disp);font-size:15px;width:44px;height:44px;
+  background:var(--paper);border:3px solid var(--ink);
+  box-shadow:var(--sh-sm);cursor:pointer;color:var(--ink);
+}
+#ctrls button:hover{background:var(--yellow)}
+#ctrls button:active{transform:translate(2px,2px);box-shadow:none}
+#counter{
+  position:fixed;left:16px;bottom:14px;z-index:52;
+  font-family:var(--disp);font-size:16px;
+  background:var(--ink);color:var(--pink);padding:6px 12px;border:3px solid var(--pink);
+}
+#hint{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:52;
+  font-family:var(--mono);font-size:12.5px;color:#bbb;
+  background:rgba(0,0,0,.55);padding:5px 12px;border-radius:2px;
+  opacity:0;transition:opacity .4s;pointer-events:none;
+}
+
+/* --- overview overlay --- */
+#ovl{position:fixed;inset:0;z-index:60;background:rgba(10,10,10,.94);display:none;overflow:auto;padding:34px 40px}
+#ovl.on{display:block}
+#ovl h2{font-family:var(--disp);color:var(--pink);font-size:26px;margin-bottom:6px}
+#ovl .ov-sec{color:var(--yellow);font-family:var(--disp);font-size:15px;margin:18px 0 8px;letter-spacing:.5px}
+#ovl .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px}
+#ovl .ov-item{background:#1c1c1c;border:2px solid #444;color:#eee;font-size:13.5px;padding:9px 11px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+#ovl .ov-item:hover{background:var(--pink);color:#fff;border-color:var(--pink)}
+#ovl .ov-item b{font-family:var(--mono);font-size:12px;opacity:.7}
+#ovl .close{position:fixed;top:20px;right:26px;font-family:var(--disp);font-size:16px;background:var(--yellow);border:3px solid var(--ink);color:var(--ink);padding:6px 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+  <!-- 1 COVER -->
+  <section class="slide cover active" data-title="封面" data-section="开场">
+    <span class="sticker float" style="--r:-5deg;background:var(--yellow);top:48px;right:56px;color:var(--ink)">Skills</span>
+    <span class="sticker float" style="--r:4deg;background:var(--blue);top:100px;right:80px;animation-delay:.4s;color:#fff">Hooks</span>
+    <span class="sticker float" style="--r:-3deg;background:var(--mint);top:150px;right:40px;animation-delay:.8s">Plugins</span>
+    <div class="brand pop">LECTURE 03</div>
+    <h1 class="title-anim">Agent Use II<br>多智能体与最佳实践</h1>
+    <p class="lead sub-anim">Harvard CS2680 · 现代 AI 系统：Agents 与系统优化</p>
+  </section>
+
+  <!-- 2 RECAP -->
+  <section class="slide" data-title="回顾" data-section="开场">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">RECAP</div>
+    <h2 class="title-anim">回顾</h2>
+    <div class="card yellow rise" style="--i:0">
+      <h3>Agent Loops</h3>
+      <p>Agentic Loop 如何工作</p>
+    </div>
+    <div class="card blue rise" style="--i:1">
+      <h3>State Management</h3>
+      <ul class="nb-list">
+        <li><strong>Context 作为工作记忆</strong>：每个 user prompt、LLM response、tool call 结果都被追加</li>
+        <li><strong>Agent Memory</strong>：跨会话持久化
+          <ul>
+            <li>CLAUDE.md（AGENTS.md）</li>
+            <li>Auto Memory</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+    <div class="card mint rise" style="--i:2">
+      <h3>Tools</h3>
+      <ul class="nb-list">
+        <li>Built-in tools（内置工具）</li>
+        <li>扩展 Claude Code 能力：skill、MCP、hook、plugin</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3 PLAN -->
+  <section class="slide" data-title="今天的计划" data-section="开场">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">PLAN</div>
+    <h2 class="title-anim">今天的计划</h2>
+    <ul class="step-list rise" style="--i:0">
+      <li><strong>案例研究</strong>：Superpowers 和 Caveman</li>
+      <li><strong>用多个 Agent 成为 100 倍的研究者和工程师</strong></li>
+      <li><strong>编程 / Software 3.0</strong>：编程是如何演进的</li>
+      <li><strong>人们如何使用 OpenAI Codex</strong> — 两份报告：2026 年 6 月和 2026 年 9 月</li>
+    </ul>
+  </section>
+
+  <!-- 4 CASE STUDY SUPERPOWERS -->
+  <section class="slide" data-title="案例研究：Superpowers" data-section="Superpowers">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">CASE STUDY</div>
+    <h2 class="title-anim">案例研究：Superpowers</h2>
+    <p class="rise" style="--i:0;font-size:17px;opacity:.6;margin-bottom:10px">一个软件开发 plugin</p>
+    <div class="nb-code rise" style="--i:1;text-align:center;font-size:17px">/plugin install superpowers@claude-plugins-official</div>
+    <div class="banner ban-p rise" style="--i:2;margin-top:20px">
+      Superpowers 是一个完整的软件开发工作流 plugin<br>通过 skills + hooks 重新定义了 Agent 的工作方式
+    </div>
+  </section>
+
+  <!-- 5 SAME MODEL DIFFERENT WORKFLOW -->
+  <section class="slide" data-title="Same Model Different Workflow" data-section="Superpowers">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">WORKFLOW</div>
+    <h2 class="title-anim">Same Model<br>Different Workflow</h2>
+    <p class="rise" style="--i:0;margin-bottom:14px">同样的模型和工具，不同的指令 = 完全不同的工作流：</p>
+    <div class="rise" style="--i:1">
+      <div class="wf-row">
+        <div class="wf-label wf-label-o">DEFAULT</div>
+        <div class="wf-step wf-step-o">Feature request</div>
+        <span class="wf-arrow">→</span>
+        <div class="wf-step wf-step-o">Start coding</div>
+        <span class="wf-arrow">→</span>
+        <div class="wf-step wf-step-o">Fix by iteration</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-label wf-label-p">HUMAN</div>
+        <div class="wf-step wf-step-p" style="flex:1">0 — 用户输入 prompt</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-label wf-label-d">PLAN</div>
+        <div class="wf-step wf-step-b">1 — Clarify the problem</div>
+        <span class="wf-arrow">→</span>
+        <div class="wf-step wf-step-b">2 — Approve a design</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-label wf-label-d">BUILD</div>
+        <div class="wf-step wf-step-b">3 — Write a detailed plan</div>
+        <span class="wf-arrow">→</span>
+        <div class="wf-step wf-step-b">4 — Test-driven build</div>
+        <span class="wf-arrow">→</span>
+        <div class="wf-step wf-step-b">5 — Review and verify</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-label wf-label-d">SHIP</div>
+        <div class="wf-step wf-step-g" style="flex:1">6 — Finish or integrate the branch</div>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:2;margin-top:12px">
+      两个 Agent 共享同一个模型和同样的工具——<strong>只有指令不同</strong>
+    </div>
+  </section>
+
+  <!-- 6 NINE SKILLS -->
+  <section class="slide" data-title="九个 Skills" data-section="Superpowers">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">NINE SKILLS</div>
+    <h2 class="title-anim">Superpowers 中的<br>九个 Skills</h2>
+    <table class="rise" style="--i:0">
+      <tr><th>Skill</th><th>职责</th></tr>
+      <tr><td><code>using-superpowers</code></td><td>发现和调用 skill 的规则</td></tr>
+      <tr><td><code>brainstorming</code></td><td>将需求转化为经批准的设计</td></tr>
+      <tr><td><code>writing-plans</code></td><td>将设计分解为具体任务</td></tr>
+      <tr><td><code>using-git-worktrees</code></td><td>创建隔离的工作空间</td></tr>
+      <tr><td><code>test-driven-development</code></td><td>强制执行 red → green → refactor</td></tr>
+      <tr><td><code>systematic-debugging</code></td><td>在提出修复前先找到根本原因</td></tr>
+      <tr><td><code>requesting-code-review</code></td><td>对照计划审查实现</td></tr>
+      <tr><td><code>verification-before-completion</code></td><td>在报告成功前要求证据</td></tr>
+      <tr><td><code>finishing-a-development-branch</code></td><td>合并、PR、保留或清理</td></tr>
+    </table>
+  </section>
+
+  <!-- 7 SUPERPOWERS ARCHITECTURE -->
+  <section class="slide" data-title="Superpowers 架构" data-section="Superpowers">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">ARCHITECTURE</div>
+    <h2 class="title-anim">Superpowers 架构</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>Repository 结构</h3>
+        <div class="nb-code" style="font-size:14px">superpowers/
+├── .claude-plugin/
+│   └── plugin.json
+├── hooks/
+│   ├── hooks.json
+│   └── session-start
+├── skills/
+│   ├── using-superpowers/
+│   ├── brainstorming/
+│   ├── writing-plans/
+│   └── test-driven-development/
+└── tests/</div>
+      </div>
+      <div>
+        <h3>组件图</h3>
+        <div class="diag-box diag-box-dark" style="margin-bottom:12px">
+          Superpowers plugin
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <div class="diag-box diag-box-blue" style="flex:1;font-size:15px">Plugin<br>metadata</div>
+          <div class="diag-box diag-box-teal" style="flex:1;font-size:15px">Session<br>hook</div>
+          <div class="diag-box diag-box-teal" style="flex:1;font-size:15px">Skill<br>library</div>
+        </div>
+        <div class="diag-arrow">↓ ↓</div>
+        <div class="diag-box diag-box-pink" style="font-size:20px">Agent behavior</div>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:1;margin-top:10px">
+      Plugin 是分发容器 — skills 和 hooks 提供行为
+    </div>
+  </section>
+
+  <!-- 8 ANATOMY OF A SKILL -->
+  <section class="slide" data-title="Skill 的结构" data-section="Superpowers">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">ANATOMY</div>
+    <h2 class="title-anim">Skill 的结构</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>Directory</h3>
+        <div class="nb-code" style="font-size:14px">skills/
+── brainstorming/
+    ├── SKILL.md
+    ├── visual-companion.md
+    └── scripts</div>
+      </div>
+      <div>
+        <h3>SKILL.md（简化版）</h3>
+        <div class="nb-code" style="font-size:14px">---
+name: brainstorming
+description: Use before creative work.
+---
+
+## Workflow
+1. Inspect the project
+2. Classify the scope
+3. Clarify requirements
+4. Compare approaches
+5. Present a design
+6. Wait for user approval
+7. Invoke writing-plans</div>
+      </div>
+    </div>
+    <div class="banner ban-o rise" style="--i:1;margin-top:14px">
+      Front matter 是元数据。Body 是 Agent 遵循的流程。
+    </div>
+  </section>
+
+  <!-- 9 WHAT SKILL.MD CONTAINS -->
+  <section class="slide" data-title="SKILL.md 包含什么" data-section="Superpowers">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">SKILL.MD</div>
+    <h2 class="title-anim">SKILL.md 包含什么？</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>Skill 文件的六个组件</h3>
+        <table>
+          <tr><th>组件</th><th>功能</th></tr>
+          <tr><td><strong>name</strong></td><td>稳定标识符</td></tr>
+          <tr><td><strong>description</strong></td><td>skill 何时适用</td></tr>
+          <tr><td><strong>Instructions</strong></td><td>要遵循的流程</td></tr>
+          <tr><td><strong>Checkpoints</strong></td><td>继续前的审批点</td></tr>
+          <tr><td><strong>References</strong></td><td>仅在需要时提供细节</td></tr>
+          <tr><td><strong>Scripts</strong></td><td>确定性操作</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Process skill 可以定义</h3>
+        <div class="card blue rise" style="--i:1;margin-bottom:8px">
+          <p><strong>Entry conditions</strong> — 入口条件</p>
+        </div>
+        <div class="card blue rise" style="--i:2;margin-bottom:8px">
+          <p><strong>Required actions</strong> — 必须执行的动作</p>
+        </div>
+        <div class="card orange rise" style="--i:3;margin-bottom:8px">
+          <p><strong>Prohibited actions</strong> — 禁止的动作</p>
+        </div>
+        <div class="card orange rise" style="--i:4;margin-bottom:8px">
+          <p><strong>Human approval gates</strong> — 人工审批关卡</p>
+        </div>
+        <div class="card rise" style="--i:5;margin-bottom:8px">
+          <p><strong>Verification requirements</strong> — 验证要求</p>
+        </div>
+        <div class="card rise" style="--i:6">
+          <p><strong>The next applicable skill</strong> — 下一个适用的 skill</p>
+        </div>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:7;margin-top:10px">
+      每个 skill 指导 Agent 行为，并可以指定其后续的 skill
+    </div>
+  </section>
+
+  <!-- 10 WHY SKILLS ALONE NOT ENOUGH -->
+  <section class="slide" data-title="为什么仅有 Skills 不够" data-section="Superpowers">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">HOOKS</div>
+    <h2 class="title-anim">为什么仅有<br>Skills 不够？</h2>
+    <div class="banner ban-o rise" style="--i:0;margin-bottom:16px">
+      安装 skills 只是让它们可用——<strong>可用性不等于 Agent 会去检查它们</strong>
+    </div>
+    <div class="grid g2 rise" style="--i:1">
+      <div>
+        <h3>hooks/hooks.json</h3>
+        <div class="nb-code" style="font-size:14px">{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "startup|clear|compact",
+      "hooks": [{ "type": "command",
+        "command": "run-hook.cmd",
+        "async": false }]
+    }]
+  }
+}</div>
+      </div>
+      <div>
+        <h3>Hook 保证了什么</h3>
+        <div class="card blue" style="margin-bottom:8px">
+          <p><strong>确定性时机</strong>，每次会话都执行</p>
+        </div>
+        <div class="card blue" style="margin-bottom:8px">
+          <p>在 Agent 行动<strong>之前</strong>运行</p>
+        </div>
+        <div class="card blue">
+          <p>在 clear 和 compaction 后<strong>重新运行</strong></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 SESSION-START SCRIPT -->
+  <section class="slide" data-title="Session-Start 脚本" data-section="Superpowers">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">SESSION HOOK</div>
+    <h2 class="title-anim">Session-Start 脚本</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3>hooks/session-start（简化版）</h3>
+        <div class="nb-code" style="font-size:14px">#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(plugin_root)"
+skill="$ROOT/skills/using-
+  superpowers/SKILL.md"
+content="$(cat "$skill")"
+
+printf '{"hookSpecificOutput": {
+  "hookEventName": "SessionStart",
+  "additionalContext": "%s" }}' \
+  "$(escape_json "$content")"</div>
+      </div>
+      <div>
+        <h3>执行步骤</h3>
+        <ul class="step-list">
+          <li>定位已安装的 plugin</li>
+          <li>读取 bootstrap SKILL.md</li>
+          <li>将 Markdown 转义为 JSON</li>
+          <li>作为 additionalContext 返回</li>
+          <li>Claude Code 将其加入 context</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 END-TO-END WALKTHROUGH -->
+  <section class="slide" data-title="端到端演示" data-section="Superpowers">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">WALKTHROUGH</div>
+    <h2 class="title-anim">端到端演示</h2>
+    <p class="rise" style="--i:0;margin-bottom:10px">运行时序列：用户输入 <strong>"Add authentication"</strong></p>
+    <div class="grid g2 rise" style="--i:1">
+      <div>
+        <h3>运行时序列</h3>
+        <div class="seq-item seq-blue"><strong>Claude Code</strong> → 启动会话</div>
+        <div class="seq-item seq-teal"><strong>Hook</strong> → 读取 bootstrap skill</div>
+        <div class="seq-item seq-teal"><strong>Agent</strong> → 接收选择策略</div>
+        <div class="seq-item seq-orange"><strong>User</strong> → "Add authentication"</div>
+        <div class="seq-item seq-teal"><strong>Agent</strong> → 加载 brainstorming，澄清需求</div>
+        <div class="seq-item seq-orange"><strong>User</strong> → 批准设计</div>
+        <div class="seq-item seq-teal"><strong>Agent</strong> → 加载 writing-plans</div>
+      </div>
+      <div>
+        <h3>后续阶段</h3>
+        <div class="seq-item seq-gray">Implementation plan（实现计划）</div>
+        <div class="seq-item seq-gray">Isolated worktree（隔离工作树）</div>
+        <div class="seq-item seq-gray">Test-driven build（测试驱动构建）</div>
+        <div class="seq-item seq-gray">Code review（代码审查）</div>
+        <div class="seq-item seq-gray">Verification（验证）</div>
+        <div class="seq-item seq-gray">Branch integration（分支集成）</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 DESIGN LESSONS -->
+  <section class="slide" data-title="Superpowers 的设计经验" data-section="Superpowers">
+    <div class="kicker y tag-anim" style="margin-bottom:12px">DESIGN LESSONS</div>
+    <h2 class="title-anim">Superpowers 的<br>设计经验</h2>
+    <table class="rise" style="--i:0">
+      <tr><th>设计问题</th><th>Superpowers 的答案</th></tr>
+      <tr><td>如何表示复杂行为？</td><td><strong>小型、可组合的 skills</strong></td></tr>
+      <tr><td>Agent 怎么记得使用它们？</td><td><strong>通过 session hook 注入 bootstrap skill</strong></td></tr>
+      <tr><td>如何保持 context 可控？</td><td><strong>仅在相关时加载 task skill</strong></td></tr>
+      <tr><td>各阶段如何协调？</td><td><strong>每个 skill 声明其关卡和后续 skill</strong></td></tr>
+      <tr><td>用户如何安装这个系统？</td><td><strong>将所有内容打包为 plugin</strong></td></tr>
+      <tr><td>每个 plugin 都需要 commands 或 MCP 吗？</td><td><strong>不需要——仅在需要时添加</strong></td></tr>
+    </table>
+  </section>
+
+  <!-- 14 CAVEMAN CASE STUDY -->
+  <section class="slide" data-title="Caveman 案例研究" data-section="Caveman">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">CASE STUDY</div>
+    <h2 class="title-anim">Caveman 案例研究</h2>
+    <p class="rise" style="--i:0;font-size:20px;text-align:center;margin:18px 0">五种扩展机制 — 加上一个本地 proxy</p>
+    <div class="nb-code rise" style="--i:1;text-align:center;font-size:16px">claude plugin marketplace add JuliusBrussee/caveman
+claude plugin install caveman@caveman</div>
+    <div class="banner ban-b rise" style="--i:2;margin-top:18px">
+      Caveman 通过 token 压缩来解决 Context Window 膨胀问题<br>在输入和输出两个方向同时压缩
+    </div>
+  </section>
+
+  <!-- 15 WHY COMPRESS TOKENS -->
+  <section class="slide" data-title="为什么要压缩 Agent 的 tokens" data-section="Caveman">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">TOKEN COMPRESSION</div>
+    <h2 class="title-anim">为什么要压缩<br>Agent 的 tokens？</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <div class="card blue" style="margin-bottom:10px">
+          <h3>Context 被填满</h3>
+          <p>日志、diff 和 tool 输出挤占了工作空间</p>
+        </div>
+        <div class="card orange" style="margin-bottom:10px">
+          <h3>每次交互都有成本</h3>
+          <p>Tokens 需要付费和等待，双向都有</p>
+        </div>
+        <div class="card">
+          <h3>Compaction 丢失细节</h3>
+          <p>晚期裁剪 context 会丢掉重要的信息</p>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="border-color:var(--pink);border-width:4px">
+          <h3 style="color:var(--pink)">压缩前 — 786 行测试输出</h3>
+          <div class="nb-code" style="margin:8px 0;font-size:13px">$ npm test
+FAIL  src/api/client.test.ts
+  ● client › retries on 5xx
+    connect ETIMEDOUT 10.0.3.8:443
+    at client.ts:88
+  ... 776 more lines ...
+  3 failed, 214 passed</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="card mint">
+          <h3>压缩后 — 模型看到的内容</h3>
+          <div class="nb-code" style="margin:8px 0;font-size:15px;background:var(--mint);color:var(--ink)">3 tests fail: ETIMEDOUT at client.ts:88</div>
+        </div>
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:1;margin-top:10px">
+      双向压缩 — 并保留原始内容以供检索
+    </div>
+  </section>
+
+  <!-- 16 CAVEMAN TWO DIRECTIONS -->
+  <section class="slide" data-title="Caveman 双向压缩" data-section="Caveman">
+    <div class="kicker b tag-anim" style="margin-bottom:12px">TWO DIRECTIONS</div>
+    <h2 class="title-anim">Caveman 双向<br>压缩 tokens</h2>
+    <div class="nb-code rise" style="--i:0;text-align:center;font-size:15px">/caveman ultra  then: "Run the tests and explain the failure."</div>
+    <div class="grid g2 rise" style="--i:1;margin:12px 0">
+      <div>
+        <div class="kicker p" style="font-size:13px;margin-bottom:8px">AGENT INPUT</div>
+        <div class="diag-box diag-box-blue">
+          Logs · tool results<br>diffs · files
+        </div>
+      </div>
+      <div>
+        <div class="diag-box diag-box-teal" style="margin-top:26px">
+          Local proxy + engine
+        </div>
+      </div>
+    </div>
+    <div class="grid g2 rise" style="--i:2;margin:12px 0">
+      <div>
+        <div class="kicker p" style="font-size:13px;margin-bottom:8px">AGENT OUTPUT</div>
+        <div class="diag-box diag-box-pink">
+          What you read
+        </div>
+      </div>
+      <div>
+        <div class="diag-box diag-box-orange" style="margin-top:26px;font-size:15px">
+          Response skill<br>(injected earlier in context)
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center" class="rise" style="--i:3">
+      <div class="diag-box diag-box-dark" style="display:inline-block;padding:14px 28px;font-size:20px">
+        Model
+      </div>
+    </div>
+    <div class="banner ban-p rise" style="--i:4;margin-top:10px">
+      Skill 改变模型的<strong>输出方式</strong>。Proxy 改变模型的<strong>输入内容</strong>。
+    </div>
+    <div class="banner ban-y rise" style="--i:5">
+      报告：输出 tokens 减少 <strong>65%</strong>。但 skill 本身增加了输入 tokens，所以整个会话的节省更少。
+    </div>
+  </section>
+
+  <!-- 17 WALK THROUGH EXAMPLE -->
+  <section class="slide" data-title="走一遍示例" data-section="Caveman">
+    <div class="kicker g tag-anim" style="margin-bottom:12px">EXAMPLE</div>
+    <h2 class="title-anim">走一遍示例</h2>
+    <div class="nb-code rise" style="--i:0;text-align:center;font-size:15px">/caveman ultra  then: "Run the tests and explain the failure."</div>
+    <ul class="step-list rise" style="--i:1">
+      <li>Hook 存储 ultra 模式</li>
+      <li>Hook 注入简洁回复提醒</li>
+      <li>Agent 执行命令（来自 LLM）</li>
+      <li>Caveman（proxy）压缩嘈杂的测试输出</li>
+      <li>模型收到缩减后的 context</li>
+      <li>模型返回简洁的诊断</li>
+      <li>MCP 按需检索原始内容</li>
+    </ul>
+  </section>
+
+  <!-- 18 PLUGIN PACKAGING -->
+  <section class="slide" data-title="Plugin 打包" data-section="Caveman">
+    <div class="kicker o tag-anim" style="margin-bottom:12px">PACKAGING</div>
+    <h2 class="title-anim">Plugin 打包</h2>
+    <div class="grid g2 rise" style="--i:0">
+      <div>
+        <h3 style="color:var(--pink)">Repository 结构</h3>
+        <div class="nb-code" style="font-size:14px">caveman/
+├── .claude-plugin/plugin.json
+├── skills/
+│   ├── caveman
+│   ├── -commit
+│   ├── -review
+│   ├── -compress
+│   └── -stats
+├── commands/
+├── src/hooks/
+├── mcp/
+├── proxy/
+├── engine/
+└── agents/</div>
+      </div>
+      <div>
+        <h3 style="color:var(--blue)">Plugin Manifest</h3>
+        <div class="nb-code" style="font-size:14px">{
+  "name": "caveman",
+  "hooks": {
+    "SessionStart":
+      ["caveman-activate.js"],
+    "UserPromptSubmit":
+      ["caveman-mode-tracker.js"]
+  }
+}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 19 RESPONSE SKILL -->
+  <section class="slide" data-title="Response Skill 让输出更简洁" data-section="Caveman">
+    <div class="kicker p tag-anim" style="margin-bottom:12px">RESPONSE SKILL</div>
+    <h2 class="title-anim">Response Skill<br>让输出更简洁</h2>
+    <div class="nb-code rise" style="--i:0;font-size:15px">SKILLS/CAVEMAN/SKILL.md
+
+---
+name: caveman
+description: Compressed mode
+---
+
+# Caveman response mode
+<strong>Preserve</strong>: technical terms, commands, paths,
+  code, errors, numbers, units, negation
+<strong>Remove</strong>: filler, repetition, pleasantries,
+  hedging
+Short sentences. Active voice.</div>
+    <div class="banner ban-p rise" style="--i:1;margin-top:18px">
+      它改变了 Agent 的沟通方式
+    </div>
+  </section>
+
+  <!-- Slide 51: Programming / Software 3.0 section divider -->
+  <section class="slide" data-section="Programming / Software 3.0" data-title="编程范式演进">
+    <div class="kicker cl-b rise" style="--i:0">🔮 新范式</div>
+    <h2 class="rise" style="--i:1">Programming / Software 3.0</h2>
+    <div class="banner ban-d rise" style="--i:2;margin-top:24px">不确定性成为核心主题，学会与它共存！</div>
+  </section>
+
+  <!-- Slide 52: Programming 3.0 diagram -->
+  <section class="slide" data-section="Programming / Software 3.0" data-title="Programming 3.0 定义">
+    <div class="kicker cl-b rise" style="--i:0"> 三种编程范式</div>
+    <h2 class="rise" style="--i:1">Programming 3.0</h2>
+    <p class="md-level rise" style="--i:1;font-size:13px;color:#666;margin-bottom:10px">这是作者自创术语，与 Andrej Karpathy 的定义不同（见下页）</p>
+    <div class="agent-diagram rise" style="--i:2;display:flex;flex-direction:column;gap:12px;margin-top:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge cl-y" style="font-size:12px;padding:4px 10px">PROGRAMMING 1.0</span>
+        <span style="font-size:13px">Human → 显式机器指令/汇编 → Hardware</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge cl-b" style="font-size:12px;padding:4px 10px">PROGRAMMING 2.0</span>
+        <span style="font-size:13px">Human → 编程语言 → Compiler → 机器指令 → Hardware</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge cl-p" style="font-size:12px;padding:4px 10px">PROGRAMMING 3.0</span>
+        <span style="font-size:13px">Human → 自然语言 → <b style="color:#c0392b">Agent</b> → 编程语言 → 机器指令 → Hardware</span>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:12px">
+      <div class="card rise" style="--i:3;flex:1;text-align:center"><b style="color:#27ae60">↑ 更高生产力</b></div>
+      <div class="card rise" style="--i:4;flex:1;text-align:center"><b style="color:#e74c3c">↑ 更多不确定性</b></div>
+    </div>
+  </section>
+
+  <!-- Slide 53: Software 3.0 (Karpathy) -->
+  <section class="slide" data-section="Programming / Software 3.0" data-title="Software 3.0 (Karpathy)">
+    <div class="kicker cl-b rise" style="--i:0">🧠 Andrej Karpathy 的定义</div>
+    <h2 class="rise" style="--i:1">Software 3.0</h2>
+    <div class="grid g2" style="margin-top:10px">
+      <div class="card rise" style="--i:2">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="background:#2c3e50;color:#fff"><th style="padding:6px 10px">Paradigm</th><th style="padding:6px 10px">程序是什么？</th><th style="padding:6px 10px">如何创建？</th></tr>
+          <tr><td style="padding:6px 10px;border-bottom:1px solid #eee"><b>1.0</b></td><td style="padding:6px 10px;border-bottom:1px solid #eee">源代码</td><td style="padding:6px 10px;border-bottom:1px solid #eee">编写 Python/C++</td></tr>
+          <tr><td style="padding:6px 10px;border-bottom:1px solid #eee"><b>2.0</b></td><td style="padding:6px 10px;border-bottom:1px solid #eee">神经网络权重</td><td style="padding:6px 10px;border-bottom:1px solid #eee">收集数据 + 优化</td></tr>
+          <tr><td style="padding:6px 10px"><b>3.0</b></td><td style="padding:6px 10px">LLM prompts</td><td style="padding:6px 10px">自然语言</td></tr>
+        </table>
+      </div>
+      <div class="card rise" style="--i:3">
+        <div style="font-size:13px;line-height:1.8">
+          <div><span class="badge cl-y" style="font-size:11px">Software 1.0</span> human → code → computer</div>
+          <div><span class="badge cl-b" style="font-size:11px">Software 2.0</span> human → data → optimizer → neural network</div>
+          <div><span class="badge cl-o" style="font-size:11px">Software 3.0</span> human → language/context → LLM → action</div>
+        </div>
+      </div>
+    </div>
+    <div class="banner ban-b rise" style="--i:4;margin-top:14px">知道在哪里划分 1.0、2.0 和 3.0 的边界是一项重要的工程技能。</div>
+  </section>
+
+  <!-- Slide 54: Uncertainty in Programming 3.0 section divider -->
+  <section class="slide" data-section="Uncertainty in Programming 3.0" data-title="不确定性：核心主题">
+    <div class="kicker cl-r rise" style="--i:0">⚠️ 不确定性</div>
+    <h2 class="rise" style="--i:1">Uncertainty in Programming 3.0</h2>
+    <div class="banner ban-o rise" style="--i:2;margin-top:24px">不确定性成为核心主题，你应该学会与它共存！</div>
+  </section>
+
+  <!-- Slide 55: Is uncertainty new? -->
+  <section class="slide" data-section="Uncertainty in Programming 3.0" data-title="不确定性是新事物吗？">
+    <div class="kicker cl-r rise" style="--i:0">🔍 历史对比</div>
+    <h2 class="rise" style="--i:1">Is uncertainty new?</h2>
+    <p class="md-level rise" style="--i:1;font-size:14px;color:#666">同样的源代码 ≠ 同样的输出，这种情况早就存在了</p>
+    <div class="card rise" style="--i:2;margin-top:10px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="background:#2c3e50;color:#fff"><th style="padding:6px 8px">不确定性来源</th><th style="padding:6px 8px;background:#1abc9c">Programming 2.0</th><th style="padding:6px 8px;background:#2980b9">2.0 如何解决</th><th style="padding:6px 8px;background:#c0392b">Programming 3.0 新增</th></tr>
+        <tr><td style="padding:6px 8px;border-bottom:1px solid #eee"><b>硬件</b></td><td style="padding:6px 8px;border-bottom:1px solid #eee">架构：32位 vs 64位，字节序</td><td style="padding:6px 8px;border-bottom:1px solid #eee">固定宽度类型、交叉编译、虚拟化</td><td style="padding:6px 8px;border-bottom:1px solid #eee"><b>GPU 计算</b><br>非确定性内核、浮点方差</td></tr>
+        <tr><td style="padding:6px 8px;border-bottom:1px solid #eee"><b>环境</b></td><td style="padding:6px 8px;border-bottom:1px solid #eee">并发、不可靠网络</td><td style="padding:6px 8px;border-bottom:1px solid #eee">内存一致性模型、幂等 API</td><td style="padding:6px 8px;border-bottom:1px solid #eee"><b>代码生成时的交互</b><br>写入时触及环境</td></tr>
+        <tr><td style="padding:6px 8px"><b>软件</b></td><td style="padding:6px 8px">编译器版本、依赖漂移</td><td style="padding:6px 8px">升级前全面测试</td><td style="padding:6px 8px"><b>编译器、模型</b><br>不同内核、采样</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- Slide 56: From intent to result -->
+  <section class="slide" data-section="Uncertainty in Programming 3.0" data-title="从意图到结果的不确定性">
+    <div class="kicker cl-r rise" style="--i:0">🔄 流程对比</div>
+    <h2 class="rise" style="--i:1">A bit more uncertainty: from intent to result</h2>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card rise" style="--i:2">
+        <div style="font-size:13px;line-height:2">
+          <div><span class="badge cl-y" style="font-size:11px">1.0 / 2.0</span> human(PM) need → programmer(env, memory) → program → result</div>
+          <div style="font-size:11px;color:#888;margin-left:80px">↑ 被忽略（但存在）&nbsp;&nbsp;&nbsp;&nbsp;↑ 形式化验证 &nbsp;&nbsp;&nbsp;&nbsp;↑ 上页已讨论</div>
+        </div>
+      </div>
+      <div class="card rise" style="--i:3;border-color:#c0392b">
+        <div style="font-size:13px;line-height:2">
+          <div><span class="badge cl-r" style="font-size:11px">3.0</span> human need → <b style="color:#c0392b">LLM agent</b>(env, memory) → program → result</div>
+          <div style="font-size:11px;color:#888;margin-left:80px">↑ 单一 prompt 导致的模糊输入</div>
+        </div>
+      </div>
+    </div>
+    <div class="banner ban-r rise" style="--i:4;margin-top:14px">需要更多研究 ←</div>
+  </section>
+
+  <!-- Slide 57: Live with Uncertainty -->
+  <section class="slide" data-section="Uncertainty in Programming 3.0" data-title="与不确定性共存">
+    <div class="kicker cl-r rise" style="--i:0">🎯 五大不确定性来源</div>
+    <h2 class="rise" style="--i:1">Live with Uncertainty</h2>
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+      <div class="rise" style="--i:2;display:flex;align-items:center;gap:10px">
+        <span class="badge cl-y" style="font-size:12px;padding:5px 12px;min-width:140px;text-align:center">Natural language</span>
+        <span style="font-size:13px">→ <b>语义不确定性</b> semantic uncertainty</span>
+      </div>
+      <div class="rise" style="--i:3;display:flex;align-items:center;gap:10px">
+        <span class="badge cl-o" style="font-size:12px;padding:5px 12px;min-width:140px;text-align:center">Retrieval / context</span>
+        <span style="font-size:13px">→ <b>检索漂移</b> retrieval drift（索引更新、分块、上下文截断）</span>
+      </div>
+      <div class="rise" style="--i:4;display:flex;align-items:center;gap:10px">
+        <span class="badge cl-b" style="font-size:12px;padding:5px 12px;min-width:140px;text-align:center">Model generation</span>
+        <span style="font-size:13px">→ <b>概率变异性</b> probabilistic variability（1. 采样 2. 软硬件非确定性）</span>
+      </div>
+      <div class="rise" style="--i:5;display:flex;align-items:center;gap:10px">
+        <span class="badge cl-p" style="font-size:12px;padding:5px 12px;min-width:140px;text-align:center">Agent/tool loop</span>
+        <span style="font-size:13px">→ <b>轨迹/环境非确定性</b>（工具失败、环境变化）</span>
+      </div>
+      <div class="rise" style="--i:6;display:flex;align-items:center;gap:10px">
+        <span class="badge cl-g" style="font-size:12px;padding:5px 12px;min-width:140px;text-align:center">Generated program</span>
+        <span style="font-size:13px">→ 生成后通常确定性（除非运行时调用模型或工具）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 58: Best Practices for Programming 3.0 -->
+  <section class="slide" data-section="Uncertainty in Programming 3.0" data-title="Programming 3.0 最佳实践">
+    <div class="kicker cl-r rise" style="--i:0">✅ 最佳实践</div>
+    <h2 class="rise" style="--i:1">Best Practices for Programming / Software 3.0</h2>
+    <div class="grid g3" style="margin-top:10px">
+      <div class="card rise" style="--i:2;border-top:4px solid #1abc9c">
+        <h3 style="color:#1abc9c;font-size:16px">1 · DEFINE</h3>
+        <ul class="nb-list" style="font-size:12px">
+          <li><b>提前声明假设</b>：让模型在执行前确认任何模糊之处</li>
+          <li><b>指定结果，而非 prompt</b>：给出需求、不变量、约束和验收测试</li>
+        </ul>
+      </div>
+      <div class="card rise" style="--i:3;border-top:4px solid #f39c12">
+        <h3 style="color:#f39c12;font-size:16px">2 · CONTROL</h3>
+        <ul class="nb-list" style="font-size:12px">
+          <li><b>分离提案与执行</b>：Agent 提出计划，验证后再提交</li>
+          <li><b>显式管理上下文</b>：拥有记忆、来源和检索；过期陈旧信息</li>
+        </ul>
+      </div>
+      <div class="card rise" style="--i:4;border-top:4px solid #2980b9">
+        <h3 style="color:#2980b9;font-size:16px">3 · VERIFY & GOVERN</h3>
+        <ul class="nb-list" style="font-size:12px">
+          <li><b>收紧生成-验证循环</b>：廉价频繁检查优于最后一次性昂贵审查</li>
+          <li><b>深一层度量</b>：创建测试、衡量多指标、合成工作负载</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 59: Do not expect deterministic -->
+  <section class="slide" data-section="Uncertainty in Programming 3.0" data-title="不要期望 Agent 是确定性的">
+    <div class="kicker cl-r rise" style="--i:0">💡 核心原则</div>
+    <h2 class="rise" style="--i:1;font-size:32px;text-align:center;margin-top:40px">Do not expect the agent to be deterministic;<br>make the surrounding system dependable.</h2>
+    <div class="banner ban-r rise" style="--i:2;margin-top:30px">将自主性与风险匹配：自主性越高，不确定性和风险越大</div>
+  </section>
+
+  <!-- Slide 60: Evidence From the Field section divider -->
+  <section class="slide" data-section="Evidence From the Field" data-title="来自实践的证据">
+    <div class="kicker cl-g rise" style="--i:0">📊 实证数据</div>
+    <h2 class="rise" style="--i:1">Evidence From the Field</h2>
+    <div style="margin-top:20px;text-align:center">
+      <p class="rise" style="--i:2;font-size:18px;color:#555">Evidence from Codex (June 2026)</p>
+      <p class="rise" style="--i:3;font-size:18px;color:#555">OpenAI employee usage (September 2026)</p>
+    </div>
+  </section>
+
+  <!-- Slide 61: From Conversation to Delegation -->
+  <section class="slide" data-section="Evidence From the Field" data-title="从对话到委托">
+    <div class="kicker cl-g rise" style="--i:0">📈 Codex 数据</div>
+    <h2 class="rise" style="--i:1">From Conversation to Delegation</h2>
+    <div class="grid g2" style="margin-top:10px">
+      <div class="card rise" style="--i:2;border-top:4px solid #3498db">
+        <h3 style="color:#3498db;font-size:15px">Conversational AI</h3>
+        <div style="font-size:13px;line-height:1.8">
+          <div>Human asks a question</div>
+          <div>↓</div>
+          <div>Model answers · Human stays in the loop</div>
+          <div>↓</div>
+          <div><b>Human executes the work</b></div>
+        </div>
+        <p style="font-size:12px;color:#3498db;margin-top:6px">人类是执行者。</p>
+      </div>
+      <div class="card rise" style="--i:3;border-top:4px solid #c0392b">
+        <h3 style="color:#c0392b;font-size:15px">Agentic AI (Codex)</h3>
+        <div style="font-size:13px;line-height:1.8">
+          <div>Human delegates a task</div>
+          <div>↓</div>
+          <div>Agent plans, calls tools, edits files, runs commands</div>
+          <div>↓</div>
+          <div><b>Artifact or action delivered</b></div>
+        </div>
+        <p style="font-size:12px;color:#c0392b;margin-top:6px">人类审查并整合。</p>
+      </div>
+    </div>
+    <div class="grid g3" style="margin-top:10px">
+      <div class="card rise" style="--i:4;text-align:center"><div style="font-size:11px;color:#888">过去28天使用 Codex</div><div style="font-size:22px;font-weight:bold;color:#3498db">Individual &lt; 1%</div></div>
+      <div class="card rise" style="--i:5;text-align:center"><div style="font-size:11px;color:#888">过去28天使用 Codex</div><div style="font-size:22px;font-weight:bold;color:#1abc9c">Organizational 17.3%</div></div>
+      <div class="card rise" style="--i:6;text-align:center"><div style="font-size:11px;color:#888">过去28天使用 Codex</div><div style="font-size:22px;font-weight:bold;color:#c0392b">OpenAI workers nearly all</div></div>
+    </div>
+    <div class="banner ban-r rise" style="--i:7;margin-top:10px">2026 上半年活跃用户增长超过 5 倍。</div>
+  </section>
+
+  <!-- Slide 62: Delegated Tasks Getting Bigger -->
+  <section class="slide" data-section="Evidence From the Field" data-title="委托任务越来越大">
+    <div class="kicker cl-g rise" style="--i:0">📊 任务规模增长</div>
+    <h2 class="rise" style="--i:1">Delegated Tasks Are Getting Much Bigger</h2>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card rise" style="--i:2;text-align:center">
+        <h3 style="font-size:14px;color:#888">Task ≥ 1 human-hour</h3>
+        <div style="display:flex;align-items:flex-end;justify-content:center;gap:20px;height:120px;margin-top:10px">
+          <div style="text-align:center"><div style="width:50px;height:42px;background:#a0c4e8;border-radius:4px 4px 0 0"></div><div style="font-size:18px;font-weight:bold;margin-top:4px">35.4%</div><div style="font-size:11px;color:#888">Dec 2025</div></div>
+          <div style="text-align:center"><div style="width:50px;height:84px;background:#c0392b;border-radius:4px 4px 0 0"></div><div style="font-size:18px;font-weight:bold;margin-top:4px">70.2%</div><div style="font-size:11px;color:#888">May 2026</div></div>
+        </div>
+      </div>
+      <div class="card rise" style="--i:3;text-align:center">
+        <h3 style="font-size:14px;color:#888">Task ≥ 8 human-hours</h3>
+        <div style="display:flex;align-items:flex-end;justify-content:center;gap:20px;height:120px;margin-top:10px">
+          <div style="text-align:center"><div style="width:50px;height:5px;background:#a0c4e8;border-radius:4px 4px 0 0"></div><div style="font-size:18px;font-weight:bold;margin-top:4px">2.1%</div><div style="font-size:11px;color:#888">Dec 2025</div></div>
+          <div style="text-align:center"><div style="width:50px;height:30px;background:#c0392b;border-radius:4px 4px 0 0"></div><div style="font-size:18px;font-weight:bold;margin-top:4px">25.6%</div><div style="font-size:11px;color:#888">May 2026</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="banner ban-r rise" style="--i:4;margin-top:12px">处理全天任务的用户增长了 12 倍。</div>
+  </section>
+
+  <!-- ===== 63: One Human Many Agents ===== -->
+<section class="slide" data-section="证据" data-title="One Human, Many Agents">
+  <div class="kicker rise" style="--i:1">Evidence From the Field</div>
+  <h2 class="rise" style="--i:2">One Human, Many Agents</h2>
+  <div class="grid g3" style="margin-top:22px">
+    <div class="card pop" style="--i:3">
+      <div class="badge cl-y">28.6%</div>
+      <p>的研究日运行了 <b>5 个以上</b> Agent 并行工作</p>
+    </div>
+    <div class="card pop" style="--i:4">
+      <div class="badge cl-b">~2.5 h</div>
+      <p>中位 Agent 工作时间 / 人 / 天</p>
+    </div>
+    <div class="card pop" style="--i:5">
+      <div class="badge cl-p">~71 h</div>
+      <p>第 99 百分位 Agent 工作时间 — 一个人撬动数天算力</p>
+    </div>
+  </div>
+  <div class="banner ban-d rise" style="--i:6;margin-top:22px">
+    不再是 1 人 1 工具，而是 1 人 1 团队
+  </div>
+</section>
+
+<!-- ===== 64: Agentic Workdays ===== -->
+<section class="slide" data-section="证据" data-title="Agentic Workdays">
+  <div class="kicker rise" style="--i:1">Evidence From the Field</div>
+  <h2 class="rise" style="--i:2">Agentic Workdays Exceed Researchers</h2>
+  <div class="card rise" style="--i:3;margin-top:22px">
+    <p style="font-size:1.15rem">2026 年 5–8 月，Agent 工作日 / 人类工作日 = <b style="color:var(--y)">3.14×</b></p>
+    <p style="margin-top:10px">Agent 干得比人还多 — 不是辅助，是主力产出</p>
+  </div>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="banner ban-g pop" style="--i:4">Agent 工作日 ↑↑↑</div>
+    <div class="banner ban-r pop" style="--i:5">人类工作日 →</div>
+  </div>
+</section>
+
+<!-- ===== 65: Engineers 8x Faster ===== -->
+<section class="slide" data-section="证据" data-title="Engineers 8× Faster">
+  <div class="kicker rise" style="--i:1">Evidence From the Field</div>
+  <h2 class="rise" style="--i:2">Engineers Shipping 8× Faster</h2>
+  <div class="card rise" style="--i:3;margin-top:22px">
+    <p>2022 → 2026 每位工程师平均变更代码行数</p>
+    <div style="display:flex;align-items:flex-end;gap:18px;margin-top:16px;height:160px">
+      <div style="text-align:center;flex:1"><div style="background:var(--d);height:20px;border-radius:8px 8px 0 0"></div><small>2022</small></div>
+      <div style="text-align:center;flex:1"><div style="background:var(--d);height:35px;border-radius:8px 8px 0 0"></div><small>2023</small></div>
+      <div style="text-align:center;flex:1"><div style="background:var(--d);height:55px;border-radius:8px 8px 0 0"></div><small>2024</small></div>
+      <div style="text-align:center;flex:1"><div style="background:var(--y);height:100px;border-radius:8px 8px 0 0"></div><small>2025</small></div>
+      <div style="text-align:center;flex:1"><div style="background:var(--y);height:160px;border-radius:8px 8px 0 0;border:3px solid var(--d)"></div><small><b>2026</b></small></div>
+    </div>
+  </div>
+  <div class="banner ban-y shake" style="--i:4;margin-top:16px">8× — 同样的人，8 倍产出</div>
+</section>
+
+<!-- ===== 66: Agents Complex Tasks ===== -->
+<section class="slide" data-section="证据" data-title="Agents Solve Complex Tasks">
+  <div class="kicker rise" style="--i:1">Evidence From the Field</div>
+  <h2 class="rise" style="--i:2">Agents Tackle Harder Tasks</h2>
+  <div class="card rise" style="--i:3;margin-top:22px">
+    <p>任务时长分布 — Agent 正在啃长任务</p>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <span class="badge cl-g">&lt;15 min ✓</span>
+      <span class="badge cl-y">1–4 h ✓</span>
+      <span class="badge cl-o">8–16 h △</span>
+      <span class="badge cl-r">64–128 h ✗ 仍有失败</span>
+    </div>
+    <p style="margin-top:14px;font-size:.95rem">成功 / 失败 / 工具错误三段堆叠 — 越长失败率越高，但 Agent 在持续突破边界</p>
+  </div>
+</section>
+
+<!-- ===== 67: Coding Agents OpenAI ===== -->
+<section class="slide" data-section="证据" data-title="Coding Agents @ OpenAI">
+  <div class="kicker rise" style="--i:1">Evidence From the Field</div>
+  <h2 class="rise" style="--i:2">Coding Agents Reshaping OpenAI</h2>
+  <div class="grid g2" style="margin-top:22px">
+    <div class="card pop" style="--i:3">
+      <div class="badge cl-y">中位</div>
+      <p style="font-size:1.6rem;font-weight:800">$600 / 天</p>
+      <p>每位研究员的 Agent 花费</p>
+    </div>
+    <div class="card pop" style="--i:4">
+      <div class="badge cl-r">P90</div>
+      <p style="font-size:1.6rem;font-weight:800">$7,000 / 天</p>
+      <p>重度用户 — 把思考外包给 Agent</p>
+    </div>
+  </div>
+  <div class="banner ban-b rise" style="--i:5;margin-top:18px">
+    不是实验，是日常 — OpenAI 研究员自己就在这么用
+  </div>
+</section>
+
+<!-- ===== 68: Delegation Ladder ===== -->
+<section class="slide" data-section="概念" data-title="Delegation Ladder">
+  <div class="kicker rise" style="--i:1">Concept</div>
+  <h2 class="rise" style="--i:2">Delegation Ladder</h2>
+  <div style="margin-top:22px;display:flex;flex-direction:column;gap:10px">
+    <div class="banner ban-d pop" style="--i:3">L5 · Systematized — Agent 自己优化流程</div>
+    <div class="banner ban-r pop" style="--i:4">L4 · Multi-agent — 多 Agent 协作</div>
+    <div class="banner ban-o pop" style="--i:5">L3 · Agent — 自主执行 + 工具调用</div>
+    <div class="banner ban-y pop" style="--i:6">L2 · Assistant — 人驱动，Agent 建议</div>
+    <div class="banner ban-g pop" style="--i:7">L1 · Chatbot — 问答</div>
+  </div>
+  <p class="rise" style="--i:8;margin-top:16px;text-align:center;font-weight:700">你现在在哪一级？目标是哪级？</p>
+</section>
+
+<!-- ===== 69: Next Class ===== -->
+<section class="slide" data-section="预告" data-title="Next Class">
+  <div class="kicker rise" style="--i:1">Coming Next</div>
+  <h2 class="rise" style="--i:2">Next Class</h2>
+  <div class="card rise" style="--i:3;margin-top:22px">
+    <ul class="nb-list">
+      <li>从 "用 Agent" 到 "建 Agent 系统"</li>
+      <li>Orchestration · Memory · Evaluation</li>
+      <li>Hands-on: 搭建你自己的 Multi-agent Workflow</li>
+    </ul>
+  </div>
+  <div class="banner ban-y shake" style="--i:4;margin-top:20px">
+    下节课见 🚀
+  </div>
+</section>
+
+<!-- ===== 70: Optional divider ===== -->
+<section class="slide" data-section="附录" data-title="Optional Slides">
+  <h2 class="rise" style="--i:1">Optional Slides</h2>
+  <p class="rise" style="--i:2;margin-top:14px">补充材料 — 感兴趣可看</p>
+</section>
+
+<!-- ===== 71: Beyond Claude Code ===== -->
+<section class="slide" data-section="附录" data-title="Beyond Claude Code">
+  <div class="kicker rise" style="--i:1">Landscape</div>
+  <h2 class="rise" style="--i:2">Beyond Claude Code</h2>
+  <div class="grid g2" style="margin-top:22px">
+    <div class="card pop" style="--i:3">
+      <div class="badge cl-y">Model Labs</div>
+      <p>Claude Code · Codex · Gemini CLI</p>
+    </div>
+    <div class="card pop" style="--i:4">
+      <div class="badge cl-b">Platform CLIs</div>
+      <p>Cursor · Windsurf · Copilot</p>
+    </div>
+    <div class="card pop" style="--i:5">
+      <div class="badge cl-p">Open Source</div>
+      <p>Aider · OpenHands · Codex CLI</p>
+    </div>
+    <div class="card pop" style="--i:6">
+      <div class="badge cl-g">Minimal Cores</div>
+      <p>rip · gg · claude-code alternative</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 72: How They Differ 5 Axes ===== -->
+<section class="slide" data-section="附录" data-title="How They Differ">
+  <div class="kicker rise" style="--i:1">Landscape</div>
+  <h2 class="rise" style="--i:2">How They Differ — 5 Axes</h2>
+  <div style="margin-top:22px;display:flex;flex-direction:column;gap:10px">
+    <div class="grid g2 rise" style="--i:3;gap:10px">
+      <div class="banner ban-y">Open vs Closed</div>
+      <div class="banner ban-b">Locked vs BYOK</div>
+    </div>
+    <div class="grid g2 rise" style="--i:4;gap:10px">
+      <div class="banner ban-p">Sandbox vs Prompt</div>
+      <div class="banner ban-g">Local vs Cloud</div>
+    </div>
+    <div class="banner ban-o rise" style="--i:5">Maximal vs Minimal</div>
+  </div>
+  <p class="rise" style="--i:6;margin-top:16px;text-align:center">选工具先看场景，再看偏好</p>
+</section>
+
+</div><!-- /stage -->
+</div><!-- /viewport -->
+
+<!-- HUD -->
+<div id="bar-bg"><div id="bar"></div></div>
+<div id="counter">1 / 19</div>
+<div id="hint">← → 翻页 · 空格下一页 · F 全屏 · O 目录 · 点击右/左半屏翻页</div>
+<div id="ctrls">
+  <button id="btn-prev" title="上一页 (←)">◀</button>
+  <button id="btn-ovl" title="目录 (O)">☰</button>
+  <button id="btn-fs" title="全屏 (F)">⛶</button>
+  <button id="btn-next" title="下一页 (→)">▶</button>
+</div>
+
+<!-- overview -->
+<div id="ovl">
+  <button class="close" id="ovl-close">✕ 关闭 (O)</button>
+  <h2>幻灯片目录 · 点击跳转</h2>
+  <div id="ovl-body"></div>
+</div>
+
+<script>
+(function(){
+  var hint=document.getElementById('hint');
+  var hintTimer;
+  function showHint(){
+    hint.style.opacity='1';
+    clearTimeout(hintTimer);
+    hintTimer=setTimeout(function(){hint.style.opacity='0';},2500);
+  }
+  document.addEventListener('mousemove',showHint);
+  showHint();
+
+  var stage=document.getElementById('stage');
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var cur=0,dir=1;
+
+  function fit(){
+    var s=Math.min(window.innerWidth/1280,window.innerHeight/720);
+    stage.style.transform='translate(-50%,-50%) scale('+s+')';
+  }
+  window.addEventListener('resize',fit); fit();
+
+  function show(n,fromDir){
+    n=Math.max(0,Math.min(slides.length-1,n));
+    dir=(n>=cur)?1:-1; if(fromDir!==undefined)dir=fromDir;
+    slides.forEach(function(s,i){
+      s.classList.remove('from-left');
+      if(i===n){ if(dir<0) s.classList.add('from-left'); s.classList.add('active'); }
+      else s.classList.remove('active');
+    });
+    cur=n;
+    document.getElementById('counter').textContent=(cur+1)+' / '+slides.length;
+    document.getElementById('bar').style.width=((cur+1)/slides.length*100)+'%';
+  }
+  function next(){show(cur+1,1);} function prev(){show(cur-1,-1);}
+
+  window.addEventListener('keydown',function(e){
+    if(document.getElementById('ovl').classList.contains('on')){
+      if(e.key==='o'||e.key==='O'||e.key==='Escape'){toggleOvl();} return;
+    }
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown': e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': e.preventDefault(); prev(); break;
+      case 'Home': e.preventDefault(); show(0,-1); break;
+      case 'End': e.preventDefault(); show(slides.length-1,1); break;
+      case 'f': case 'F': toggleFs(); break;
+      case 'o': case 'O': toggleOvl(); break;
+    }
+  });
+
+  document.getElementById('viewport').addEventListener('click',function(e){
+    if(e.target.closest('button,a,.no-nav')) return;
+    var sel=window.getSelection(); if(sel&&String(sel).length>0) return;
+    var x=e.clientX/window.innerWidth;
+    if(x<0.38) prev(); else next();
+  });
+
+  function toggleFs(){
+    if(!document.fullscreenElement){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}
+    else{document.exitFullscreen&&document.exitFullscreen();}
+  }
+  document.getElementById('btn-fs').addEventListener('click',function(e){e.stopPropagation();toggleFs();});
+  document.getElementById('btn-next').addEventListener('click',function(e){e.stopPropagation();next();});
+  document.getElementById('btn-prev').addEventListener('click',function(e){e.stopPropagation();prev();});
+  document.getElementById('btn-ovl').addEventListener('click',function(e){e.stopPropagation();toggleOvl();});
+
+  var ovl=document.getElementById('ovl'),ovlBody=document.getElementById('ovl-body');
+  (function buildOvl(){
+    var lastSec=null,grid=null;
+    slides.forEach(function(s,i){
+      var sec=s.getAttribute('data-section')||'',title=s.getAttribute('data-title')||('第 '+(i+1)+' 页');
+      if(sec!==lastSec){var h=document.createElement('div');h.className='ov-sec';h.textContent=sec;ovlBody.appendChild(h);grid=document.createElement('div');grid.className='ov-grid';ovlBody.appendChild(grid);lastSec=sec;}
+      var it=document.createElement('div');it.className='ov-item';
+      it.innerHTML='<b>'+String(i+1).padStart(2,'0')+'</b><span></span>';
+      it.querySelector('span').textContent=title;
+      it.addEventListener('click',function(){show(i);toggleOvl();});
+      grid.appendChild(it);
+    });
+  })();
+  function toggleOvl(){ovl.classList.toggle('on');}
+  document.getElementById('ovl-close').addEventListener('click',function(){toggleOvl();});
+
+  var tx=null;
+  window.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;},{passive:true});
+  window.addEventListener('touchend',function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?next():prev();}tx=null;},{passive:true});
+})();
+</script>
+</body>
+</html>
